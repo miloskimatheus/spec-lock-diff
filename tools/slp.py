@@ -45,7 +45,11 @@ RULE_IDS = ("S1", "S2", "S3", "S4", "P1", "P2", "T1",
             "C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "I2")
 # Rules that only ever inform. The README asks for what they say to be visible,
 # not for it to stop the pull request, so they never raise the exit code.
-INFO_RULES = ("I1", "I2", "I3")
+# C5's id does not start with I because it was written as a block. It informs
+# because a refactoring's intervals are pinned to zero by the schema, so C1 to
+# C4 already refuse every number it could catch; if that stops being true, this
+# tuple is where C5 goes back to blocking.
+INFO_RULES = ("I1", "I2", "I3", "C5")
 
 
 class SlpError(Exception):
@@ -890,7 +894,7 @@ def compare_metrics(ctx):
     return out
 
 def compare_refactoring(ctx):
-    """README §3 Stage E step 3 — "The type is refactoring but some delta is not zero"."""
+    """README §3 Stage E step 3 — "The type is refactoring but some delta is not zero": the schema pins every interval of a refactoring to zero, so C1 to C4 are what block; this says in one line what the four of them mean together."""
     if not ctx.ok or ctx.model.prereg.get("type") != "refactoring":
         return []
     moved = ["row_delta %s" % ctx.data["row_delta"] if ctx.data["row_delta"] else "",
@@ -902,8 +906,8 @@ def compare_refactoring(ctx):
     moved = [m for m in moved if m]
     if not moved:
         return []
-    return [block(ctx.file, ctx.name, "pre-registered as a refactoring, which may not change "
-                  "any number, and the diff moved: %s" % "; ".join(moved), "C5")]
+    return [info(ctx.file, ctx.name, "pre-registered as a refactoring, which may not change "
+                 "any number, and the diff moved: %s" % "; ".join(moved), "C5")]
 
 def _drift(numbers):
     """How far the model is from the source of truth, in percent; None when there is no percentage."""

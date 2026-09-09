@@ -6,7 +6,7 @@ folder name and its README.txt say what must happen.
 
 import pytest
 
-from conftest import FIXTURES, assert_expected, cases, run_slp
+from conftest import FIXTURES, assert_expected, cases, findings, run_slp
 
 
 @pytest.mark.parametrize("case", cases("compare"), ids=lambda p: p.name)
@@ -37,3 +37,17 @@ def test_reading_the_files_in_another_order_says_the_same_thing():
     first = run_slp(["compare", "a_orders.json", "b_customers.json"], case)
     second = run_slp(["compare", "b_customers.json", "a_orders.json"], case)
     assert first == second
+
+
+def test_a_refactoring_that_moved_blocks_without_C5_having_to():
+    """C5 informs, so the block has to come from the interval rules themselves.
+
+    A refactoring pins every interval to zero in the schema, which is why C5 can
+    never be the only thing that noticed. This is that argument as a test: if a
+    schema change ever made C5 the last line of defence, this fails.
+    """
+    case = FIXTURES / "compare" / "C5_refactoring_nonzero"
+    code, out, _ = run_slp(["compare", "diff.json"], case)
+    blocked = [f[4] for f in findings(out) if f[0] == "BLOCK"]
+    assert code == 1 and blocked and "C5" not in blocked, out
+    assert "C5" in [f[4] for f in findings(out) if f[0] == "INFO"], out

@@ -596,9 +596,14 @@ uma ordem de leitura para elas. A da `I2` é a ordem em que a Etapa E pede que
 os números sejam lidos. Os mesmos arquivos na entrada dão as mesmas linhas na
 saída, na mesma ordem, em qualquer máquina.
 
-Três regras só informam e nunca mudam o exit code: a `I1`, o contador de
-alterações do pré-registro; a `I2`, os números em si; e a `I3`, um filtro num
-teste que esta branch adiciona. O meta-teste **M2** confere essa promessa contra
+Quatro regras só informam e nunca mudam o exit code: a `I1`, o contador de
+alterações do pré-registro; a `I2`, os números em si; a `I3`, um filtro num
+teste que esta branch adiciona; e a `C5`, que diz numa linha o que uma
+refatoração prometeu e o que se moveu. As três primeiras nasceram para informar,
+por isso os ids começam com `I`. A `C5` nasceu para bloquear e deixou de
+bloquear: os intervalos de uma refatoração são fixados em zero pelo schema,
+então a `C1` até a `C4` já recusam qualquer número que ela pudesse pegar, e
+bloquear duas vezes por um problema faz o revisor contar dois. O meta-teste **M2** confere essa promessa contra
 o código-fonte, para que uma regra não ganhe um `BLOCK` em silêncio. O que elas
 dizem existe para ser *lido*, e é por isso que o `templates/ci.yml` joga os dois
 comandos no resumo do job.
@@ -646,10 +651,10 @@ ferramenta não adivinha qual você quis dizer.
 Uma linha por regra: a frase do README que ela impõe, a fixture em que a regra
 dispara e a fixture em que ela fica calada. O meta-teste **M2** falha se uma
 regra não tem linha aqui, ou se uma linha aponta para uma fixture que não existe
-ou que não faz o que a linha diz. Toda regra bloqueia, menos as três em
+ou que não faz o que a linha diz. Toda regra bloqueia, menos as quatro em
 `INFO_RULES` — a `I1`, contador de alterações do pré-registro; a `I2`, os
-números em si; e a `I3`, um filtro num teste que esta branch adiciona —, que só
-informam. O README pede que o que elas dizem esteja *visível*, não que pare o
+números em si; a `I3`, um filtro num teste que esta branch adiciona; e a `C5`, a
+promessa da refatoração numa linha —, que só informam. O README pede que o que elas dizem esteja *visível*, não que pare o
 PR, e o **M2** confere isso contra o código-fonte, para que nenhuma das três
 ganhe um `BLOCK` em silêncio.
 
@@ -677,7 +682,7 @@ ganhe um `BLOCK` em silêncio.
 | §3 Etapa E passo 3 — linhas que existem em produção e não na versão nova | `C2` | `compare/C2_removed_pks_over` | `compare/C1_inside` |
 | §3 Etapa E passo 3 — "uma coluna apresenta diferença mas não está em altered_columns" | `C3` | `compare/C3_undeclared_column` | `compare/C1_inside` |
 | §3 Etapa E passo 3 — cada métrica contra o intervalo declarado para ela | `C4` | `compare/C4_metric_outside` | `compare/C1_inside` |
-| §3 Etapa E passo 3 — "o tipo é refactoring mas algum delta não é zero" | `C5` | `compare/C5_refactoring_nonzero` | `compare/C1_inside` |
+| §3 Etapa E passo 3 — "o tipo é refactoring mas algum delta não é zero", numa linha | `C5` | `compare/C5_refactoring_nonzero` | `compare/C1_inside` |
 | §3 Etapa E passo 4 — "se a diferença for maior que a tolerância, o PR é bloqueado" | `C6` | `compare/C6_over` | `compare/C6_ok_within` |
 | §3 Etapa E passo 3 — todo modelo pré-registrado é comparado, não só aqueles cujos números apareceram | `C7` | `compare/C7_prereg_without_diff` | `compare/C1_inside` |
 | §3 Etapa E passo 5 — "O pré-registro é estreito o suficiente para poder falhar? A razão justifica o intervalo?" | `I2` | `compare/C1_inside` | `compare/C0_no_prereg` |

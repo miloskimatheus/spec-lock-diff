@@ -591,9 +591,14 @@ because a rule with several things to say usually has a reading order for them.
 `I2`'s is the order Stage E asks you to read the numbers in. The same files in
 give the same lines out, in the same order, on every machine.
 
-Three rules only ever inform and never change the exit code: `I1`, the
-pre-registration change counter; `I2`, the numbers themselves; and `I3`, a
-filter on a test this branch adds. Meta-test **M2** checks that promise against
+Four rules only ever inform and never change the exit code: `I1`, the
+pre-registration change counter; `I2`, the numbers themselves; `I3`, a filter on
+a test this branch adds; and `C5`, which names in one line what a refactoring
+promised and what moved. The first three were written to inform, which is why
+their ids start with `I`. `C5` was written to block and stopped: a refactoring's
+intervals are pinned to zero by the schema, so `C1` to `C4` already refuse every
+number it could catch, and blocking twice for one problem makes a reviewer count
+two. Meta-test **M2** checks that promise against
 the source, so a rule cannot quietly grow a `BLOCK`. What they say is meant to
 be *read*, which is why `templates/ci.yml` pipes both commands into the job
 summary.
@@ -640,9 +645,10 @@ you meant.
 One row per rule: the README sentence it enforces, the fixture where the rule
 fires, and the fixture where it stays silent. Meta-test **M2** fails if a rule
 has no row here, or a row names a fixture that does not exist or does not do
-what it says. Every rule blocks except the three in `INFO_RULES` — `I1`, the
-pre-registration change counter; `I2`, the numbers themselves; and `I3`, a
-filter on a test this branch adds — which only ever inform. The README asks for
+what it says. Every rule blocks except the four in `INFO_RULES` — `I1`, the pre-registration
+change counter; `I2`, the numbers themselves; `I3`, a filter on a test this
+branch adds; and `C5`, the refactoring promise in one line — which only ever
+inform. The README asks for
 what they say to be *visible*, not for it to stop the PR, and **M2** checks that
 against the source so none of them can quietly grow a `BLOCK`.
 
@@ -670,7 +676,7 @@ against the source so none of them can quietly grow a `BLOCK`.
 | §3 Stage E step 3 — rows that exist in production and not in the new version | `C2` | `compare/C2_removed_pks_over` | `compare/C1_inside` |
 | §3 Stage E step 3 — "a column shows a difference but is not in altered_columns" | `C3` | `compare/C3_undeclared_column` | `compare/C1_inside` |
 | §3 Stage E step 3 — each metric against its declared interval | `C4` | `compare/C4_metric_outside` | `compare/C1_inside` |
-| §3 Stage E step 3 — "the type is refactoring but some delta is not zero" | `C5` | `compare/C5_refactoring_nonzero` | `compare/C1_inside` |
+| §3 Stage E step 3 — "the type is refactoring but some delta is not zero", in one line | `C5` | `compare/C5_refactoring_nonzero` | `compare/C1_inside` |
 | §3 Stage E step 4 — "if the difference is greater than the tolerance, the PR is blocked" | `C6` | `compare/C6_over` | `compare/C6_ok_within` |
 | §3 Stage E step 3 — every pre-registered model is compared, not only the ones whose numbers turned up | `C7` | `compare/C7_prereg_without_diff` | `compare/C1_inside` |
 | §3 Stage E step 5 — "Is the pre-registration narrow enough to be able to fail? Does the reason justify the interval?" | `I2` | `compare/C1_inside` | `compare/C0_no_prereg` |

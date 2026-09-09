@@ -30,6 +30,15 @@ fixture that fails against 0.2.0.
   `G3`, with `where` held apart in `DEAD_KEYS` because it is the one key that
   might be scoping rather than evasion.
 
+- **`C5` informs instead of blocking.** A `refactoring` has every interval
+  pinned to zero by the pre-registration schema, so `C1` to `C4` already refuse
+  every number `C5` could catch — it could never be the only rule that noticed,
+  and a reviewer read `2 blocks` for one problem. It stays, because naming the
+  promise in one line is worth reading; it is the fourth entry in `INFO_RULES`
+  and the only one whose id does not start with `I`, since it was written to
+  block. A test holds the argument: if a schema change ever makes `C5` the last
+  line of defence, that test fails.
+
 - **An unparseable yml says whether jinja is why.** dbt renders yml through
   jinja before reading it and these tools use a plain YAML parser, so a
   `{% for %}` that generates model entries takes the whole run down with
