@@ -568,12 +568,18 @@ def gate_recon_with_model(ctx):
                              "a human changes the reconciliation, in its own PR" % query, "G5"))
     return out
 
+def gate_packages(ctx):
+    """README §2 Control 5B — "Package pin changed": changing dependency versions can introduce different behaviors."""
+    return [block(path, "", "%s changed on this branch; the versions the project builds with "
+                  "are a human decision" % path, "G6")
+            for path in _changed(ctx, "packages")]
+
 # --- Rule registries. A rule is one function: context in, findings out. ---
 
 CHECK_RULES = [check_spec_present, check_spec_schema, check_spec_consistency,
                check_prereg_schema, check_prereg_consistency, check_pk_test]
 GATE_RULES = [gate_test_removed, gate_test_filter, gate_test_severity,
-              gate_unit_test_changed, gate_recon_with_model]
+              gate_unit_test_changed, gate_recon_with_model, gate_packages]
 COMPARE_RULES = []
 
 def apply_rules(rules, context):
