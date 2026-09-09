@@ -80,7 +80,7 @@ def test_the_inventory_is_the_same_for_the_same_commit(tmp_path):
 def test_the_inventory_holds_what_the_rules_compare(tmp_path):
     repo = build(QUIET, tmp_path)
     inv = slp.inventory(repo, "HEAD")
-    assert inv["tests"] == {("fct_orders", "order_id", "unique", "{}"): {}}
+    assert inv["tests"] == {("fct_orders", "order_id", "unique", "{}"): [{}]}
     assert inv["where"] == {"fct_orders": "models/marts/fct_orders.yml"}
     assert list(inv["models"]) == ["fct_orders"]
     assert inv["units"] == {} and inv["files"] == {} and inv["packages"] == {}

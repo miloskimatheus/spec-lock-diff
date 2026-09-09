@@ -199,8 +199,14 @@ arquivo ou renomear `tests:` para `data_tests:` não muda nada, enquanto encolhe
 os valores de um `accepted_values` muda tudo. Uma coluna que carrega dois testes
 de mesmo nome — dois `relationships`, vários `accepted_values` — tem cada um
 comparado em separado, config e tudo, e o finding diz de qual deles está
-falando. Para as duas regras que precisam de histórico, ele caminha pelos
-commits com `--first-parent`, do mais antigo para o mais novo.
+falando. Quando dois deles carregam também os *mesmos argumentos*, e diferem só
+na config — dois `dbt_utils.expression_is_true` na mesma expressão, com um
+`where` cada —, o par é guardado como um saco sob uma chave só e comparado como
+um: quantos eram, quantos são, e quais configs estão no segundo saco e não no
+primeiro. Numerá-los seria errado justamente no caso que importa, porque tirar o
+primeiro de dois passa o número dele para o segundo, e isso se lê como edição de
+config em vez de teste removido. Para as duas regras que precisam de histórico,
+ele caminha pelos commits com `--first-parent`, do mais antigo para o mais novo.
 
 **Quando roda.** Etapa C, antes de o agente commitar (`--base main`). Etapa D,
 no CI, a cada push, com o base e o head do PR.

@@ -25,6 +25,7 @@ fixture that fails against 0.2.0.
 
 | Rule | What was wrong |
 | --- | --- |
+| `G1`, `G2`, `G3` | 0.2.0 gave every declaration of a same-named test its own config, keyed by its arguments. Two declarations whose **arguments** are identical too — two `dbt_utils.expression_is_true` on one expression, with a `where` each, which is how a team scopes one assertion to two statuses — still collapsed, and the second still overwrote the first. Remove one of the pair and `gate` printed `OK (1 commit)`; remove the other and it printed a `G2` naming a `where` that had been there all along. Declarations are held as a bag under their key now and compared as one |
 | `S1`, `T1`, `G7` | a model was held to be in marts when the **yml that declares it** was, not when the **sql that makes it** was. A project with one `models/schema.yml` — which is what `dbt init` scaffolds — had every marts model exempted: no spec demanded, no uniqueness test demanded, and a `meta.spec` the agent rewrote on the branch produced `slp gate: OK`. `S4` did not rescue it either, because the model *was* declared, just elsewhere |
 
 ## 0.2.0 — the silent passes

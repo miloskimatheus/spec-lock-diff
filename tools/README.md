@@ -197,8 +197,14 @@ renaming `tests:` to `data_tests:` changes nothing, while shrinking the values
 of an `accepted_values` changes everything. A column that carries two tests of
 the same name — two `relationships`, several `accepted_values` — has each of
 them compared separately, config and all, and the finding names which one it
-means. For the two rules that need history, it walks the commits with
-`--first-parent`, oldest first.
+means. When two of them carry the *same arguments* as well, and differ only in
+their config — two `dbt_utils.expression_is_true` on the same expression with a
+`where` each — the pair is held as a bag under one key and compared as one: how
+many there were, how many there are, and which configs are in the second bag
+and not the first. Numbering them instead would be wrong in the case that
+matters, because removing the first of two hands its number to the second,
+which reads as a config edit rather than as a removed test. For the two rules
+that need history, it walks the commits with `--first-parent`, oldest first.
 
 **When it runs.** Stage C, before the agent commits (`--base main`). Stage D, in
 CI, on every push, with the base and head of the pull request.

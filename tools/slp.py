@@ -504,8 +504,13 @@ def inventory(root, commit, full=True, marts=MARTS):
                 inv["specs"][model.name] = model.spec
                 inv["preregs"][model.name] = model.prereg
                 inv["models"][model.name] = _sha(_without_prereg(model.entry))
+                # A list, not one config: two declarations of one test on one
+                # column can differ only in their config - two
+                # `expression_is_true` with the same expression and a `where`
+                # each - and one config per key made the second overwrite the
+                # first, which is a whole test removed in silence.
                 for column, name, args, cfg in model.tests:
-                    inv["tests"][(model.name, column, name, args)] = cfg
+                    inv["tests"].setdefault((model.name, column, name, args), []).append(cfg)
             for unit in units:
                 body = dict((k, v) for k, v in unit.body.items() if k != "description")
                 # By model and name, never by name alone: dbt makes a unit test
@@ -537,10 +542,17 @@ def _by3(inv):
     is declared with a config of its own. Grouping them under one config would
     keep whichever sorted first and drop the rest, so every other one could be
     given a `where`, a `severity: warn` or an `enabled: false` unseen.
+
+    Two declarations whose arguments are identical too are held as a list under
+    the one key and compared as a bag: how many there were, how many there are,
+    and which configs are in the second bag and not the first. Numbering them
+    instead would be wrong in the case that matters - remove the first of two
+    and the second inherits its number, which reads as a config edit rather
+    than as a removal.
     """
     out = {}
-    for (model, column, name, args), cfg in sorted(inv["tests"].items()):
-        out.setdefault((model, column, name), {})[args] = cfg
+    for (model, column, name, args), cfgs in sorted(inv["tests"].items()):
+        out.setdefault((model, column, name), {})[args] = cfgs
     return out
 
 def _which(group, args):
@@ -587,8 +599,14 @@ def gate_test_removed(ctx):
                              "a human changes it before the agent starts, or in a separate PR"
                              % _which(old, gone[0]), "G1"))
         else:
-            out += [block(file, model, said + "was disabled" + _which(old, args), "G1")
-                    for args in sorted(old) if _on(old[args]) and not _on(new[args])]
+            for args in sorted(old):
+                live = lambda bag: sum(1 for cfg in bag if _on(cfg))
+                if len(new[args]) < len(old[args]):
+                    out.append(block(file, model, said + "was declared %d times on main and %d "
+                                     "here%s" % (len(old[args]), len(new[args]),
+                                                 _which(old, args)), "G1"))
+                elif live(new[args]) < live(old[args]):
+                    out.append(block(file, model, said + "was disabled" + _which(old, args), "G1"))
     for path in _changed(ctx, "files", set(ctx.before["files"])):
         out.append(block(path, "", "singular or generic test %s was removed or changed" % path, "G1"))
     for key in sorted(set(ctx.before["units"]) - set(ctx.after["units"])):
@@ -602,11 +620,12 @@ def gate_test_filter(ctx):
     before, after = _by3(ctx.before), _by3(ctx.after)
     for key in sorted(set(before) & set(after)):
         for args in sorted(set(before[key]) & set(after[key])):
-            old, new = before[key][args].get("where"), after[key][args].get("where")
-            if new is not None and old != new:
-                out.append(block(_file(ctx, key[0]), key[0], "test '%s' on %s%s now skips rows "
-                                 "with where: %s" % (key[2], _named(key[0], key[1]),
-                                                     _which(after[key], args), new), "G2"))
+            old = [cfg.get("where") for cfg in before[key][args]]
+            for new in sorted(set(cfg.get("where") for cfg in after[key][args]) - set(old)):
+                if new is not None:
+                    out.append(block(_file(ctx, key[0]), key[0], "test '%s' on %s%s now skips "
+                                     "rows with where: %s" % (key[2], _named(key[0], key[1]),
+                                                              _which(after[key], args), new), "G2"))
     return out
 
 def _sev(cfg):
@@ -619,18 +638,21 @@ def gate_test_severity(ctx):
     before, after = _by3(ctx.before), _by3(ctx.after)
     for key in sorted(after):
         for args in sorted(after[key]):
-            old, new = before.get(key, {}).get(args), after[key][args]
+            was = before.get(key, {}).get(args, [])
             said = "test '%s' on %s%s " % (key[2], _named(key[0], key[1]),
                                            _which(after[key], args))
             file = _file(ctx, key[0])
-            if _sev(new) == "warn" and (old is None or _sev(old) != "warn"):
-                out.append(block(file, key[0], said + ("is new and only warns" if old is None
-                                 else "was downgraded from error to warn")
-                                 + ", so it cannot block", "G3"))
-            for name in ("error_if", "warn_if", "fail_calc"):
-                if name in new and (old is None or old.get(name) != new[name]):
-                    out.append(block(file, key[0], said + "sets %s, which changes what counts "
-                                     "as failing" % name, "G3"))
+            # Every declaration this branch did not inherit unchanged, held
+            # against the bag of declarations it could have come from.
+            for new in [cfg for cfg in after[key][args] if cfg not in was]:
+                if _sev(new) == "warn" and not any(_sev(cfg) == "warn" for cfg in was):
+                    out.append(block(file, key[0], said + ("is new and only warns" if not was
+                                     else "was downgraded from error to warn")
+                                     + ", so it cannot block", "G3"))
+                for name in ("error_if", "warn_if", "fail_calc"):
+                    if name in new and not any(cfg.get(name) == new[name] for cfg in was):
+                        out.append(block(file, key[0], said + "sets %s, which changes what "
+                                         "counts as failing" % name, "G3"))
     return out
 
 def gate_unit_test_changed(ctx):
