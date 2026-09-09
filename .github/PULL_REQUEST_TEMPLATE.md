@@ -51,7 +51,12 @@
      not look". If the rule reads a list, ask what happens when something is
      missing from the list rather than wrong in it: a model with no yml, a diff
      that never arrived, a second test of the same name. Those were seven real
-     bugs in v0.1.0, and every one of them printed OK. -->
+     bugs in v0.1.0, and every one of them printed OK.
+
+     Then ask the other half of it: does every fixture put the files where this
+     one does? v0.3.0's bugs were not in the rules, they were in the shape of
+     the project the fixtures all happened to take - a yml beside its sql, a
+     test with no twin, a model whose code nobody rewrote. -->
 
 ## Checklist
 

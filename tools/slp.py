@@ -4,7 +4,8 @@
     check    every model in models/marts/ has a complete spec, a valid
              pre-registration when it has one, and a uniqueness test on its PK
     gate     nothing on this branch weakened a test, a unit test, a
-             reconciliation, a package pin or a spec
+             reconciliation, a package pin or a spec, and no model changed
+             without a pre-registration to hold its numbers against
     compare  every number in a diff.json is inside the interval the
              pre-registration declared before the code was written
 
@@ -1065,7 +1066,7 @@ def build_parser():
     parser.add_argument("--version", action="version", version=__version__)
     subs = parser.add_subparsers(dest="command")
     check = subs.add_parser("check", help="the spec of every model in models/marts/")
-    gate = subs.add_parser("gate", help="what this branch did to the tests")
+    gate = subs.add_parser("gate", help="what this branch did to the tests and the spec")
     compare = subs.add_parser("compare", help="a diff against its pre-registration")
     gate.add_argument("--base", required=True, help="git ref the branch started from")
     gate.add_argument("--head", default="HEAD", help="git ref to judge")

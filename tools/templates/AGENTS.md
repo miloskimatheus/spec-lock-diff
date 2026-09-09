@@ -67,7 +67,14 @@ what you think it is.
   framework makes mandatory: there, a `where` is refused outright (`T1`), and
   writing it that way is the same as not writing it.
 - A model file with no yml entry. A `.sql` in a marts path that no yml declares
-  has no spec, no primary key and no test, and `check` blocks on it (`S4`).
+  has no spec, no primary key and no test, and `check` blocks on it (`S4`). The
+  yml may live anywhere under `models/` — what puts a model in scope is where
+  its `.sql` is.
+- Your own `meta.pre_registration`, once you have written it. If you change a
+  model's `.sql` and no pre-registration is there, `gate` blocks (`G8`): a model
+  with no interval is not a model that fails the diff, it is a model the diff
+  never mentions, and deleting the prediction must not be cheaper for you than
+  missing it. If the numbers land outside it, say so — see below.
 
 ## When to stop and ask a human
 
@@ -89,6 +96,11 @@ is. It prints them whether or not anything blocked. That is not noise: a human
 reads those lines to answer *"was this pre-registration narrow enough to be
 able to fail?"*, and a band wide enough to swallow any result is a finding
 about you, not about the data. Write bands you could actually miss.
+
+`I3` prints every test you add that carries a `where`. It does not block; a
+filter can be honest scoping. It is printed because a human has to decide which
+of the two it is, and you should write one only when you can say out loud which
+rows it removes and why none of them could have failed.
 
 `I1` counts how many times the pre-registration changed after it was first
 written. The count is visible to the Author in review. Predicting once and

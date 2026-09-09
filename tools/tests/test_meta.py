@@ -188,7 +188,13 @@ def test_the_version_is_the_one_the_changelog_describes():
 #
 # They are re-measured at each release and written back down here. A number only
 # goes up when the pull request says what was bought with it.
-MACHINERY, ONE_RULE, WHOLE_FILE = 430, 36, 1100
+#
+# 0.3.0, measured after the work: 424 lines of machinery, biggest rule 30, 1100
+# in all. ONE_RULE comes down from the 36 it was guessed at, because 30 is what
+# the rules actually cost and a cap wants to bite. WHOLE_FILE goes up, and what
+# was bought is room to explain: it is the one of the three that counts prose,
+# so a margin there is the margin the other two exist to protect.
+MACHINERY, ONE_RULE, WHOLE_FILE = 430, 32, 1150
 
 
 def _weights():

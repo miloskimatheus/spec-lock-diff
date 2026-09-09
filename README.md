@@ -412,6 +412,8 @@ pre_registration:
     # If the actual variation is -1% or +2%, the PR is blocked.
 ```
 
+**When it is mandatory:** For every model whose code the PR changes. Stage C cannot start without it, and stage E has nothing to compare against without it — a model that reaches the diff with no pre-registration is not a model that fails the comparison, it is a model nobody compared. Deleting the prediction must not be cheaper than missing it.
+
 **Validation:** The pre-registration is validated by JSON Schema in CI (stage D). If the format is wrong, fields are missing, or intervals are open, CI fails.
 
 ---

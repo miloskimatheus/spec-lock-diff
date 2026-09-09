@@ -6,10 +6,14 @@ separately; these tools implement it and never lead it.
 ## 0.3.0 — the shape of the project, not the shape of the fixtures
 
 0.2.0 closed the silent passes the rules had. This one closes the silent passes
-the *fixtures* had: every `check` and `gate` fixture kept a model's yml beside
-its sql inside `models/marts/`, and every rule that asks "is this a marts
-model?" was really asking "is this yml under marts?". Each entry below has a
-fixture that fails against 0.2.0.
+the *fixtures* had. Every `check` and `gate` fixture kept a model's yml beside
+its sql inside `models/marts/`, gave every test a unique name and unique
+arguments, and never rewrote a model without also declaring an interval for it.
+The rules were right about the projects the fixtures happened to describe. The
+convention that guaranteed one fixture per rule guaranteed nothing about the
+space between rules, and that is where all of this lived.
+
+Each entry below has a fixture that fails against 0.2.0.
 
 ### New rules
 
@@ -79,6 +83,35 @@ fixture that fails against 0.2.0.
 | --- | --- |
 | `G1`, `G2`, `G3` | 0.2.0 gave every declaration of a same-named test its own config, keyed by its arguments. Two declarations whose **arguments** are identical too — two `dbt_utils.expression_is_true` on one expression, with a `where` each, which is how a team scopes one assertion to two statuses — still collapsed, and the second still overwrote the first. Remove one of the pair and `gate` printed `OK (1 commit)`; remove the other and it printed a `G2` naming a `where` that had been there all along. Declarations are held as a bag under their key now and compared as one |
 | `S1`, `T1`, `G7` | a model was held to be in marts when the **yml that declares it** was, not when the **sql that makes it** was. A project with one `models/schema.yml` — which is what `dbt init` scaffolds — had every marts model exempted: no spec demanded, no uniqueness test demanded, and a `meta.spec` the agent rewrote on the branch produced `slp gate: OK`. `S4` did not rescue it either, because the model *was* declared, just elsewhere |
+
+### Still not enforced
+
+Found alongside these and **not** fixed. All are in README section 9 with the
+rest.
+
+- **`gate` does not check that `--marts-path` exists.** `check` and `compare`
+  read the project directory and refuse a path that is not one; `gate` reads git
+  and never looks, so a typo prints `OK` while every yml-based rule is blind.
+  The flag is written in two places — the CI workflow and `AGENTS.md` — and the
+  documentation asks for them to be identical, which is exactly the shape of
+  mistake that goes unnoticed.
+- **`gate` does not run when the dbt project is not the git repository root.**
+  `ls-tree` answers relative to the current directory, `cat-file` reads from the
+  repository root, and in a `dbt/` subdirectory every read fails: exit 2. Fail
+  closed, so no silent pass — but the command simply does not work in a common
+  layout, and `--project-dir` cannot save it.
+- **`G7` and `I1` still depend on branch topology**, and section 9 used to
+  recommend squashing as the way around it. It is not: a squash erases the
+  intermediate commits, so a spec first written on the branch has nothing for
+  `G7` to compare against and `I1` reports zero. That advice is withdrawn.
+- **`C4` says "moved None percent"** for a metric the diff could not evaluate
+  and the pre-registration did not declare. It blocks, correctly; the sentence
+  is not one a non-developer can act on, which R7 asks for.
+- **`T1` refuses a uniqueness test that is stronger than the primary key.** The
+  combination must match the key exactly, so a `unique` on one column of a
+  two-column key reads as no test at all.
+- **`G8` is scoped to the `.sql`.** A change made only in the yml that still
+  moves numbers — a materialisation, a `config` — does not ask for an interval.
 
 ## 0.2.0 — the silent passes
 

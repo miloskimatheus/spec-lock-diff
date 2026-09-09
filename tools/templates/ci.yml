@@ -56,7 +56,8 @@ jobs:
         run: python tools/slp.py check
 
       # Control 5B: nothing on this branch weakened a test, a unit test, a
-      # reconciliation, a package pin or a spec. The output goes to the job
+      # reconciliation, a package pin or a spec - and no model's sql changed
+      # without a pre-registration to hold its numbers against. The output goes to the job
       # summary so the Author reads it without opening the logs (Stage B asks for
       # the pre-registration change counter to be visible in review).
       - name: slp gate
