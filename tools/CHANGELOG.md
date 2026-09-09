@@ -30,6 +30,13 @@ fixture that fails against 0.2.0.
   `G3`, with `where` held apart in `DEAD_KEYS` because it is the one key that
   might be scoping rather than evasion.
 
+- **An unparseable yml says whether jinja is why.** dbt renders yml through
+  jinja before reading it and these tools use a plain YAML parser, so a
+  `{% for %}` that generates model entries takes the whole run down with
+  `cannot parse ... found character '%'` — which reads like a typo and is not
+  one. The message names the cause now, and the limitation is in section 9,
+  where it should have been all along.
+
 - **`gate` reads one commit in one git process.** It ran `git show` once per
   file per commit: 150 models across a 30-commit branch spawned 4,983 git
   processes and spent 19.5 s on a local SSD before a rule had looked at

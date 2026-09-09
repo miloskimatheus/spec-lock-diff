@@ -61,6 +61,7 @@ def test_more_than_one_marts_path_is_read_as_one_set():
     ("tab_indent", "cannot parse"),
     ("no_marts", "models/marts/ not found"),
     ("ambiguous_spec", "ambiguous"),
+    ("jinja_yml", "contains jinja, which these tools do not render"),
 ])
 def test_what_cannot_be_read_is_never_a_pass(case, expected):
     """R3, fail closed: an unreadable project is exit 2, not exit 0."""

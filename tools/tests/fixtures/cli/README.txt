@@ -5,3 +5,6 @@ Projects that exercise the entry point itself, not a rule:
   ambiguous_spec  meta.spec and config.meta.spec on the same model - exit 2
   other_marts     marts kept in models/core/ - invisible until --marts-path
                   says so, and the summary line says how many were checked
+  jinja_yml       a schema yml written with jinja, which dbt renders and these
+                  tools do not - exit 2, and the message says which of the two
+                  problems it is

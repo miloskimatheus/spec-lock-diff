@@ -106,7 +106,12 @@ def parse_yaml(text, where):
     try:
         doc = yaml.safe_load(text)
     except yaml.YAMLError as exc:
-        raise SlpError("cannot parse %s: %s" % (where, " ".join(str(exc).split())))
+        # dbt renders a yml through jinja before reading it and these tools do
+        # not, so say which of the two problems this is: "cannot parse" on its
+        # own sends the reader hunting for a typo that is not there.
+        why = " - this file contains jinja, which these tools do not render" \
+            if re.search(r"{%|{{", text) else ""
+        raise SlpError("cannot parse %s: %s%s" % (where, " ".join(str(exc).split()), why))
     return {} if doc is None else doc
 
 def load_yaml(path):
