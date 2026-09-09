@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 942 178" width="942" height="178" role="img" aria-label="Agent permission by data layer: no access to raw, masked read on staging and marts, no write to production, read and write in its own PR schema" font-family='"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace'>
+<title>Agent permission by data layer: no access to raw, masked read on staging and marts, no write to production, read and write in its own PR schema</title>
+
+<text x="471" y="13" text-anchor="middle" font-size="9.5" letter-spacing="2.2" fill="#1f2328" opacity=".5">AGENT PERMISSION, BY DATA LAYER</text>
+<rect x="371" y="25" width="200" height="36" fill="none" stroke="#1f2328" stroke-width="1.4" opacity=".75"/>
+<text x="471" y="48" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1f2328">agent_ci</text>
+<g fill="none" stroke="#1f2328" stroke-width="1.25" opacity=".5"><path d="M471 61v16M119 77h704M119 77v14M354 77v14M589 77v14M823 77v14"/></g>
+
+<circle cx="119" cy="111" r="15" fill="none" stroke="#A3231A" stroke-width="2"/>
+<path d="M113 105l12 12M125 105l-12 12" fill="none" stroke="#A3231A" stroke-width="2.2" stroke-linecap="round"/>
+<circle cx="354" cy="111" r="15" fill="none" stroke="#8A5A0B" stroke-width="2"/>
+<path d="M354 96a15 15 0 0 1 0 30z" fill="#8A5A0B"/>
+<circle cx="589" cy="111" r="15" fill="none" stroke="#A3231A" stroke-width="2"/>
+<path d="M583 105l12 12M595 105l-12 12" fill="none" stroke="#A3231A" stroke-width="2.2" stroke-linecap="round"/>
+<circle cx="823" cy="111" r="15" fill="none" stroke="#0F6B4F" stroke-width="2"/>
+<path d="M816 111.5l5 5 9-9.5" fill="none" stroke="#0F6B4F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+
+<g font-size="12.5" font-weight="600" text-anchor="middle" fill="#1f2328">
+<text x="119" y="153">raw</text><text x="354" y="153">staging + marts</text>
+<text x="589" y="153">production</text><text x="823" y="153">ci_pr_&lt;n&gt;</text></g>
+<g font-size="11" text-anchor="middle" fill="#1f2328" opacity=".62">
+<text x="119" y="171">no access</text><text x="354" y="171">read, masked</text>
+<text x="589" y="171">no write</text><text x="823" y="171">read + write</text></g>
+</svg>

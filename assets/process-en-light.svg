@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 942 250" width="942" height="250" role="img" aria-label="Stage A is human, stages B C and D run locked inside the platform, stage E returns to a human who only reads the automated diff" font-family='"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace'>
+<title>Stage A is human, stages B C and D run locked inside the platform, stage E returns to a human who only reads the automated diff</title>
+
+<defs><marker id="p" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+<path d="M0 0 L8 4 L0 8 z" fill="#1f2328" fill-opacity=".5"/></marker></defs>
+
+<rect x="186" y="7" width="516" height="146" fill="none" stroke="#1f2328" stroke-width="2" opacity=".75"/>
+<text x="444" y="27" text-anchor="middle" font-size="10" letter-spacing="2" fill="#1f2328" opacity=".6">LOCKED BY THE PLATFORM</text>
+
+<g fill="none" stroke="#0B62B8" stroke-width="2.2"><rect x="1" y="45" width="160" height="66"/><rect x="725" y="45" width="216" height="66"/></g>
+<text x="81" y="77" text-anchor="middle" font-size="22" font-weight="600" fill="#0B62B8">A</text>
+<text x="81" y="99" text-anchor="middle" font-size="11.5" fill="#0B62B8">Spec</text>
+<text x="833" y="77" text-anchor="middle" font-size="22" font-weight="600" fill="#0B62B8">E</text>
+<text x="833" y="99" text-anchor="middle" font-size="11.5" fill="#0B62B8">Diff + human review</text>
+
+<g fill="none" stroke="#A03BB0" stroke-width="2" stroke-dasharray="5 3">
+<rect x="206" y="45" width="148" height="66"/><rect x="370" y="45" width="148" height="66"/><rect x="534" y="45" width="148" height="66"/></g>
+<g text-anchor="middle" fill="#A03BB0">
+<text x="280" y="77" font-size="22" font-weight="600">B</text><text x="444" y="77" font-size="22" font-weight="600">C</text>
+<text x="608" y="77" font-size="22" font-weight="600">D</text>
+<text x="280" y="99" font-size="11.5">Pre-registration</text><text x="444" y="99" font-size="11.5">Code</text>
+<text x="608" y="99" font-size="11.5">Automatic CI</text></g>
+
+<g fill="none" stroke="#1f2328" stroke-width="1.4" opacity=".5" marker-end="url(#p)">
+<path d="M161 78h32"/><path d="M354 78h12"/><path d="M518 78h12"/><path d="M682 78h36"/></g>
+
+<g fill="none" stroke="#0B62B8" stroke-width="1.4" opacity=".7"><path d="M1 129h160M725 129h216"/></g>
+<text x="81" y="146" text-anchor="middle" font-size="11" font-weight="600" fill="#0B62B8">the human decides</text>
+<text x="833" y="146" text-anchor="middle" font-size="11" font-weight="600" fill="#0B62B8">the human only reads</text>
+
+<g fill="none" stroke="#1f2328" stroke-width="1" stroke-dasharray="2 3" opacity=".28">
+<path d="M81 161v14M280 161v14M444 161v14M608 161v14M833 161v14"/></g>
+<g font-size="9.5" text-anchor="middle" fill="#1f2328" opacity=".55">
+<text x="81" y="189">no spec,</text><text x="81" y="201">no advance</text><text x="280" y="189">—</text>
+<text x="444" y="189">needs a valid</text><text x="444" y="201">pre-registration</text></g>
+<g font-size="9.5" text-anchor="middle" fill="#A3231A">
+<text x="608" y="189">any failure</text><text x="608" y="201">blocks</text>
+<text x="833" y="189">outside the interval,</text><text x="833" y="201">or off tolerance</text></g>
+
+<g fill="none" stroke="#A3231A" stroke-width="1.4" opacity=".8"><path d="M534 221v10M941 221v10M534 226h407"/></g>
+<text x="737" y="245" text-anchor="middle" font-size="9.5" letter-spacing="1.2" fill="#A3231A">THESE TWO CAN STOP THE MERGE</text>
+</svg>

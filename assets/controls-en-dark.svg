@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 942 218" width="942" height="218" role="img" aria-label="The five controls and what each one stops" font-family='"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace'>
+<title>The five controls and what each one stops</title>
+<rect x="1" y="1" width="172" height="216" fill="none" stroke="#7EA9D6" stroke-width="1.6"/>
+<g transform="translate(21 22)" fill="none" stroke="#7EA9D6" stroke-width="1.8"><circle cx="9" cy="9" r="7"/><path d="M14 14l11 11M21 21l4 4M25 17l4 4" stroke-linecap="round"/></g>
+<text x="153" y="42" text-anchor="end" font-size="26" font-weight="600" fill="#7EA9D6" opacity=".32">1</text>
+<text x="21" y="94" font-size="13" font-weight="600" fill="#e6edf3">Identity</text>
+<text x="21" y="112" font-size="10" fill="#e6edf3" opacity=".6">own role, own bot</text>
+<path d="M21 132h132" stroke="#7EA9D6" stroke-width="1" opacity=".5" fill="none"/>
+<text x="21" y="153" font-size="10" letter-spacing="1.6" font-weight="600" fill="#7EA9D6">STOPS</text>
+<text x="21" y="176" font-size="10" fill="#e6edf3" opacity=".78">if the agent tries</text>
+<text x="21" y="192" font-size="10" fill="#e6edf3" opacity=".78">to act with your</text>
+<text x="21" y="208" font-size="10" fill="#e6edf3" opacity=".78">access</text>
+<rect x="193" y="1" width="172" height="216" fill="none" stroke="#4FBBA6" stroke-width="1.6"/>
+<g transform="translate(213 24)" fill="none" stroke="#4FBBA6" stroke-width="1.8"><path d="M1 11s5-9 13-9 13 9 13 9-5 9-13 9S1 11 1 11z"/><circle cx="14" cy="11" r="3.5"/><path d="M3 23L25 -1" stroke-linecap="round"/></g>
+<text x="345" y="42" text-anchor="end" font-size="26" font-weight="600" fill="#4FBBA6" opacity=".32">2</text>
+<text x="213" y="94" font-size="13" font-weight="600" fill="#e6edf3">Data access</text>
+<text x="213" y="112" font-size="10" fill="#e6edf3" opacity=".6">no raw, masked marts</text>
+<path d="M213 132h132" stroke="#4FBBA6" stroke-width="1" opacity=".5" fill="none"/>
+<text x="213" y="153" font-size="10" letter-spacing="1.6" font-weight="600" fill="#4FBBA6">STOPS</text>
+<text x="213" y="176" font-size="10" fill="#e6edf3" opacity=".78">if sensitive data</text>
+<text x="213" y="192" font-size="10" fill="#e6edf3" opacity=".78">would reach code,</text>
+<text x="213" y="208" font-size="10" fill="#e6edf3" opacity=".78">tests or the LLM</text>
+<rect x="385" y="1" width="172" height="216" fill="none" stroke="#D9A441" stroke-width="1.6"/>
+<g transform="translate(405 24)" fill="none" stroke="#D9A441" stroke-width="1.8"><path d="M2 22a12 12 0 1 1 24 0" stroke-linecap="round"/><path d="M14 22l8-8" stroke-linecap="round"/><path d="M0 26h28" stroke-linecap="round"/></g>
+<text x="537" y="42" text-anchor="end" font-size="26" font-weight="600" fill="#D9A441" opacity=".32">3</text>
+<text x="405" y="94" font-size="13" font-weight="600" fill="#e6edf3">Spending caps</text>
+<text x="405" y="112" font-size="10" fill="#e6edf3" opacity=".6">daily cap → suspend</text>
+<path d="M405 132h132" stroke="#D9A441" stroke-width="1" opacity=".5" fill="none"/>
+<text x="405" y="153" font-size="10" letter-spacing="1.6" font-weight="600" fill="#D9A441">STOPS</text>
+<text x="405" y="176" font-size="10" fill="#e6edf3" opacity=".78">if a runaway query</text>
+<text x="405" y="192" font-size="10" fill="#e6edf3" opacity=".78">starts draining</text>
+<text x="405" y="208" font-size="10" fill="#e6edf3" opacity=".78">the budget</text>
+<rect x="577" y="1" width="172" height="216" fill="none" stroke="#B9A2E8" stroke-width="1.6"/>
+<g transform="translate(597 26)" fill="none" stroke="#B9A2E8" stroke-width="1.8"><path d="M0 24h28" stroke-linecap="round"/><path d="M4 24V13M11 24V2M18 24V16M25 24V8" stroke-linecap="round"/></g>
+<text x="729" y="42" text-anchor="end" font-size="26" font-weight="600" fill="#B9A2E8" opacity=".32">4</text>
+<text x="597" y="94" font-size="13" font-weight="600" fill="#e6edf3">Profiles</text>
+<text x="597" y="112" font-size="10" fill="#e6edf3" opacity=".6">statistics, not rows</text>
+<path d="M597 132h132" stroke="#B9A2E8" stroke-width="1" opacity=".5" fill="none"/>
+<text x="597" y="153" font-size="10" letter-spacing="1.6" font-weight="600" fill="#B9A2E8">STOPS</text>
+<text x="597" y="176" font-size="10" fill="#e6edf3" opacity=".78">if the agent would</text>
+<text x="597" y="192" font-size="10" fill="#e6edf3" opacity=".78">ever see a real</text>
+<text x="597" y="208" font-size="10" fill="#e6edf3" opacity=".78">customer row</text>
+<rect x="769" y="1" width="172" height="216" fill="none" stroke="#E08BA8" stroke-width="1.6"/>
+<g transform="translate(789 22)" fill="none" stroke="#E08BA8" stroke-width="1.8"><path d="M14 1l12 4.6v8.2C26 20 21 24.6 14 26.4 7 24.6 2 20 2 13.8V5.6z"/><path d="M8.4 13.6l3.8 3.8 7.4-7.4" stroke-linecap="round" stroke-linejoin="round"/></g>
+<text x="921" y="42" text-anchor="end" font-size="26" font-weight="600" fill="#E08BA8" opacity=".32">5</text>
+<text x="789" y="94" font-size="13" font-weight="600" fill="#e6edf3">Protected paths</text>
+<text x="789" y="112" font-size="10" fill="#e6edf3" opacity=".6">CODEOWNERS + gate</text>
+<path d="M789 132h132" stroke="#E08BA8" stroke-width="1" opacity=".5" fill="none"/>
+<text x="789" y="153" font-size="10" letter-spacing="1.6" font-weight="600" fill="#E08BA8">STOPS</text>
+<text x="789" y="176" font-size="10" fill="#e6edf3" opacity=".78">if the agent tries</text>
+<text x="789" y="192" font-size="10" fill="#e6edf3" opacity=".78">to weaken the tests</text>
+<text x="789" y="208" font-size="10" fill="#e6edf3" opacity=".78">that judge it</text>
+</svg>

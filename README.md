@@ -3,10 +3,28 @@
 **English** · [Português (pt-BR)](README.pt-br.md)
 
 <p align="center">
-  <img src="assets/spec-lock-diff.png" alt="Two people flanking a padlock containing a robot, over a line chart" width="560">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/wordmark-dark.svg">
+    <img src="assets/wordmark-light.svg" alt="Spec · Lock · Diff" width="470">
+  </picture>
 </p>
 
-A framework for dbt development using AI agents. The goal is to reduce the risks that arise when an agent writes SQL: i. wrong results that look right, ii. leakage of personal data, and iii. unexpected financial costs.
+<p align="center">
+  <img alt="built for dbt" src="https://img.shields.io/badge/built%20for-dbt-A34F2E">
+  <img alt="warehouse: snowflake, bigquery, databricks" src="https://img.shields.io/badge/warehouse-snowflake%20%C2%B7%20bigquery%20%C2%B7%20databricks-444d56">
+  <a href="LICENSE"><img alt="license MIT" src="https://img.shields.io/badge/license-MIT-16324F"></a>
+  <a href="CONTRIBUTING.md"><img alt="PRs welcome" src="https://img.shields.io/badge/PRs-welcome-0F6B4F"></a>
+  <img alt="docs in EN and pt-BR" src="https://img.shields.io/badge/docs-EN%20%C2%B7%20pt--BR-8A5A0B">
+</p>
+
+A framework for dbt development using AI agents. The goal is to reduce the main risks that arise when an agent writes SQL:
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/risks-en-dark.svg">
+    <img src="assets/risks-en-light.svg" alt="Three risks: wrong results that look right, leakage of sensitive data, unexpected financial costs" width="900">
+  </picture>
+</p>
 
 The framework boils down to three phases:
 
@@ -20,9 +38,8 @@ The framework boils down to three phases:
 
 0. [Roles — who does what](#0-roles--who-does-what)
 1. [Manifesto — 3 principles](#1-manifesto--3-principles)
-2. [Initial setup — 5 mandatory controls](#2-initial-setup--5-mandatory-controls)
-3. [Flow of each PR — 5 stages](#3-flow-of-each-pr--5-stages)
-4. [After the merge](#4-after-the-merge)
+2. [Building the lock — 5 mandatory controls](#2-building-the-lock--5-mandatory-controls)
+3. [The development process (routine) — 5 stages](#3-the-development-process-routine--5-stages)
 
 ---
 
@@ -30,46 +47,60 @@ The framework boils down to three phases:
 
 This framework defines four roles. Each person takes on one role per PR.
 
-| Role         | Who they are             | What they do                                                                                |
-| ------------ | ------------------------ | ------------------------------------------------------------------------------------------- |
-| **Platform** | Infra/platform team      | Configures the 5 Setup controls (section 2) one time. Does the weekly maintenance (section 4). |
-| **Author**   | A human on the team      | Writes the model spec. Triggers the agent. Reads the diff. Is responsible for the PR.       |
-| **Partner**  | Another human (≠ Author) | Approves PRs of critical models.                                                            |
-| **Agent**    | The AI (LLM + tools)     | Writes code, tests, and the numerical pre-registration.                                     |
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/roles-en-dark.svg">
+    <img src="assets/roles-en-light.svg" alt="A human writes the spec, the agent runs inside an enclosure built by the Platform, a human reads the diff" width="900">
+  </picture>
+</p>
+
+| Role         | Who they are             | What they do                                                                                        |
+| ------------ | ------------------------ | --------------------------------------------------------------------------------------------------- |
+| **Platform** | Infra/platform team      | Configures the setup controls (section 2) one time. Just makes sure it keeps working after that.   |
+| **Author**   | A human on the team      | Writes the model spec. Triggers the agent. Reads the diff. Is responsible for the PR.               |
+| **Partner**  | Another human (≠ Author) | Approves PRs of critical models.                                                                    |
+| **Agent**    | The AI (LLM + tools)     | Writes code, tests, and the numerical pre-registration.                                             |
 
 ---
 
 ## 1. Manifesto — 3 principles
 
- _Why_ the framework is being built. All rules derive from them.
+_Why_ the framework is being built. All rules derive from them.
 
-### Principle 1: In SQL, a bug doesn't give an error — it gives a plausible (wrong) number
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/manifesto-en-dark.svg">
+    <img src="assets/manifesto-en-light.svg" alt="The three principles feed the framework: principle 1 shapes Spec and Diff, principle 2 shapes Lock, principle 3 shapes Diff" width="900">
+  </picture>
+</p>
 
-When you get a `JOIN` wrong in Python, the program usually breaks. When you get a `JOIN` wrong in SQL, it's common for the query to run normally and return a number that seems reasonable but is actually wrong.
-
-That's why the human decides _before_ (by writing the spec) and checks _after_ (by reading the numerical diff). The human does nothing between those two moments — the agent works alone in the middle.
-
-### Principle 2: Limits must be configured in the infrastructure
-
-Writing "do not access sensitive data" in an `AGENTS.md` file does not prevent the agent from accessing sensitive data. That is an instruction, not a control. The agent can ignore it, forget it, or interpret it differently.
-
-Real control requires denying permissions in the database, a resource monitor that shuts down the warehouse, a branch protection that prevents pushing to `main`. If the agent tries to violate, the system blocks — regardless of what the prompt says.
-
-### Principle 3: Checks must be deterministic
-
-It's fine for the agent to be unpredictable when generating code — LLMs are stochastic by nature. But every verification gate (tests, diffs, reconciliations) must be deterministic. The same input should always produce the same result.
-
-An LLM should not be the final judge of "is the code correct?". The judges are automated tests, numerical diffs, and human eyes.
+| # | Principle | Why it holds | What follows from it |
+|:-:|-----------|--------------|----------------------|
+| **1** | **In SQL, a bug doesn't give an error**<br>It gives a plausible — and wrong — number. | Get a `JOIN` wrong in Python and the program breaks. Get it wrong in SQL and the query runs normally, returns `16,894,203.11`, reports `1 row · no error`, and never mentions the rows it duplicated. | The human **decides before**, by writing the spec, and **checks after**, by reading the numerical diff.<br>Between those two moments the human does nothing — the agent works alone in the middle. |
+| **2** | **Limits must be configured in the infrastructure**<br>Not written down and hoped for. | "Do not access sensitive data" in an `AGENTS.md` is an _instruction_, not a control — the agent can ignore it, forget it, or interpret it differently. `REVOKE USAGE ON SCHEMA raw` is a control. | Real control means **denied database permissions**, a **resource monitor** that shuts the warehouse down, a **branch protection** that prevents pushing to `main`.<br>If the agent tries to violate, the system blocks — regardless of what the prompt says. |
+| **3** | **Checks must be deterministic**<br>The same input, always the same result. | LLMs are stochastic by nature, and that is fine while _generating_ code — the same prompt yields three different joins. It is not fine while _judging_ it. | Every verification gate — tests, diffs, reconciliations — is deterministic.<br>An LLM is never the final judge of "is the code correct?". The judges are **automated tests, numerical diffs, and human eyes**. |
 
 ---
 
-## 2. Initial setup — 5 mandatory controls
+## 2. Building the lock — 5 mandatory controls
 
-**Who executes:** Platform. **When:** One time only, before the first PR with an agent. **Rule:** No PR with an agent can run before all 5 controls are implemented.
+This section is the whole framework. You are not writing rules for the agent to obey — you are building an environment in which the rules cannot be broken. Once these five controls are in place, the agent can be released inside them and left to work alone: it cannot spend money it was not given, read data it was not shown, or merge code no one read. That is what buys the freedom to stop reviewing its SQL line by line.
+
+**Who executes:** Platform. **When:** One time only, before the first PR with an agent.
+
+> [!IMPORTANT]
+> Don't start building stuff without setting the controls.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/controls-en-dark.svg">
+    <img src="assets/controls-en-light.svg" alt="The five controls and what each one stops" width="900">
+  </picture>
+</p>
 
 ---
 
-### Control 1: Create a dedicated identity for the agent
+### <img src="assets/icon-c1.svg" width="19" height="19" alt=""> Control 1: Create a dedicated identity for the agent
 
 **What it is:** The agent must have its own separate identity in the warehouse and in git, with restricted permissions.
 
@@ -100,7 +131,7 @@ Branch protection on `main` (all mandatory):
 
 ---
 
-### Control 2: Restricted data access
+### <img src="assets/icon-c2.svg" width="19" height="19" alt=""> Control 2: Restricted data access
 
 **What it is:** The agent only sees what it needs to see, and never sees sensitive data.
 
@@ -108,12 +139,19 @@ Branch protection on `main` (all mandatory):
 
 **How to implement:**
 
-| Data layer                 | Agent permission                                                                                                                                               |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `raw` (raw data)           | **No access.** Not even `SELECT` or `DESCRIBE`.                                                                                                               |
-| Staging and production marts | **Read with masking.** Sensitive columns are masked (see below).                                                                                               |
-| Production (write)         | **Prohibited.** The agent's `profiles.yml` has no `prod` target. It cannot write to production even if it tries.                                              |
-| Working schema             | **Read and write** in an exclusive schema: `ci_pr_<PR_number>`. Created when the PR opens, dropped automatically when the PR closes (merge or abandonment). |
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/permissions-en-dark.svg">
+    <img src="assets/permissions-en-light.svg" alt="Agent permission by data layer: no access to raw, masked read on staging and marts, no write to production, read and write in its own PR schema" width="900">
+  </picture>
+</p>
+
+| Data layer                   | Agent permission                                                                                                                                           |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `raw` (raw data)             | **No access.** Not even `SELECT` or `DESCRIBE`.                                                                                                             |
+| Staging and production marts | **Read with masking.** Sensitive columns are masked (see below).                                                                                            |
+| Production (write)           | **Prohibited.** The agent's `profiles.yml` has no `prod` target. It cannot write to production even if it tries.                                            |
+| Working schema               | **Read and write** in an exclusive schema: `ci_pr_<PR_number>`. Created when the PR opens, dropped automatically when the PR closes (merge or abandonment). |
 
 Masking of sensitive columns:
 
@@ -126,7 +164,7 @@ Masking of sensitive columns:
 
 ---
 
-### Control 3: Spending caps
+### <img src="assets/icon-c3.svg" width="19" height="19" alt=""> Control 3: Spending caps
 
 **What it is:** Financial limits that automatically shut down the agent when reached.
 
@@ -146,7 +184,7 @@ Timeout per query:
 
 ---
 
-### Control 4: Aggregate statistics instead of access to real records
+### <img src="assets/icon-c4.svg" width="19" height="19" alt=""> Control 4: Aggregate statistics instead of access to real records
 
 **What it is:** Instead of allowing the agent to query real rows of data, provide it with a pre-computed statistical summary of each model.
 
@@ -165,11 +203,21 @@ Create a weekly job that:
     - Top 20 values **only** in columns marked with `meta: {categorical: true}` in the model's `.yml`. Columns without this tag do not display individual values.
 4. The profile **does not contain**: minimum values, maximum values, data samples, row examples.
 
+```yaml
+# docs/profile/fct_orders.yml — regenerated weekly, read by the agent
+order_id:       {rows: 1284003, nulls: 0.0%, distinct: 1284003}
+customer_id:    {rows: 1284003, nulls: 0.0%, distinct: 84120}
+status:         {rows: 1284003, nulls: 0.0%, distinct: 6,
+                 top: [shipped, delivered, cancelled, ...]}   # categorical: true
+customer_email: {rows: 1284003, nulls: 1.2%, distinct: 83904}
+# no minimums, no maximums, no samples, no example rows
+```
+
 When the agent needs to understand the structure of data, it consults `docs/profile/`. It never runs exploratory queries in the warehouse.
 
 ---
 
-### Control 5: Protected paths and anti-fraud gates
+### <img src="assets/icon-c5.svg" width="19" height="19" alt=""> Control 5: Protected paths and anti-fraud gates
 
 **What it is:** Certain files and directories must be protected so that only humans can modify them. Additionally, a CI script must detect if the agent tried to weaken tests or bypass protections.
 
@@ -179,50 +227,55 @@ When the agent needs to understand the structure of data, it consults `docs/prof
 
 **Part A — CODEOWNERS (git requires human approval for these paths):**
 
-| Protected path                              | Why it is protected                                                                                                          |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `.github/`                                  | CI workflows. If the agent changes the CI, it controls the rules.                                                           |
-| `.pre-commit-config.yaml`                   | Local validation hooks.                                                                                                     |
-| `CODEOWNERS`                                | The file that defines who approves what.                                                                                    |
-| `AGENTS.md`                                 | The agent's rules.                                                                                                          |
-| `packages.yml`                              | dbt dependencies. An agent could pin a vulnerable version.                                                                  |
-| `dbt_project.yml`                           | Global project configuration.                                                                                               |
-| `macros/`                                   | Macros are reused by several models. One change affects everything.                                                         |
-| `tests/`                                    | Generic tests.                                                                                                              |
-| `analyses/reconciliation_*`                 | Reconciliation queries. If the agent changes the reconciliation in the same PR as the model, it controls what is being verified. |
-| `models/semantic/`                          | Metric definitions. A wrong metric propagates errors to all consumers.                                                      |
-| `docs/profile/`                             | Statistical profiles. If the agent changes the profile, it changes its own reference.                                       |
-| Incremental models (list explicitly)        | Incremental models are more complex and fragile.                                                                            |
-| Critical model directories                  | The CODEOWNERS owner should be the domain's data owner.                                                                     |
+| Protected path                              | Why it is protected                                                                                                                                     |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.github/`                                  | CI workflows. If the agent changes the CI, it controls the rules.                                                                                        |
+| `.pre-commit-config.yaml`                   | Local validation hooks.                                                                                                                                  |
+| `CODEOWNERS`                                | The file that defines who approves what.                                                                                                                 |
+| `AGENTS.md`                                 | The agent's rules.                                                                                                                                       |
+| `packages.yml`                              | dbt dependencies. An agent could pin a vulnerable version.                                                                                               |
+| `dbt_project.yml`                           | Global project configuration.                                                                                                                            |
+| `macros/`                                   | Macros are reused by several models. One change affects everything.                                                                                      |
+| `tests/`                                    | Generic tests.                                                                                                                                           |
+| `analyses/reconciliation_*`                 | Reconciliation queries. If the agent changes the reconciliation in the same PR as the model, it controls what is being verified.                          |
+| `models/semantic/`                          | Metric definitions. A wrong metric propagates errors to all consumers.                                                                                   |
+| `docs/profile/`                             | Statistical profiles. If the agent changes the profile, it changes its own reference.                                                                    |
+| Incremental models (list explicitly)        | Incremental models are more complex and fragile.                                                                                                         |
+| Critical model directories                  | The CODEOWNERS owner should be the domain's data owner.                                                                                                  |
 
 **Part B — Anti-fraud gate:**
 
 A script that runs in CI on the commits made by the bot. It is the only custom script that the framework requires. It analyzes the bot's diffs and **blocks the PR** if it finds any of these situations:
 
-| Detected situation                                      | Why it blocks                                                                                                  |
-| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Test removed                                            | An agent can remove a failing test instead of fixing the code.                                                 |
-| `WHERE` or exclusion clause added to a test             | A way to make a test pass without fixing the problem: filter out failing cases.                                |
-| `severity` downgraded (e.g., `error` → `warn`)          | Turning an error into a warning makes CI pass, but the problem remains.                                        |
-| `expect` value changed in an existing test              | If the agent changes the expected result, any result becomes "correct".                                        |
+| Detected situation                                              | Why it blocks                                                                                                                                                   |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Test removed                                                    | An agent can remove a failing test instead of fixing the code.                                                                                                   |
+| `WHERE` or exclusion clause added to a test                     | A way to make a test pass without fixing the problem: filter out failing cases.                                                                                  |
+| `severity` downgraded (e.g., `error` → `warn`)                  | Turning an error into a warning makes CI pass, but the problem remains.                                                                                          |
+| `expect` value changed in an existing test                      | If the agent changes the expected result, any result becomes "correct".                                                                                          |
 | `analyses/reconciliation_*` changed in the same PR as the model | The agent cannot change the model AND the reconciliation that verifies the model in the same PR. It would be like a student writing the exam and the answer key. |
-| Package pin changed                                     | Changing dependency versions can introduce different behaviors.                                                |
+| Package pin changed                                             | Changing dependency versions can introduce different behaviors.                                                                                                  |
 
 **Optional (extra layer of protection):** If the agent supports hooks before executing tools (e.g., `PreToolUse` in Claude Code), configure a hook that refuses writing to protected paths on the spot — even before the commit.
 
 ---
 
-## 3. Flow of each PR — 5 stages
+## 3. The development process (routine) — 5 stages
 
-Every PR follows these 5 stages in order. Each stage has an owner and a blocking condition.
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/process-en-dark.svg">
+    <img src="assets/process-en-light.svg" alt="Stage A is human, stages B C and D run locked inside the platform, stage E returns to a human who only reads the automated diff" width="900">
+  </picture>
+</p>
 
-| Stage | Name                  | Who executes                  | What blocks progress                                                                             |
-| ----- | --------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------ |
-| **A** | Spec                  | Author (human)                | PR cannot advance without a completed spec. Critical models also require a reconciliation query. |
-| **B** | Pre-registration      | Agent                         | —                                                                                                |
-| **C** | Code                  | Agent                         | Cannot start without a valid pre-registration.                                                   |
-| **D** | Automatic CI          | Automation (on every push)    | Any failure blocks. Maximum time: ~15 minutes.                                                   |
-| **E** | Diff + human review   | Automation + Author + Partner | Diff outside pre-registration blocks. Reconciliation outside tolerance blocks.                  |
+| Stage | Name                  | Who executes                              | What blocks progress                                                                             |
+| ----- | --------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| **A** | Spec                  | Author (human)                            | PR cannot advance without a completed spec. Critical models also require a reconciliation query. |
+| **B** | Pre-registration      | Agent                                     | —                                                                                                |
+| **C** | Code                  | Agent                                     | Cannot start without a valid pre-registration.                                                   |
+| **D** | Automatic CI          | Automation (on every push)                | Any failure blocks. Maximum time: ~15 minutes.                                                   |
+| **E** | Diff + human review   | Automation generates, Author or Partner reads | Diff outside pre-registration blocks. Reconciliation outside tolerance blocks.               |
 
 ---
 
@@ -309,7 +362,15 @@ meta:
 
 **Why it exists:** Without pre-registration, the agent sees the diff numbers and then invents a justification. Pre-registration reverses this order: the agent commits to intervals _before_ seeing the results. If the numbers fall outside the interval, the PR is automatically blocked — the agent cannot "adjust" its prediction later.
 
-The pre-registration is immutable from the moment stage D (CI) begins. If the agent changes the pre-registration after CI has run, the CI is re-executed from scratch and a change counter is incremented in the PR (visible to the Author in review).
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/pre-registration-en-dark.svg">
+    <img src="assets/pre-registration-en-light.svg" alt="The agent declared a row delta between 0 and 12000 before writing code; the diff measured 15000, outside the band, so the PR is blocked" width="900">
+  </picture>
+</p>
+
+> [!IMPORTANT]
+> The pre-registration is immutable from the moment stage D (CI) begins. If the agent changes the pre-registration after CI has run, the CI is re-executed from scratch and a change counter is incremented in the PR (visible to the Author in review).
 
 **Pre-registration format:**
 
@@ -366,12 +427,12 @@ Each rule below must have an infrastructure mechanism that enforces it. The text
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
 | 1   | **No spec, stop and ask.** If the model has no spec, the agent does not start. It asks the Author to write it.                                                                                                                                                           | CI validates spec presence (JSON Schema).                                                                       |
 | 2   | **Every model has PK test and minimum count.** The agent creates a uniqueness test on the spec's primary_key and a minimum row count test. Each spec edge becomes a unit test with synthetic fixture (invented data representing the described case).                    | CI validates test presence (JSON Schema + anti-fraud gate).                                                     |
-| 3   | **Test failed = code wrong.** If a test fails, the agent fixes the code. Never the opposite. The agent never weakens a test, changes an `expect`, modifies a test macro, or removes a reconciliation to make CI pass.                                                  | Anti-fraud gate (Control 5B) detects and blocks.                                                                |
-| 4   | **Metrics live in `models/semantic/`.** Metrics are defined once, in the semantic directory. If the metric the agent needs doesn't exist, it stops and asks the Author to create it.                                                                                    | CODEOWNERS protects `models/semantic/`.                                                                          |
-| 5   | **Fixed execution order.** The agent follows this sequence: `dbt compile` → `dbt test --select test_type:unit` → `dbt build`. If the same command fails 3 times in a row, the agent stops and calls a human.                                                           | 3-failure rule in the API gateway.                                                                              |
-| 6   | **Pre-registration before diff.** The agent must deliver the pre-registration (stage B) before any diff. Open intervals (without min or max) are invalid.                                                                                                               | JSON Schema in CI.                                                                                              |
-| 7   | **Never read individual rows.** The agent does not run `dbt show`, does not do `SELECT` without aggregation, and never pastes a value read from the warehouse into code, test, fixture, or PR comment. Fixtures are always synthetic (invented by the agent).           | `agent_ci` role without access to `raw`. Masking in staging/marts. Anti-fraud gate detects real data in fixtures. |
-| 8   | **Do not edit protected paths.** If the task requires changing a protected file (macros, CI, generic tests, etc.), the agent stops and asks the Author.                                                                                                                 | CODEOWNERS blocks merge without human approval.                                                                  |
+| 3   | **Test failed = code wrong.** If a test fails, the agent fixes the code. Never the opposite. The agent never weakens a test, changes an `expect`, modifies a test macro, or removes a reconciliation to make CI pass.                                                     | Anti-fraud gate (Control 5B) detects and blocks.                                                                |
+| 4   | **Metrics live in `models/semantic/`.** Metrics are defined once, in the semantic directory. If the metric the agent needs doesn't exist, it stops and asks the Author to create it.                                                                                     | CODEOWNERS protects `models/semantic/`.                                                                          |
+| 5   | **Fixed execution order.** The agent follows this sequence: `dbt compile` → `dbt test --select test_type:unit` → `dbt build`. If the same command fails 3 times in a row, the agent stops and calls a human.                                                             | 3-failure rule in the API gateway.                                                                              |
+| 6   | **Pre-registration before diff.** The agent must deliver the pre-registration (stage B) before any diff. Open intervals (without min or max) are invalid.                                                                                                                | JSON Schema in CI.                                                                                              |
+| 7   | **Never read individual rows.** The agent does not run `dbt show`, does not do `SELECT` without aggregation, and never pastes a value read from the warehouse into code, test, fixture, or PR comment. Fixtures are always synthetic (invented by the agent).            | `agent_ci` role without access to `raw`. Masking in staging/marts. Anti-fraud gate detects real data in fixtures. |
+| 8   | **Do not edit protected paths.** If the task requires changing a protected file (macros, CI, generic tests, etc.), the agent stops and asks the Author.                                                                                                                  | CODEOWNERS blocks merge without human approval.                                                                 |
 
 ---
 
@@ -414,6 +475,15 @@ The build includes:
 
 **What it is:** A full `dbt build` (without sample) followed by a numerical diff between the new version and current production. Runs once per PR, when the PR is marked as ready-for-review.
 
+**The diff is produced by automation, deterministically** — the same build, the same closed `event_time` window, the same comparison, every time. Neither a human nor the agent composes it ad hoc, and neither one gets to choose which numbers appear. The human's entire job at this stage is to _read_ it.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/diff-en-dark.svg">
+    <img src="assets/diff-en-light.svg" alt="Automated diff output comparing production to the pull request, each number checked against its pre-registered interval, ending in PR blocked" width="900">
+  </picture>
+</p>
+
 **What runs (in this order):**
 
 **Step 1 — Build with full data**
@@ -449,7 +519,8 @@ Each diff number is automatically compared with the intervals declared in the pr
 
 For models with `tier: critical`, the reconciliation query (`reconciliation_query`) runs on full data and compares the result with the declared tolerance (`reconciliation_tolerance`). If the difference is greater than the tolerance, the PR is **blocked**.
 
-This is the only gate capable of detecting the case where the AI incorrectly assumed the meaning of a column. If the agent thinks `order_total` is gross but it's actually net, the unit tests pass (they test what the spec says), but the reconciliation against the accounting system fails.
+> [!CAUTION]
+> This is the only gate capable of detecting the case where the AI incorrectly assumed the meaning of a column. If the agent thinks `order_total` is gross but it's actually net, the unit tests pass (they test what the spec says), but the reconciliation against the accounting system fails.
 
 **Step 5 — Human review: three readings**
 
@@ -469,13 +540,6 @@ The Author (and the Partner, if the model is critical) reads exactly three thing
 
 ---
 
-## 4. After the merge
+## License
 
-Once the PR is merged, two automatic processes keep the model correct in production.
-
-| What                                                                       | When it runs | Why                                                                                     |
-| -------------------------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------------- |
-| Full-refresh vs. incremental in a parallel environment (critical models)   | Weekly       | Compares a full rebuild with the incremental result. Detects accumulated drift.          |
-| Regeneration of `docs/profile/`                                            | Weekly       | Keeps the statistical profiles (Control 4) up to date.                                   |
-
-Other data hygiene processes (freshness, anomaly detection, quality alerts) continue to exist normally. They are not specific to development with agents and are outside the scope of this framework.
+[MIT](LICENSE) © Matheus Miloski. Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).

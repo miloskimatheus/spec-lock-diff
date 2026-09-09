@@ -3,10 +3,28 @@
 [English](README.md) · **Português (pt-BR)**
 
 <p align="center">
-  <img src="assets/spec-lock-diff.png" alt="Two people flanking a padlock containing a robot, over a line chart" width="560">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/wordmark-dark.svg">
+    <img src="assets/wordmark-light.svg" alt="Spec · Lock · Diff" width="470">
+  </picture>
 </p>
 
-Um framework para desenvolvimento com dbt usando agentes de IA. O objetivo é reduzir os riscos que surgem quando um agente escreve SQL, resultados errados que parecem certos, vazamento de dados pessoais e custos financeiros inesperados.
+<p align="center">
+  <img alt="feito para dbt" src="https://img.shields.io/badge/feito%20para-dbt-A34F2E">
+  <img alt="warehouse: snowflake, bigquery, databricks" src="https://img.shields.io/badge/warehouse-snowflake%20%C2%B7%20bigquery%20%C2%B7%20databricks-444d56">
+  <a href="LICENSE"><img alt="licença MIT" src="https://img.shields.io/badge/licen%C3%A7a-MIT-16324F"></a>
+  <a href="CONTRIBUTING.md"><img alt="PRs bem-vindos" src="https://img.shields.io/badge/PRs-bem--vindos-0F6B4F"></a>
+  <img alt="docs em EN e pt-BR" src="https://img.shields.io/badge/docs-EN%20%C2%B7%20pt--BR-8A5A0B">
+</p>
+
+Um framework para desenvolvimento com dbt usando agentes de IA. O objetivo é reduzir os principais riscos que surgem quando um agente escreve SQL:
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/risks-pt-dark.svg">
+    <img src="assets/risks-pt-light.svg" alt="Três riscos: resultados errados que parecem certos, vazamento de dados sensíveis, custos financeiros inesperados" width="900">
+  </picture>
+</p>
 
 O framework se resume em três fases:
 
@@ -20,9 +38,8 @@ O framework se resume em três fases:
 
 0. [Papéis — quem faz o quê](#0-pap%C3%A9is--quem-faz-o-qu%C3%AA)
 1. [Manifesto — 3 princípios](#1-manifesto--3-princ%C3%ADpios)
-2. [Setup inicial — 5 controles obrigatórios](#2-setup-inicial--5-controles-obrigat%C3%B3rios)
-3. [Fluxo de cada PR — 5 etapas](#3-fluxo-de-cada-pr--5-etapas)
-4. [Depois do merge](#4-depois-do-merge)
+2. [Construindo a trava — 5 controles obrigatórios](#2-construindo-a-trava--5-controles-obrigat%C3%B3rios)
+3. [O processo de desenvolvimento (rotina) — 5 etapas](#3-o-processo-de-desenvolvimento-rotina--5-etapas)
 
 ---
 
@@ -30,46 +47,60 @@ O framework se resume em três fases:
 
 Este framework define quatro papéis, cada um assume um papel por PR.
 
-| Papel          | Quem é                   | O que faz                                                                                     |
-| -------------- | ------------------------ | --------------------------------------------------------------------------------------------- |
-| **Plataforma** | Time infra/plataforma    | Configura os 5 controles do Setup (seção 2) uma única vez. Faz a manutenção semanal (seção 4). |
-| **Autor**      | Um humano da equipe      | Escreve a spec do modelo. Aciona o agente. Lê o diff. É o responsável pelo PR.                |
-| **Parceiro**   | Outro humano (≠ Autor)   | Aprova PRs de modelos críticos.                                                               |
-| **Agente**     | A IA (LLM + ferramentas) | Escreve código, testes e o pré-registro numérico.                                             |
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/roles-pt-dark.svg">
+    <img src="assets/roles-pt-light.svg" alt="Um humano escreve a spec, o agente roda dentro de um cercado construído pela Plataforma, um humano lê o diff" width="900">
+  </picture>
+</p>
+
+| Papel          | Quem é                   | O que faz                                                                                          |
+| -------------- | ------------------------ | ---------------------------------------------------------------------------------------------------- |
+| **Plataforma** | Time infra/plataforma    | Configura os controles do setup (seção 2) uma única vez. Depois só garante que continuem funcionando. |
+| **Autor**      | Um humano da equipe      | Escreve a spec do modelo. Aciona o agente. Lê o diff. É o responsável pelo PR.                      |
+| **Parceiro**   | Outro humano (≠ Autor)   | Aprova PRs de modelos críticos.                                                                     |
+| **Agente**     | A IA (LLM + ferramentas) | Escreve código, testes e o pré-registro numérico.                                                   |
 
 ---
 
 ## 1. Manifesto — 3 princípios
 
-Três itens que justificam _por que_ o framework existe. Todas as regras decorrem deles.
+_Por que_ o framework existe. Todas as regras decorrem deles.
 
-### Princípio 1: Em SQL, bug não dá erro — dá número plausível (errado)
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/manifesto-pt-dark.svg">
+    <img src="assets/manifesto-pt-light.svg" alt="Os três princípios alimentam o framework: o princípio 1 molda Spec e Diff, o 2 molda Lock, o 3 molda Diff" width="900">
+  </picture>
+</p>
 
-Quando você erra um `JOIN` em Python, geralmente o programa quebra. Quando você erra um `JOIN` em SQL, é comum que a query rode normalmente e retorna um número que parece razoável mas que na verdade está errado. 
-
-Por isso o humano decide _antes_ (escrevendo a spec) e confere _depois_ (lendo o diff numérico). O humano não faz nada entre esses dois momentos — o agente trabalha sozinho no meio.
-
-### Princípio 2: Limites devem ser configurados na infraestrutura
-
-Escrever "não acesse dados sensíveis" em um arquivo `AGENTS.md` não impede o agente de acessar dados sensíveis. Isso é uma instrução, não um controle. O agente pode ignorar, esquecer ou interpretar diferente.
-
-Controle de verdade é exxige negar permisões no banco de dados, um resource monitor que desliga o warehouse, uma branch protection que impede push em `main`. Se o agente tentar violar, o sistema bloqueia — independentemente do que o prompt diz.
-
-### Princípio 3: As verificações devem ser determinísticas
-
-Tudo bem o agente ser imprevisível ao gerar código — LLMs são estocásticos por natureza. Mas todo gate de verificação (testes, diffs, reconciliações) precisa ser determinístico. A mesma entrada deve sempre produzir o mesmo resultado.
-
-Um LLM não deve ser o juiz final de "o código está correto?". Quem julga são testes automatizados, diffs numéricos e olhos humanos.
+| # | Princípio | Por que se sustenta | O que decorre dele |
+|:-:|-----------|---------------------|--------------------|
+| **1** | **Em SQL, bug não dá erro**<br>Dá um número plausível — e errado. | Erre um `JOIN` em Python e o programa quebra. Erre em SQL e a query roda normalmente, devolve `16.894.203,11`, informa `1 linha · sem erro`, e nunca menciona as linhas que duplicou. | O humano **decide antes**, escrevendo a spec, e **confere depois**, lendo o diff numérico.<br>Entre esses dois momentos o humano não faz nada — o agente trabalha sozinho no meio. |
+| **2** | **Limites devem ser configurados na infraestrutura**<br>Não escritos e torcidos para dar certo. | "Não acesse dados sensíveis" num `AGENTS.md` é uma _instrução_, não um controle — o agente pode ignorar, esquecer ou interpretar diferente. `REVOKE USAGE ON SCHEMA raw` é um controle. | Controle de verdade é **negar permissões no banco**, um **resource monitor** que desliga o warehouse, uma **branch protection** que impede push em `main`.<br>Se o agente tentar violar, o sistema bloqueia — independentemente do que o prompt diz. |
+| **3** | **As verificações devem ser determinísticas**<br>A mesma entrada, sempre o mesmo resultado. | LLMs são estocásticos por natureza, e tudo bem enquanto _geram_ código — o mesmo prompt devolve três joins diferentes. Não está tudo bem enquanto _julgam_. | Todo gate de verificação — testes, diffs, reconciliações — é determinístico.<br>Um LLM nunca é o juiz final de "o código está correto?". Quem julga são **testes automatizados, diffs numéricos e olhos humanos**. |
 
 ---
 
-## 2. Setup inicial — 5 controles obrigatórios
+## 2. Construindo a trava — 5 controles obrigatórios
 
-**Quem executa:** Plataforma. **Quando:** Uma única vez, antes do primeiro PR com agente. **Regra:** Nenhum PR com agente pode rodar antes que todos os 5 controles estejam implementados.
+Esta seção é o framework inteiro. Você não está escrevendo regras para o agente obedecer — está construindo um ambiente em que as regras não podem ser quebradas. Uma vez que estes cinco controles estejam no lugar, o agente pode ser solto dentro deles e deixado para trabalhar sozinho: ele não consegue gastar dinheiro que não recebeu, ler dados que não lhe foram mostrados, nem mergear código que ninguém leu. É isso que compra a liberdade de parar de revisar o SQL dele linha por linha.
+
+**Quem executa:** Plataforma. **Quando:** Uma única vez, antes do primeiro PR com agente.
+
+> [!IMPORTANT]
+> Não comece a construir nada sem antes configurar os controles.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/controls-pt-dark.svg">
+    <img src="assets/controls-pt-light.svg" alt="Os cinco controles e o que cada um bloqueia" width="900">
+  </picture>
+</p>
 
 ---
 
-### Controle 1: Identidade própria para o agente
+### <img src="assets/icon-c1.svg" width="19" height="19" alt=""> Controle 1: Identidade própria para o agente
 
 **O que é:** O agente precisa ter sua própria identidade separada no warehouse e no git, com permissões restritas.
 
@@ -100,13 +131,20 @@ Branch protection na `main` (todas obrigatórias):
 
 ---
 
-### Controle 2: Acesso a dados restrito
+### <img src="assets/icon-c2.svg" width="19" height="19" alt=""> Controle 2: Acesso a dados restrito
 
 **O que é:** O agente só vê o que precisa ver, e nunca vê dados sensíveis.
 
 **Por que existe:** Um LLM que acessa dados brutos pode vazar informações pessoais (CPF, e-mail, endereço) no código, nos testes, nos comentários do PR ou até no log de conversação com o provedor do modelo.
 
 **Como implementar:**
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/permissions-pt-dark.svg">
+    <img src="assets/permissions-pt-light.svg" alt="Permissão do agente por camada: nenhum acesso a raw, leitura mascarada em staging e marts, sem escrita em produção, leitura e escrita no schema do próprio PR" width="900">
+  </picture>
+</p>
 
 | Camada de dados             | Permissão do agente                                                                                                                                           |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -126,7 +164,7 @@ Masking de colunas sensíveis:
 
 ---
 
-### Controle 3: Tetos de gastos
+### <img src="assets/icon-c3.svg" width="19" height="19" alt=""> Controle 3: Tetos de gastos
 
 **O que é:** Limites financeiros que desligam o agente automaticamente quando atingidos.
 
@@ -146,7 +184,7 @@ Timeout por query:
 
 ---
 
-### Controle 4: Estatísticas agregadas ao invés de acesso a registros reais
+### <img src="assets/icon-c4.svg" width="19" height="19" alt=""> Controle 4: Estatísticas agregadas ao invés de acesso a registros reais
 
 **O que é:** Em vez de permitir que o agente consulte linhas reais dos dados, forneça a ele um resumo estatístico pré-computado de cada modelo.
 
@@ -165,11 +203,21 @@ Crie um job semanal que:
     - Top 20 valores **apenas** em colunas marcadas com `meta: {categorica: true}` no `.yml` do modelo. Colunas sem essa tag não exibem valores individuais.
 4. O perfil **não contém**: valores mínimos, valores máximos, amostras de dados, exemplos de linhas.
 
+```yaml
+# docs/perfil/fct_orders.yml — regerado semanalmente, lido pelo agente
+order_id:       {linhas: 1284003, nulos: 0.0%, distintos: 1284003}
+customer_id:    {linhas: 1284003, nulos: 0.0%, distintos: 84120}
+status:         {linhas: 1284003, nulos: 0.0%, distintos: 6,
+                 top: [shipped, delivered, cancelled, ...]}   # categorica: true
+customer_email: {linhas: 1284003, nulos: 1.2%, distintos: 83904}
+# sem mínimos, sem máximos, sem amostras, sem exemplos de linhas
+```
+
 Quando o agente precisa entender a estrutura de um dado, ele consulta `docs/perfil/`. Ele nunca roda queries exploratórias no warehouse.
 
 ---
 
-### Controle 5: Paths protegidos e gates anti-fraude
+### <img src="assets/icon-c5.svg" width="19" height="19" alt=""> Controle 5: Paths protegidos e gates anti-fraude
 
 **O que é:** Certos arquivos e diretórios devem ser protegidos para que apenas humanos possam alterá-los. Além disso, um script de CI deve detectar se o agente tentou enfraquecer testes ou contornar proteções.
 
@@ -180,49 +228,54 @@ Quando o agente precisa entender a estrutura de um dado, ele consulta `docs/perf
 **Parte A — CODEOWNERS (o git exige aprovação humana para estes paths):**
 
 | Path protegido                               | Por que é protegido                                                                                                          |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `.github/`                                   | Workflows de CI. Se o agente mudar o CI, ele controla as regras.                                                             |
-| `.pre-commit-config.yaml`                    | Hooks de validação local.                                                                                                    |
-| `CODEOWNERS`                                 | O arquivo que define quem aprova o quê.                                                                                      |
-| `AGENTS.md`                                  | As regras do agente.                                                                                                         |
-| `packages.yml`                               | Dependências do dbt. Um agente poderia pinar uma versão vulnerável.                                                          |
-| `dbt_project.yml`                            | Configuração global do projeto.                                                                                              |
-| `macros/`                                    | Macros são reutilizadas por vários modelos. Uma mudança afeta tudo.                                                          |
-| `tests/`                                     | Testes genéricos.                                                                                                            |
-| `analyses/recon_*`                           | Queries de reconciliação. Se o agente mudar a reconciliação no mesmo PR do modelo, ele controla o que está sendo verificado. |
-| `models/semantic/`                           | Definições de métricas. Uma métrica errada propaga erro para todos os consumidores.                                          |
-| `docs/perfil/`                               | Perfis estatísticos. Se o agente mudar o perfil, ele muda sua própria referência.                                            |
-| Modelos incrementais (listar explicitamente) | Modelos incrementais são mais complexos e frágeis.                                                                           |
-| Diretórios de modelos críticos               | O dono do CODEOWNERS deve ser o data owner do domínio.                                                                       |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `.github/`                                   | Workflows de CI. Se o agente mudar o CI, ele controla as regras.                                                              |
+| `.pre-commit-config.yaml`                    | Hooks de validação local.                                                                                                     |
+| `CODEOWNERS`                                 | O arquivo que define quem aprova o quê.                                                                                       |
+| `AGENTS.md`                                  | As regras do agente.                                                                                                          |
+| `packages.yml`                               | Dependências do dbt. Um agente poderia pinar uma versão vulnerável.                                                           |
+| `dbt_project.yml`                            | Configuração global do projeto.                                                                                               |
+| `macros/`                                    | Macros são reutilizadas por vários modelos. Uma mudança afeta tudo.                                                           |
+| `tests/`                                     | Testes genéricos.                                                                                                             |
+| `analyses/recon_*`                           | Queries de reconciliação. Se o agente mudar a reconciliação no mesmo PR do modelo, ele controla o que está sendo verificado.  |
+| `models/semantic/`                           | Definições de métricas. Uma métrica errada propaga erro para todos os consumidores.                                           |
+| `docs/perfil/`                               | Perfis estatísticos. Se o agente mudar o perfil, ele muda sua própria referência.                                             |
+| Modelos incrementais (listar explicitamente) | Modelos incrementais são mais complexos e frágeis.                                                                            |
+| Diretórios de modelos críticos               | O dono do CODEOWNERS deve ser o data owner do domínio.                                                                        |
 
 **Parte B — Gate anti-fraude:**
 
 Um script que roda em CI sobre os commits feitos pelo bot. É o único script customizado que o framework exige. Ele analisa os diffs do bot e **bloqueia o PR** se encontrar qualquer uma destas situações:
 
-|Situação detectada|Por que bloqueia|
-|---|---|
-|Teste removido|Um agente pode remover um teste que está falhando em vez de corrigir o código.|
-|`WHERE` ou cláusula de exclusão adicionada a um teste|Uma forma de fazer um teste passar sem corrigir o problema: filtrar os casos que falham.|
-|`severity` rebaixada (ex: `error` → `warn`)|Transformar um erro em aviso faz o CI passar, mas o problema continua.|
-|Valor `expect` alterado em um teste existente|Se o agente muda o resultado esperado, qualquer resultado vira "correto".|
-|`analyses/recon_*` alterado no mesmo PR do modelo|O agente não pode mudar o modelo E a reconciliação que verifica o modelo no mesmo PR. Seria como um aluno escrevendo a prova e a resposta.|
-|Pin de pacote alterado|Mudar versões de dependências pode introduzir comportamentos diferentes.|
+| Situação detectada                                    | Por que bloqueia                                                                                                                                |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Teste removido                                        | Um agente pode remover um teste que está falhando em vez de corrigir o código.                                                                   |
+| `WHERE` ou cláusula de exclusão adicionada a um teste | Uma forma de fazer um teste passar sem corrigir o problema: filtrar os casos que falham.                                                          |
+| `severity` rebaixada (ex: `error` → `warn`)           | Transformar um erro em aviso faz o CI passar, mas o problema continua.                                                                            |
+| Valor `expect` alterado em um teste existente         | Se o agente muda o resultado esperado, qualquer resultado vira "correto".                                                                        |
+| `analyses/recon_*` alterado no mesmo PR do modelo     | O agente não pode mudar o modelo E a reconciliação que verifica o modelo no mesmo PR. Seria como um aluno escrevendo a prova e o gabarito.        |
+| Pin de pacote alterado                                | Mudar versões de dependências pode introduzir comportamentos diferentes.                                                                         |
 
 **Opcional (camada extra de proteção):** Se o agente suportar hooks antes de executar ferramentas (ex: `PreToolUse` no Claude Code), configure um hook que recusa a escrita em paths protegidos na hora — antes mesmo do commit.
 
 ---
 
-## 3. Fluxo de cada PR — 5 etapas
+## 3. O processo de desenvolvimento (rotina) — 5 etapas
 
-Todo PR segue estas 5 etapas na ordem. Cada etapa tem um responsável e uma condição de bloqueio.
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/process-pt-dark.svg">
+    <img src="assets/process-pt-light.svg" alt="A etapa A é humana, as etapas B C e D rodam trancadas dentro da plataforma, a etapa E volta para um humano que apenas lê o diff automático" width="900">
+  </picture>
+</p>
 
-| Etapa | Nome                 | Quem executa                 | O que bloqueia o avanço                                                                         |
-| ----- | -------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------- |
-| **A** | Spec                 | Autor (humano)               | PR não pode avançar sem spec preenchida. Modelos críticos também exigem query de reconciliação. |
-| **B** | Pré-registro         | Agente                       | —                                                                                               |
-| **C** | Código               | Agente                       | Não pode começar sem pré-registro válido.                                                       |
-| **D** | CI automático        | Automação (a cada push)      | Qualquer falha bloqueia. Tempo máximo: ~15 minutos.                                             |
-| **E** | Diff + review humano | Automação + Autor + Parceiro | Diff fora do pré-registro bloqueia. Reconciliação fora da tolerância bloqueia.                  |
+| Etapa | Nome                 | Quem executa                                | O que bloqueia o avanço                                                                         |
+| ----- | -------------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| **A** | Spec                 | Autor (humano)                              | PR não pode avançar sem spec preenchida. Modelos críticos também exigem query de reconciliação. |
+| **B** | Pré-registro         | Agente                                      | —                                                                                               |
+| **C** | Código               | Agente                                      | Não pode começar sem pré-registro válido.                                                       |
+| **D** | CI automático        | Automação (a cada push)                     | Qualquer falha bloqueia. Tempo máximo: ~15 minutos.                                             |
+| **E** | Diff + review humano | A automação gera, o Autor ou Parceiro lê    | Diff fora do pré-registro bloqueia. Reconciliação fora da tolerância bloqueia.                  |
 
 ---
 
@@ -300,6 +353,7 @@ meta:
 1. O agente pode rascunhar uma versão inicial da spec a partir do perfil estatístico (Controle 4). Mas os 6 campos devem ser lidos e aprovados pelo humano **antes** de qualquer linha de código ser escrita.
 
 2. A spec também pode estar errada. Um erro na spec é invisível para todos os gates automatizados (porque os testes verificam a spec, não a realidade). É exatamente por isso que o campo `validacao_externa` existe: ele ancora o modelo em um número que vem de fora do warehouse.
+
 ---
 
 ### Etapa B: Pré-registro (Agente)
@@ -308,7 +362,15 @@ meta:
 
 **Por que existe:** Sem pré-registro, o agente vê os números do diff e depois inventa uma justificativa. O pré-registro inverte essa ordem: o agente se compromete com intervalos _antes_ de ver os resultados. Se os números caírem fora do intervalo, o PR é bloqueado automaticamente — o agente não consegue "ajustar" sua previsão depois.
 
-**O pré-registro é imutável a partir do momento em que a etapa D (CI) começa.** Se o agente alterar o pré-registro após o CI ter rodado, o CI é reexecutado do zero e um contador de alterações é incrementado no PR (visível para o Autor no review).
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/pre-registration-pt-dark.svg">
+    <img src="assets/pre-registration-pt-light.svg" alt="O agente declarou um delta de linhas entre 0 e 12000 antes de escrever código; o diff mediu 15000, fora da faixa, então o PR é bloqueado" width="900">
+  </picture>
+</p>
+
+> [!IMPORTANT]
+> O pré-registro é imutável a partir do momento em que a etapa D (CI) começa. Se o agente alterar o pré-registro após o CI ter rodado, o CI é reexecutado do zero e um contador de alterações é incrementado no PR (visível para o Autor no review).
 
 **Formato do pré-registro:**
 
@@ -413,6 +475,15 @@ O build inclui:
 
 **O que é:** Um `dbt build` completo (sem amostra) seguido de um diff numérico entre a versão nova e a produção atual. Roda uma única vez por PR, quando o PR é marcado como ready-for-review.
 
+**O diff é produzido pela automação, de forma determinística** — o mesmo build, a mesma janela fechada de `event_time`, a mesma comparação, todas as vezes. Nem um humano nem o agente monta esse diff ad hoc, e nenhum dos dois escolhe quais números aparecem. O trabalho do humano nesta etapa é inteiramente _ler_.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/diff-pt-dark.svg">
+    <img src="assets/diff-pt-light.svg" alt="Saída automática do diff comparando produção com o pull request, cada número conferido contra seu intervalo pré-registrado, terminando em PR bloqueado" width="900">
+  </picture>
+</p>
+
 **O que roda (nesta ordem):**
 
 **Passo 1 — Build com dado completo**
@@ -449,17 +520,18 @@ Cada número do diff é comparado automaticamente com os intervalos declarados n
 
 Para modelos com `tier: critico`, a query de reconciliação (`query_de_reconciliacao`) roda em dado completo e compara o resultado com a tolerância declarada (`tolerancia_reconciliacao`). Se a diferença for maior que a tolerância, o PR é **bloqueado**.
 
-Este é o único gate capaz de detectar o caso em que a IA presumiu errado o significado de uma coluna. Se o agente acha que `order_total` é bruto mas na verdade é líquido, os unit tests passam (eles testam o que a spec diz), mas a reconciliação contra o sistema contábil falha.
+> [!CAUTION]
+> Este é o único gate capaz de detectar o caso em que a IA presumiu errado o significado de uma coluna. Se o agente acha que `order_total` é bruto mas na verdade é líquido, os unit tests passam (eles testam o que a spec diz), mas a reconciliação contra o sistema contábil falha.
 
 **Passo 5 — Review humano: três leituras**
 
 O Autor (e o Parceiro, se o modelo for crítico) lê exatamente três coisas.
 
-|#|Pergunta|O que estou procurando|
-|---|---|---|
-|1|O grain da spec é o grain desejado?|Verificar se a definição de "uma linha" faz sentido para o negócio.|
-|2|O pré-registro é estreito o bastante para poder falhar? O motivo justifica o intervalo?|Um pré-registro que diz `delta_linhas: {min: -999999, max: 999999}` é inútil — ele nunca falha. O intervalo deve ser apertado o suficiente para pegar erros reais.|
-|3|Os `expect` dos unit tests dizem o mesmo que as bordas da spec?|Verificar se o agente traduziu as bordas da spec corretamente nos testes.|
+| # | Pergunta                                                                              | O que estou procurando                                                                                                                                    |
+| - | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 | O grain da spec é o grain desejado?                                                   | Verificar se a definição de "uma linha" faz sentido para o negócio.                                                                                        |
+| 2 | O pré-registro é estreito o bastante para poder falhar? O motivo justifica o intervalo? | Um pré-registro que diz `delta_linhas: {min: -999999, max: 999999}` é inútil — ele nunca falha. O intervalo deve ser apertado o suficiente para pegar erros reais. |
+| 3 | Os `expect` dos unit tests dizem o mesmo que as bordas da spec?                        | Verificar se o agente traduziu as bordas da spec corretamente nos testes.                                                                                  |
 
 **Regras de aprovação:**
 
@@ -469,13 +541,6 @@ O Autor (e o Parceiro, se o modelo for crítico) lê exatamente três coisas.
 
 ---
 
-## 4. Depois do merge
+## Licença
 
-Depois que o PR é mergeado, dois processos automáticos garantem que o modelo continua correto em produção.
-
-| O que                                                                | Quando roda | Por que                                                                                            |
-| -------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------- |
-| Full-refresh vs. incremental em ambiente paralelo (modelos críticos) | Semanal     | Compara uma reconstrução completa com o resultado incremental. Detecta drift acumulado.            |
-| Regeneração de `docs/perfil/`                                        | Semanal     | Mantém os perfis estatísticos (Controle 4) atualizados.                                            |
-
-Outros processos de higiene de dados (freshness, detecção de anomalias, alertas de qualidade) continuam existindo normalmente. Eles não são específicos de desenvolvimento com agentes e estão fora do escopo deste framework.
+[MIT](LICENSE) © Matheus Miloski. Contribuições são bem-vindas — veja [CONTRIBUTING.md](CONTRIBUTING.md).

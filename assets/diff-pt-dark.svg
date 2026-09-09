@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 942 236" width="942" height="236" role="img" aria-label="Saída automática do diff comparando produção com o pull request, cada número conferido contra seu intervalo pré-registrado, terminando em PR bloqueado" font-family='"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace'>
+<title>Saída automática do diff comparando produção com o pull request, cada número conferido contra seu intervalo pré-registrado, terminando em PR bloqueado</title>
+
+<g fill="none" stroke="#e6edf3" stroke-width="1.4" opacity=".6">
+<rect x="1" y="1" width="940" height="234"/><path d="M1 63h940M1 179h940"/></g>
+<text x="19" y="27" font-size="11.5" font-weight="600" fill="#e6edf3">DIFF  fct_orders   prod → pr-142</text>
+<text x="923" y="27" text-anchor="end" font-size="10" letter-spacing="1.4" fill="#e6edf3" opacity=".55">GERADO PELO CI · DETERMINÍSTICO</text>
+<text x="19" y="47" font-size="10" fill="#e6edf3" opacity=".55">janela de event_time idêntica nos dois lados</text>
+
+<g font-size="11.5" fill="#e6edf3" opacity=".85">
+<text x="19" y="89">row_count</text><text x="231" y="89">1,284,003 → 1,299,003</text><text x="531" y="89">+15,000</text>
+<text x="19" y="119">gross_revenue</text><text x="231" y="119">14,203,118.40 → 14,289,551.02</text><text x="531" y="119">+0.61%</text>
+<text x="19" y="149">removed_pks</text><text x="231" y="149">0</text><text x="531" y="149">0</text></g>
+<text x="661" y="89" font-size="11.5" font-weight="600" fill="#E58174">✗ fora de {min 0, max 12000}</text>
+<text x="661" y="119" font-size="11.5" font-weight="600" fill="#4FBE8F">✓ dentro de {0.0, 0.8}</text>
+<text x="661" y="149" font-size="11.5" font-weight="600" fill="#4FBE8F">✓ dentro de {max 0}</text>
+
+<rect x="19" y="195" width="124" height="26" fill="none" stroke="#E58174" stroke-width="1.6"/>
+<text x="81" y="213" text-anchor="middle" font-size="11.5" font-weight="600" letter-spacing="1.2" fill="#E58174">PR BLOQUEADO</text>
+<text x="161" y="213" font-size="11.5" fill="#e6edf3" opacity=".75">row_count saiu do intervalo declarado pelo agente na etapa B.</text>
+</svg>
