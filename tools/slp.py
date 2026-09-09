@@ -24,7 +24,7 @@ from typing import NamedTuple
 import jsonschema
 import yaml
 
-__version__ = "0.1.0.dev"
+__version__ = "0.1.0"
 SCHEMA_DIR = pathlib.Path(__file__).resolve().parent / "schemas"
 
 # Keys that say how a test runs rather than what it asserts. They are kept apart

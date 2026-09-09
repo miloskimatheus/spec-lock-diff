@@ -150,6 +150,14 @@ def test_r10_the_two_readmes_are_the_same_document():
     assert rows(english) == rows(portuguese) == list(slp.RULE_IDS)
 
 
+def test_the_version_is_the_one_the_changelog_describes():
+    """A tag nobody can trace to a list of rules is a number, not a release."""
+    changelog = (TOOLS / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert "## %s " % slp.__version__ in changelog
+    for rule in slp.RULE_IDS:
+        assert "`%s`" % rule in changelog, rule
+
+
 def test_m8_the_one_file_is_still_one_sitting():
     """R6. The backlog that planned these tools said 600 lines, before the rules were
     counted: twenty-one of them, with readable messages and fail-closed guards, came
