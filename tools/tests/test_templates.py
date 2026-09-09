@@ -118,3 +118,27 @@ def test_ci_yml_hands_compare_every_diff_in_one_call():
     workflow = yaml.safe_load((TEMPLATES / "ci.yml").read_text(encoding="utf-8"))
     steps = "\n".join(str(s.get("run", "")) for s in workflow["jobs"]["diff"]["steps"])
     assert "python tools/slp.py compare diff/*.json" in steps
+
+
+def test_the_readme_and_the_workflow_ask_for_the_same_jsonschema():
+    """Draft 2020-12 needs jsonschema 4; a floor in one place and not the other
+    means the machine that installs from the README is not the machine CI is."""
+    workflow = (TEMPLATES / "ci.yml").read_text(encoding="utf-8")
+    assert workflow.count('"jsonschema>=4"') == 2
+    for name in ("README.md", "README.pt-br.md"):
+        assert '"jsonschema>=4"' in (TOOLS / name).read_text(encoding="utf-8"), name
+
+
+def test_the_rule_count_in_the_readmes_is_the_number_of_rules():
+    """A count nobody checks is a count that drifts the first time a rule lands."""
+    import slp
+    said = {7: "seven", 24: "twenty-four", 25: "twenty-five", 26: "twenty-six",
+            27: "twenty-seven", 28: "twenty-eight"}
+    words = {"twenty-four": "vinte e quatro", "twenty-five": "vinte e cinco",
+             "twenty-six": "vinte e seis", "twenty-seven": "vinte e sete",
+             "twenty-eight": "vinte e oito"}
+    english = said.get(len(slp.RULE_IDS))
+    assert english, "no word for %d rules; add it here" % len(slp.RULE_IDS)
+    assert "%s rules" % english in (TOOLS / "README.md").read_text(encoding="utf-8")
+    assert "%s regras" % words[english] in \
+        (TOOLS / "README.pt-br.md").read_text(encoding="utf-8")

@@ -30,6 +30,16 @@ fixture that fails against 0.2.0.
   `G3`, with `where` held apart in `DEAD_KEYS` because it is the one key that
   might be scoping rather than evasion.
 
+- **The setup instructions install what the tools actually need.** They said
+  `pip install pyyaml jsonschema` with no floor, while `templates/ci.yml` pinned
+  `jsonschema>=4` — so the machine a reader set up from the README was not the
+  machine CI was. The schemas are draft 2020-12 and its validator arrived in
+  jsonschema 4.0; on 3.x the tools do not start. A test now holds the README and
+  the workflow to the same floor, and a second holds the rule count in both
+  READMEs to the length of `RULE_IDS`. The first step also says to read
+  `python3` for `python`, which is the first command a reader on most Linux
+  distributions runs and the first one that fails.
+
 - **`C5` informs instead of blocking.** A `refactoring` has every interval
   pinned to zero by the pre-registration schema, so `C1` to `C4` already refuse
   every number `C5` could catch — it could never be the only rule that noticed,

@@ -31,7 +31,7 @@ não diz nada, estas ferramentas não fazem nada.
 
 | Caminho | O que é |
 | --- | --- |
-| `slp.py` | A ferramenta inteira: três comandos, vinte e quatro regras, um arquivo que se lê de uma sentada. |
+| `slp.py` | A ferramenta inteira: três comandos, vinte e seis regras, um arquivo que se lê de uma sentada. |
 | `schemas/spec.schema.json` | Como uma `meta.spec` precisa ser (README §3 Etapa A). |
 | `schemas/pre_registration.schema.json` | Como um `meta.pre_registration` precisa ser (README §3 Etapa B). |
 | `schemas/diff.schema.json` | Como um `diff.json` precisa ser — a única interface com o que quer que meça o seu diff. |
@@ -52,9 +52,16 @@ não diz nada, estas ferramentas não fazem nada.
 ## 2. Prepare seu ambiente
 
 1. **Python 3.9 ou mais novo**, e **git 2.20 ou mais novo**. Confira com
-   `python --version` e `git --version`.
-2. **PyYAML e jsonschema.** Se o dbt está instalado, você já tem os dois. Se
-   não: `pip install pyyaml jsonschema`. Estas ferramentas não usam mais nada.
+   `python3 --version` e `git --version`. A maioria das distribuições Linux traz
+   `python3` e nenhum `python`; todo comando deste documento está escrito
+   `python` por brevidade, então, se a sua é uma delas, leia `python3` em todos
+   eles — inclusive no `templates/ci.yml` e no `templates/AGENTS.md`, onde os
+   mesmos comandos estão ligados ao CI.
+2. **PyYAML e jsonschema 4 ou mais novo.** Se o dbt está instalado, você já tem
+   os dois. Se não: `pip install "pyyaml" "jsonschema>=4"`. O piso não é
+   enfeite — os schemas são JSON Schema draft 2020-12, e o validador dele
+   chegou no jsonschema 4.0. No 3.x as ferramentas não caem para um draft mais
+   velho; elas não sobem. Essas duas bibliotecas são tudo o que elas usam.
 3. **Copie `tools/` para a raiz do seu repositório dbt**, ao lado do
    `dbt_project.yml`.
 4. **Copie os templates para o lugar deles:**
@@ -73,8 +80,8 @@ não diz nada, estas ferramentas não fazem nada.
    python tools/slp.py --version
    ```
 7. **Opcional, e vale a pena:** `pip install pytest && pytest tools/tests -q`.
-   Cerca de duzentos e trinta testes, alguns segundos, sem rede. Se passam, os gates da
-   sua máquina são os gates do CI.
+   Cerca de duzentos e oitenta testes, alguns segundos, sem rede. Se passam, os
+   gates da sua máquina são os gates do CI.
 
 ---
 

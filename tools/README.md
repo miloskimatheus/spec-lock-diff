@@ -31,7 +31,7 @@ says nothing, these tools do nothing.
 
 | Path | What it is |
 | --- | --- |
-| `slp.py` | The whole tool: three commands, twenty-four rules, one file you can read in one sitting. |
+| `slp.py` | The whole tool: three commands, twenty-six rules, one file you can read in one sitting. |
 | `schemas/spec.schema.json` | What a `meta.spec` must look like (README §3 Stage A). |
 | `schemas/pre_registration.schema.json` | What a `meta.pre_registration` must look like (README §3 Stage B). |
 | `schemas/diff.schema.json` | What a `diff.json` must look like — the one interface to whatever measures your diff. |
@@ -52,9 +52,16 @@ says nothing, these tools do nothing.
 ## 2. Set up your environment
 
 1. **Python 3.9 or newer**, and **git 2.20 or newer**. Check with
-   `python --version` and `git --version`.
-2. **PyYAML and jsonschema.** If dbt is installed you already have both. If not:
-   `pip install pyyaml jsonschema`. These tools use nothing else.
+   `python3 --version` and `git --version`. Most Linux distributions ship
+   `python3` and no `python` at all; every command in this document is written
+   `python` for brevity, so if yours is one of them, read `python3` throughout —
+   including in `templates/ci.yml` and `templates/AGENTS.md`, where the same
+   commands are wired into CI.
+2. **PyYAML and jsonschema 4 or newer.** If dbt is installed you already have
+   both. If not: `pip install "pyyaml" "jsonschema>=4"`. The floor is not
+   decoration — the schemas are JSON Schema draft 2020-12, and the validator for
+   it arrived in jsonschema 4.0. On 3.x the tools do not fall back to an older
+   draft; they fail to start. These two libraries are all they use.
 3. **Copy `tools/` into the root of your dbt repository**, next to
    `dbt_project.yml`.
 4. **Copy the templates into place:**
@@ -73,8 +80,8 @@ says nothing, these tools do nothing.
    python tools/slp.py --version
    ```
 7. **Optional, and worth it:** `pip install pytest && pytest tools/tests -q`.
-   Around two hundred and thirty tests, a few seconds, no network. If they pass,
-   the gates on your machine are the gates in CI.
+   Around two hundred and eighty tests, a few seconds, no network. If they
+   pass, the gates on your machine are the gates in CI.
 
 ---
 
