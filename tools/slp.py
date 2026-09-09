@@ -574,12 +574,28 @@ def gate_packages(ctx):
                   "are a human decision" % path, "G6")
             for path in _changed(ctx, "packages")]
 
+def gate_spec_changed(ctx):
+    """README §1 Principle 1 — "The human decides before, by writing the spec"; README §3 Stage A — the six fields are read and approved before any line of code is written."""
+    out = []
+    for model in sorted(ctx.after["specs"]):
+        spec = ctx.after["specs"][model]
+        if spec is None or not _file(ctx, model).startswith("models/marts/"):
+            continue
+        first = next((inv["specs"][model] for inv in ctx.walk
+                      if inv["specs"].get(model) is not None), None)
+        if first is not None and _canon(first) != _canon(spec):
+            out.append(block(_file(ctx, model), model, "meta.spec changed after it was first "
+                             "written on this branch; the spec is the human's decision, and a "
+                             "human changes it in a separate PR", "G7"))
+    return out
+
 # --- Rule registries. A rule is one function: context in, findings out. ---
 
 CHECK_RULES = [check_spec_present, check_spec_schema, check_spec_consistency,
                check_prereg_schema, check_prereg_consistency, check_pk_test]
 GATE_RULES = [gate_test_removed, gate_test_filter, gate_test_severity,
-              gate_unit_test_changed, gate_recon_with_model, gate_packages]
+              gate_unit_test_changed, gate_recon_with_model, gate_packages,
+              gate_spec_changed]
 COMPARE_RULES = []
 
 def apply_rules(rules, context):
