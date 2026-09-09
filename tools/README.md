@@ -489,12 +489,13 @@ you meant.
 
 ## 8. Coverage table
 
-One row per rule: the README sentence it enforces, the fixture that proves it
-blocks, and the fixture that proves it passes. Meta-test **M2** fails if a rule
+One row per rule: the README sentence it enforces, the fixture where the rule
+fires, and the fixture where it stays silent. Meta-test **M2** fails if a rule
 has no row here, or a row names a fixture that does not exist or does not do
-what it says.
+what it says. Every rule blocks except `I1`, which only ever informs — the
+README asks for the count to be visible, not for it to stop the PR.
 
-| README | Rule | Fixture that blocks | Fixture that passes |
+| README | Rule | Fixture where it fires | Fixture where it stays silent |
 | --- | --- | --- | --- |
 | §3 Stage A — "PR cannot advance without a completed spec" | `S1` | `check/marts_no_spec` | `check/spec_ok` |
 | §3 Stage A — the six mandatory fields and their format | `S2` | `check/spec_invalid_tier` | `check/spec_ok` |
@@ -510,10 +511,10 @@ what it says.
 | §2 Control 5B — "Package pin changed" | `G6` | `gate/G6_version_bumped` | `gate/G6_ok_untouched` |
 | §1 Principle 1, §3 Stage A — the spec is decided before the code | `G7` | `gate/G7_existing_spec_edited` | `gate/G7_ok_new_spec_untouched` |
 | §3 Stage B — "a change counter is incremented in the PR" | `I1` | `gate/I1_two_edits` | `gate/I1_ok_written_once` |
-| §3 Stage E step 3 — the diff and the pre-registration must both be readable | `C0` | `compare/C0_no_prereg` | `compare/C0_ok_window_printed` |
+| §3 Stage E step 3 — the diff and the pre-registration must both be readable | `C0` | `compare/C0_no_prereg` | `compare/C1_inside` |
 | §3 Stage E step 3 — "a number is outside the declared interval" | `C1` | `compare/C1_row_delta_above_max` | `compare/C1_inside` |
 | §3 Stage E step 3 — rows that exist in production and not in the new version | `C2` | `compare/C2_removed_pks_over` | `compare/C1_inside` |
-| §3 Stage E step 3 — "a column shows a difference but is not in altered_columns" | `C3` | `compare/C3_undeclared_column` | `compare/C3_declared_not_altered` |
+| §3 Stage E step 3 — "a column shows a difference but is not in altered_columns" | `C3` | `compare/C3_undeclared_column` | `compare/C1_inside` |
 | §3 Stage E step 3 — each metric against its declared interval | `C4` | `compare/C4_metric_outside` | `compare/C1_inside` |
 | §3 Stage E step 3 — "the type is refactoring but some delta is not zero" | `C5` | `compare/C5_refactoring_nonzero` | `compare/C1_inside` |
 | §3 Stage E step 4 — "if the difference is greater than the tolerance, the PR is blocked" | `C6` | `compare/C6_over` | `compare/C6_ok_within` |
