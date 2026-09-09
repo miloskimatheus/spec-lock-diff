@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/miloskimatheus/spec-lock-diff/tools/schemas/pre_registration.schema.json",
+  "title": "meta.pre_registration",
+  "description": "The numerical changes the agent commits to before writing any code (README section 3, Stage B). Every interval needs a min and a max: an open interval never fails, and a gate that never fails is not a gate.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "reason", "row_delta", "removed_pks", "altered_columns", "metrics"],
+  "properties": {
+    "type": {
+      "enum": ["data_change", "refactoring"],
+      "description": "must be \"data_change\" when the change is meant to alter numbers, or \"refactoring\" when it is meant to alter none"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "description": "must explain in one sentence why the numbers will change; the Author reads it in review and judges whether the interval matches the reason"
+    },
+    "row_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "max"],
+      "properties": {
+        "min": {"type": "integer", "description": "must be the fewest rows this change can add compared to production, as a whole number (negative when rows disappear)"},
+        "max": {"type": "integer", "description": "must be the most rows this change can add compared to production, as a whole number"}
+      },
+      "description": "must give both ends of how many rows the model gains or loses against production"
+    },
+    "removed_pks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max"],
+      "properties": {
+        "max": {"type": "integer", "minimum": 0, "description": "must be the most primary keys that may exist in production and not in the new version; 0 means no row may disappear"}
+      },
+      "description": "must give the ceiling for rows that exist in production and not in the new version"
+    },
+    "altered_columns": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "description": "must be a column name"},
+      "description": "must list every column whose values will change; a column that changes without being listed blocks the PR. Write [] when none change"
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["delta_pct"],
+        "properties": {
+          "delta_pct": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["min", "max"],
+            "properties": {
+              "min": {"type": "number", "description": "must be the smallest expected variation, in percentage points written as a plain number: 0.8 means +0.8 percent, computed as (pr - prod) / prod * 100"},
+              "max": {"type": "number", "description": "must be the largest expected variation, in percentage points written as a plain number: 0.8 means +0.8 percent, computed as (pr - prod) / prod * 100"}
+            },
+            "description": "must give both ends of the expected percentage variation of the metric"
+          }
+        },
+        "description": "must be an object with a delta_pct interval"
+      },
+      "description": "must hold one interval for every metric in the spec; write {} when the spec declares none"
+    }
+  },
+  "if": {"properties": {"type": {"const": "refactoring"}}, "required": ["type"]},
+  "then": {
+    "description": "a refactoring may not change any number, so every declared delta is 0",
+    "properties": {
+      "row_delta": {
+        "properties": {
+          "min": {"const": 0, "description": "must be 0 in a refactoring: the row count may not change"},
+          "max": {"const": 0, "description": "must be 0 in a refactoring: the row count may not change"}
+        }
+      },
+      "removed_pks": {
+        "properties": {
+          "max": {"const": 0, "description": "must be 0 in a refactoring: no row may disappear"}
+        }
+      },
+      "altered_columns": {
+        "maxItems": 0,
+        "description": "must be empty in a refactoring: no column may change value"
+      },
+      "metrics": {
+        "additionalProperties": {
+          "properties": {
+            "delta_pct": {
+              "properties": {
+                "min": {"const": 0, "description": "must be 0 in a refactoring: the metric may not move"},
+                "max": {"const": 0, "description": "must be 0 in a refactoring: the metric may not move"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,7 @@
+# expect: const
+type: refactoring
+reason: "a refactoring that expects rows to appear is not a refactoring"
+row_delta: {min: 0, max: 500}
+removed_pks: {max: 0}
+altered_columns: []
+metrics: {}

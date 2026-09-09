@@ -1,0 +1,8 @@
+# expect: required
+type: data_change
+reason: "a metric interval with only one end"
+row_delta: {min: 0, max: 10}
+removed_pks: {max: 0}
+altered_columns: [gross_revenue]
+metrics:
+  gross_revenue: {delta_pct: {min: 0.0}}

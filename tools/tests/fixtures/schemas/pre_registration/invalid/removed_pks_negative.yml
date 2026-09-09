@@ -1,0 +1,7 @@
+# expect: minimum
+type: data_change
+reason: "a negative ceiling for removed rows means nothing"
+row_delta: {min: 0, max: 10}
+removed_pks: {max: -1}
+altered_columns: []
+metrics: {}
