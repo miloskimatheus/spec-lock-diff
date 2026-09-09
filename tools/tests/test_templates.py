@@ -47,3 +47,23 @@ def test_every_placeholder_says_what_to_put_there():
         for number, line in enumerate(text.splitlines(), start=1):
             if "YOU:" in line:
                 assert len(line.split("YOU:")[1].split()) >= 4, "%s:%d" % (name, number)
+
+
+def test_agents_md_carries_the_eight_rules_and_their_mechanisms():
+    """Rule and mechanism travel together: a rule with no mechanism is a suggestion."""
+    template = (TEMPLATES / "AGENTS.md").read_text(encoding="utf-8")
+    table = _table("**The 8 agent rules:**", "### Stage D")
+    rows = [r for r in table.splitlines() if re.match(r"^\| \d", r)]
+    assert len(rows) == 8
+    for row in rows:
+        number, rule, mechanism = [c.strip() for c in row.strip().strip("|").split("|")][:3]
+        assert rule in template, "rule %s is not in AGENTS.md as the README writes it" % number
+        assert mechanism in template, "rule %s lost its mechanism" % number
+
+
+def test_agents_md_says_it_is_not_a_control():
+    template = (TEMPLATES / "AGENTS.md").read_text(encoding="utf-8")
+    assert "Nothing in this file is a control" in template.split("\n\n")[1]
+    for command in ("python tools/slp.py check", "python tools/slp.py gate --base",
+                    "dbt compile", "dbt test --select test_type:unit", "dbt build"):
+        assert command in template
