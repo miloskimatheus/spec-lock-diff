@@ -6,7 +6,9 @@ folder name and its README.txt say what must happen.
 
 import pytest
 
-from conftest import FIXTURES, assert_expected, cases, findings, run_slp
+from conftest import FIXTURES, assert_expected, cases, findings, make_repo, run_slp
+
+TREES = ("before", "mid", "after")
 
 
 @pytest.mark.parametrize("case", cases("compare"), ids=lambda p: p.name)
@@ -14,6 +16,28 @@ def test_compare_case(case):
     diffs = sorted(p.name for p in case.glob("*.json"))
     code, out, err = run_slp(["compare"] + diffs, case)
     assert_expected(case, code, out, err)
+
+
+def _repo(case, tmp_path):
+    """A case under fixtures/compare_base/ is a repository: its trees are commits."""
+    return make_repo(tmp_path, *[case / name for name in TREES if (case / name).is_dir()])
+
+
+@pytest.mark.parametrize("case", cases("compare_base"), ids=lambda p: p.name)
+def test_compare_base_case(case, tmp_path):
+    """compare --base reads the merge-base, so these cases need a history, not a folder."""
+    repo = _repo(case, tmp_path)
+    diffs = [str(p) for p in sorted(case.glob("*.json"))]
+    code, out, err = run_slp(["compare", "--base", "base"] + diffs, repo)
+    assert_expected(case, code, out, err)
+
+
+def test_without_base_an_inherited_pre_registration_still_counts(tmp_path):
+    """The run without --base is stricter, never looser: C7 asks for the untouched model's diff."""
+    case = FIXTURES / "compare_base" / "C7_ok_stale_not_counted"
+    diffs = [str(p) for p in sorted(case.glob("*.json"))]
+    code, out, _ = run_slp(["compare"] + diffs, _repo(case, tmp_path))
+    assert code == 1 and "C7" in [f[4] for f in findings(out)], out
 
 
 def test_the_message_states_both_numbers():

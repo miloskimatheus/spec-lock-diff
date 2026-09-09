@@ -14,14 +14,6 @@ models:
         reconciliation_query: analyses/reconciliation_fct_invoices.sql
         reconciliation_tolerance: "0.1%"
         external_validation: "invoiced_amount 2025-11 = 1,000,000.00 in the closing spreadsheet"
-      pre_registration:
-        type: data_change
-        reason: "the model changed; the query that checks it did not"
-        row_delta: {min: 0, max: 5000}
-        removed_pks: {max: 0}
-        altered_columns: []
-        metrics:
-          invoiced_amount: {delta_pct: {min: 0.0, max: 2.0}}
     columns:
       - name: invoice_id
         tests:

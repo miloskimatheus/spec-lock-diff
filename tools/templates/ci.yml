@@ -149,12 +149,17 @@ jobs:
       #
       # Every diff in ONE call. C7 blocks when a model carries a pre-registration
       # and no diff.json turned up for it, and it can only see the files it was
-      # given - one call per file would make that rule useless. The I2 lines are
-      # the numbers themselves, printed pass or fail: they are what the Author
-      # reads for Stage E step 5, so they go in the job summary too.
+      # given - one call per file would make that rule useless. --base is the
+      # branch the pull request targets: a pre-registration that is still the one
+      # the merge-base had belongs to an earlier change, and compare neither asks
+      # for its diff nor reads numbers against it. The I2 lines are the numbers
+      # themselves, printed pass or fail: they are what the Author reads for
+      # Stage E step 5, so they go in the job summary too.
       - name: slp compare
         shell: bash  # bash -eo pipefail, so tee cannot swallow a failure
         run: |
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           trap 'echo "```" >> "$GITHUB_STEP_SUMMARY"' EXIT
-          python tools/slp.py compare diff/*.json | tee -a "$GITHUB_STEP_SUMMARY"
+          python tools/slp.py compare \
+            --base ${{ github.event.pull_request.base.sha }} \
+            diff/*.json | tee -a "$GITHUB_STEP_SUMMARY"

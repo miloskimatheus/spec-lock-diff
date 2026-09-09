@@ -414,6 +414,8 @@ pre_registration:
 
 **When it is mandatory:** For every model whose code the PR changes. Stage C cannot start without it, and stage E has nothing to compare against without it — a model that reaches the diff with no pre-registration is not a model that fails the comparison, it is a model nobody compared. Deleting the prediction must not be cheaper than missing it.
 
+**Whose it is:** A pre-registration belongs to one pull request. It is written on the branch, for the change that branch makes. One that is identical to what `main` already has is the previous change's prediction — made against another production, for another reason — not this one's, and it counts as absent: the agent replaces it, it does not inherit it. After the merge it stays in the `.yml` as the record of what was predicted, until the next change to that model replaces it.
+
 **Validation:** The pre-registration is validated by JSON Schema in CI (stage D). If the format is wrong, fields are missing, or intervals are open, CI fails.
 
 ---

@@ -25,7 +25,7 @@ from typing import NamedTuple
 import jsonschema
 import yaml
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 SCHEMA_DIR = pathlib.Path(__file__).resolve().parent / "schemas"
 
 # Where the models the framework makes mandatory live (README §3 Stage A: "In all
@@ -774,31 +774,41 @@ def gate_spec_changed(ctx):
                              "human changes it in a separate PR", "G7"))
     return out
 
+def _inherited(now, then):
+    """A pre-registration identical to the one at the merge-base: main's prediction, not this PR's."""
+    return now is not None and then is not None and _canon(now) == _canon(then)
+
 def gate_prereg_present(ctx):
-    """README §3 Stage C — "Cannot start without a valid pre-registration"; Stage B — the agent declares the numerical changes it expects "before writing any code"."""
+    """README §3 Stage C — "Cannot start without a valid pre-registration"; Stage B — the agent declares the numerical changes it expects "before writing any code", and a pre-registration "belongs to one pull request"."""
     out = []
     for model in sorted(ctx.after["code"]):
         if ctx.before["code"].get(model) == ctx.after["code"][model]:
             continue
-        if ctx.after["preregs"].get(model) is not None \
-                or model not in ctx.after["where"] or not _in_marts(ctx, model):
+        if model not in ctx.after["where"] or not _in_marts(ctx, model):
             continue
-        out.append(block(_file(ctx, model), model, "the sql of this model changed on this "
-                         "branch and it carries no meta.pre_registration; nothing downstream "
-                         "has an interval to hold its numbers against, and compare will not "
-                         "so much as look at it", "G8"))
+        now, then = ctx.after["preregs"].get(model), ctx.before["preregs"].get(model)
+        said = "the sql of this model changed on this branch and "
+        if now is None:
+            out.append(block(_file(ctx, model), model, said + "it carries no "
+                             "meta.pre_registration; nothing downstream has an interval to hold "
+                             "its numbers against, and compare will not so much as look at it",
+                             "G8"))
+        elif _inherited(now, then):
+            out.append(block(_file(ctx, model), model, said + "its meta.pre_registration is "
+                             "the one main already has; a prediction written for an earlier "
+                             "change is not this change's, and counts as absent", "G8"))
     return out
 
 def gate_prereg_counter(ctx):
-    """README §3 Stage B — "a change counter is incremented in the PR (visible to the Author in review)"."""
+    """README §3 Stage B — "a change counter is incremented in the PR (visible to the Author in review)"; a pre-registration "belongs to one pull request", so replacing the one main had is where this PR's count starts."""
     out = []
     for model in sorted(ctx.after["preregs"]):
         if ctx.after["preregs"][model] is None:
             continue
         seen, edits = None, 0
-        for inv in ctx.walk:  # the commit it first appears in is not an edit
+        for inv in ctx.walk:  # the commit it first differs from main's in is not an edit
             current = inv["preregs"].get(model)
-            if current is None:
+            if current is None or _inherited(current, ctx.before["preregs"].get(model)):
                 continue
             if seen is not None and _canon(current) != seen:
                 edits += 1
@@ -811,12 +821,28 @@ def gate_prereg_counter(ctx):
 # --- compare: the diff against the pre-registration (README §3 Stage E) ---
 
 # One measured model: the file that carries the numbers, the model they claim to
-# be about, and whether the pair is sound enough for C1 to C6 to say anything.
+# be about, whether the pair is sound enough for C1 to C6 to say anything, and
+# whether its pre-registration is main's rather than this pull request's.
 Diff = NamedTuple("Diff", [("file", str), ("name", str), ("data", dict),
-                           ("project", object), ("model", object), ("ok", bool)])
+                           ("project", object), ("model", object), ("ok", bool),
+                           ("stale", bool)])
+
+def stale_preregs(project, base, marts):
+    """The models whose pre-registration is the one the branch started with.
+
+    README §3 Stage B: a pre-registration belongs to one pull request. After a
+    merge it stays in the yml as the record of what was predicted, so the next
+    change to that model finds one already there - written for another change,
+    against another production. Same merge-base as the gate, so a main that
+    moved on does not make an untouched model look pre-registered anew.
+    """
+    point = git(project.dir, "merge-base", base, "HEAD").strip()
+    old = inventory(project.dir, point, False, tuple(marts))["preregs"]
+    return set(name for name, model in project.models.items()
+               if isinstance(model.prereg, dict) and _inherited(model.prereg, old.get(name)))
 
 def compare_contract(ctx):
-    """README §3 Stage E step 3 — "Each diff number is automatically compared with the intervals declared in the pre-registration": both sides have to be readable first."""
+    """README §3 Stage E step 3 — "Each diff number is automatically compared with the intervals declared in the pre-registration": both sides have to be readable first, and the pre-registration has to be this pull request's."""
     out = [block(ctx.file, ctx.name, message, "C0")
            for message in schema_errors(ctx.data, "diff", "diff")]
     if ctx.model is None:
@@ -825,6 +851,10 @@ def compare_contract(ctx):
     elif not isinstance(ctx.model.prereg, dict):
         out.append(block(ctx.file, ctx.name, "the model has no meta.pre_registration; a number "
                          "nobody committed to in advance is not evidence", "C0"))
+    elif ctx.stale:
+        out.append(block(ctx.file, ctx.name, "the model's meta.pre_registration is the one main "
+                         "already has; a prediction written for an earlier change is not this "
+                         "change's, and counts as absent", "C0"))
     else:
         one = Project(ctx.project.dir, {ctx.name: ctx.model}, [], {})
         out += [f._replace(file=ctx.file, rule_id="C0")
@@ -979,16 +1009,18 @@ def compare_summary(ctx):
 
 
 # What compare has to say about the run as a whole rather than about one file.
-Run = NamedTuple("Run", [("project", object), ("measured", set), ("files", int)])
+Run = NamedTuple("Run", [("project", object), ("measured", set), ("files", int),
+                         ("stale", set)])
 
 def compare_coverage(ctx):
-    """README §3 Stage E step 3 — "Each diff number is automatically compared with the intervals declared in the pre-registration": every pre-registered model, not only the ones whose numbers turned up."""
+    """README §3 Stage E step 3 — "Each diff number is automatically compared with the intervals declared in the pre-registration": every model pre-registered for this pull request, not only the ones whose numbers turned up."""
     return [block(ctx.project.models[name].file, name, "this model has a pre-registration "
                   "and no diff.json among the %s read; a number that never arrived was "
                   "never compared with anything, and a gate that did not look is not a "
                   "gate that passed" % _count(ctx.files, "file"), "C7")
             for name in sorted(ctx.project.models)
-            if isinstance(ctx.project.models[name].prereg, dict) and name not in ctx.measured]
+            if isinstance(ctx.project.models[name].prereg, dict)
+            and name not in ctx.measured and name not in ctx.stale]
 
 
 # --- Rule registries. A rule is one function: context in, findings out. ---
@@ -1046,18 +1078,25 @@ def cmd_gate(args):
                   "no changes" if before == after else _count(len(commits), "commit"))
 
 def cmd_compare(args):
-    """compare: hold every diff.json against the pre-registration of its model."""
+    """compare: hold every diff.json against the pre-registration of its model.
+
+    Without --base every pre-registration in the project counts as this pull
+    request's, which is stricter, never looser: C7 asks for a diff of each, and
+    an inherited one is compared instead of refused.
+    """
     project = read_project(args.project_dir, args.marts_path)
+    stale = stale_preregs(project, args.base, args.marts_path) if args.base else set()
     out, measured = [], set()
     for path in args.diffs:
         data = load_json(path)
         data = data if isinstance(data, dict) else {}
         name = data.get("model") if isinstance(data.get("model"), str) else ""
-        ctx = Diff(str(path), name, data, project, project.models.get(name), False)
+        ctx = Diff(str(path), name, data, project, project.models.get(name), False,
+                   name in stale)
         blocked = any(f.severity == "BLOCK" for f in compare_contract(ctx))
         out += apply_rules(COMPARE_RULES, ctx._replace(ok=not blocked))
         measured.add(name)
-    out += apply_rules(COMPARE_RUN_RULES, Run(project, measured, len(args.diffs)))
+    out += apply_rules(COMPARE_RUN_RULES, Run(project, measured, len(args.diffs), stale))
     return report(out, "compare", _count(len(args.diffs), "file"))
 
 def build_parser():
@@ -1071,6 +1110,8 @@ def build_parser():
     gate.add_argument("--base", required=True, help="git ref the branch started from")
     gate.add_argument("--head", default="HEAD", help="git ref to judge")
     compare.add_argument("diffs", nargs="+", metavar="diff.json")
+    compare.add_argument("--base", help="git ref the branch started from; a pre-registration "
+                         "already there at the merge-base is main's, not this PR's")
     for sub in (check, gate, compare):
         sub.add_argument("--project-dir", default=".", help="root of the dbt project")
         sub.add_argument("--marts-path", action="append", metavar="PATH",

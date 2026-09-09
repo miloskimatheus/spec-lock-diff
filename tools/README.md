@@ -90,7 +90,7 @@ says nothing, these tools do nothing.
 ```
 python tools/slp.py check   [--project-dir .] [--marts-path models/marts]
 python tools/slp.py gate    --base <git ref> [--head HEAD] [--project-dir .] [--marts-path ...]
-python tools/slp.py compare <diff.json> [<diff.json> ...] [--project-dir .] [--marts-path ...]
+python tools/slp.py compare <diff.json> [<diff.json> ...] [--base <git ref>] [--project-dir .] [--marts-path ...]
 python tools/slp.py --version
 ```
 
@@ -253,7 +253,19 @@ looked for its absence; and `C7` walks the models that *carry* one, so a model
 without a pre-registration is not a model `compare` reports as missing — it is a
 model `compare` has never heard of. Deleting the prediction was cheaper than
 missing it. `G8` blocks when the `.sql` of a marts model changed on the branch
-and no `meta.pre_registration` is there to hold its numbers against.
+and no `meta.pre_registration` is there to hold its numbers against — or the one
+there is the one `main` already had.
+
+**A pre-registration belongs to one pull request** (README §3 Stage B, *whose
+it is*). After a merge it stays in the yml as the record of what was predicted,
+so the next change to that model finds one already there — written for another
+change, against another production. Until 0.4.0 that inherited prediction
+satisfied `G8`, made `C7` demand a diff of every model anyone had ever
+pre-registered, and turned the honest act of replacing it into an `I1` edit.
+Now a pre-registration identical to the merge-base's counts as absent: `G8`
+blocks on it, `I1` starts counting from the first commit whose pre-registration
+differs from `main`'s, and `compare --base` refuses to read numbers against it
+(`C0`) and does not ask for its diff (`C7`).
 
 It is scoped to the `.sql` on purpose: Stage B says the agent declares what it
 expects *before writing any code*, so the code changing is the trigger. Adding a
@@ -312,6 +324,16 @@ for models that carry a pre-registration and whose numbers never turned up, and
 blocks on those (`C7`). Hand it every diff your build produced, in one call —
 `compare diff/*.json`, not one call per file — because a rule about what is
 *missing* can only see what it was given.
+
+Give it `--base <git ref>` — the branch the pull request targets, as
+`templates/ci.yml` does — and it reads the pre-registration each model had at
+the merge-base, the same point `gate` compares against. One that is still
+identical to it is `main`'s prediction, not this pull request's: `C7` does not
+ask for its diff, and a diff measured against it is refused (`C0`). Without
+`--base`, every pre-registration in the project counts as this pull request's.
+That is stricter, never looser — `C7` asks for a diff of each, and an inherited
+one is compared instead of refused — so a local run without the flag can block
+for a model you never touched. Pass it.
 
 **When it runs.** Stage E, once per pull request, after the full build.
 
@@ -711,6 +733,7 @@ point of this list.
 | Producing the diff | Warehouse-specific. Recce, dbt-audit-helper or your own SQL; the tools demand the shape, not the method. README §3 Stage E step 2. |
 | A model changed only in its yml, in a way that moves numbers | `G8` asks for a pre-registration when a model's `.sql` changes, because Stage B ties the interval to writing code. A materialisation swapped, a `config` edited, a `+where` added in the yml alone can move numbers with the `.sql` untouched, and `G8` will not ask. README §3 Stage B. |
 | A schema yml written with jinja | dbt renders yml through jinja before reading it; these tools use a plain YAML parser. A `{% for %}` that generates model entries, or an unquoted `{{ ... }}` in a value, is unreadable here, and an unreadable file is exit 2 for the whole run — fail closed, but the run is down until the file changes. The message names jinja as the cause so the reader is not hunting for a typo. Keep generated yml out of the marts paths, or render it in a pre-commit step. README §3 Stage A. |
+| `compare` without `--base` | It cannot tell a pre-registration written for this pull request from one `main` already had, so every one in the project counts as this PR's: `C7` asks for a diff of every pre-registered model, and an inherited one is compared instead of refused. Stricter, never looser — but a local run can block for a model you never touched. Pass `--base`, as `templates/ci.yml` does. README §3 Stage B. |
 | `gate` does not check that `--marts-path` exists | `check` and `compare` read the project directory, so a path that is not a directory is exit 2 — "nothing to check is not OK". `gate` reads git and never looks, so `gate --marts-path models/martz` walks the branch, finds no model yml under it, and prints `OK`. A typo in one of the two places the flag is written — the CI workflow and `AGENTS.md` ask for them to be identical — is a silent downgrade rather than an error. Until it is fixed, keep the flag in one place and copy it. README §3 Stage A. |
 | A dbt project that is not at the git repository root | `gate` asks `git ls-tree` for paths and then `git cat-file` for their content; the first answers relative to the current directory and the second reads from the repository root, so in a `dbt/` subdirectory every read fails and the command is exit 2. Fail closed, so not a silent pass — but `gate` simply does not run in that layout, and `--project-dir` cannot save it. `spec.reconciliation_query` and the `CODEOWNERS` entry for `analyses/` disagree about the root in the same layout. README §2 Control 5B. |
 | `T1` rejects a uniqueness test that is *stronger* than the primary key | The accepted `unique_combination_of_columns` must name exactly the spec's `primary_key`. A `unique` on one column of a two-column key is a stricter claim and still reads as "no uniqueness test on primary key". Add the form you use to `ACCEPTED_PK_TESTS`, or write the test the rule asks for as well. README §2 Rule 2. |

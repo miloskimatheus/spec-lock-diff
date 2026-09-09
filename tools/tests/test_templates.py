@@ -117,7 +117,7 @@ def test_ci_yml_hands_compare_every_diff_in_one_call():
     """C7 blocks on a pre-registered model with no diff, and only sees what it was given."""
     workflow = yaml.safe_load((TEMPLATES / "ci.yml").read_text(encoding="utf-8"))
     steps = "\n".join(str(s.get("run", "")) for s in workflow["jobs"]["diff"]["steps"])
-    assert "python tools/slp.py compare diff/*.json" in steps
+    assert re.search(r"python tools/slp\.py compare \\\n\s+--base .+ \\\n\s+diff/\*\.json", steps), steps
 
 
 def test_the_readme_and_the_workflow_ask_for_the_same_jsonschema():

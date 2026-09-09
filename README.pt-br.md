@@ -414,6 +414,8 @@ pre_registration:
 
 **Quando é obrigatório:** Para todo modelo cujo código o PR altera. A etapa C não pode começar sem ele, e a etapa E não tem contra o que comparar sem ele — um modelo que chega ao diff sem pré-registro não é um modelo que reprova na comparação, é um modelo que ninguém comparou. Apagar a previsão não pode sair mais barato do que errar nela.
 
+**De quem é:** Um pré-registro pertence a um pull request. Ele é escrito na branch, para a mudança que aquela branch faz. Um que é idêntico ao que a `main` já tem é a previsão da mudança anterior — feita contra outra produção, por outra razão — e não desta, e conta como ausente: o agente o substitui, não o herda. Depois do merge ele fica no `.yml` como registro do que foi previsto, até que a próxima mudança naquele modelo o substitua.
+
 **Validação:** O pré-registro é validado por JSON Schema no CI (etapa D). Se o formato estiver errado, campos estiverem faltando, ou intervalos estiverem abertos, o CI falha.
 
 ---

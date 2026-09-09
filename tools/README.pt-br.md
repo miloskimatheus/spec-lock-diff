@@ -90,7 +90,7 @@ não diz nada, estas ferramentas não fazem nada.
 ```
 python tools/slp.py check   [--project-dir .] [--marts-path models/marts]
 python tools/slp.py gate    --base <git ref> [--head HEAD] [--project-dir .] [--marts-path ...]
-python tools/slp.py compare <diff.json> [<diff.json> ...] [--project-dir .] [--marts-path ...]
+python tools/slp.py compare <diff.json> [<diff.json> ...] [--base <git ref>] [--project-dir .] [--marts-path ...]
 python tools/slp.py --version
 ```
 
@@ -256,7 +256,18 @@ um, então um modelo sem pré-registro não é um modelo que o `compare` reporta
 como faltante — é um modelo de que o `compare` nunca ouviu falar. Apagar a
 previsão saía mais barato que errar nela. A `G8` bloqueia quando o `.sql` de um
 modelo de marts mudou na branch e não há `meta.pre_registration` para segurar os
-números dele.
+números dele — ou o que há é o que a `main` já tinha.
+
+**Um pré-registro pertence a um pull request** (README §3 Etapa B, *de quem
+é*). Depois do merge ele fica no yml como registro do que foi previsto, então a
+próxima mudança naquele modelo encontra um já ali — escrito para outra mudança,
+contra outra produção. Até a 0.4.0 essa previsão herdada satisfazia a `G8`,
+fazia a `C7` exigir diff de todo modelo que alguém um dia pré-registrou, e
+transformava o ato honesto de substituí-la numa edição contada pela `I1`. Agora
+um pré-registro idêntico ao do merge-base conta como ausente: a `G8` bloqueia
+nele, a `I1` começa a contar do primeiro commit cujo pré-registro difere do da
+`main`, e o `compare --base` se recusa a ler números contra ele (`C0`) e não
+pede o diff dele (`C7`).
 
 O escopo é o `.sql` de propósito: a Etapa B diz que o agente declara o que
 espera *antes de escrever qualquer código*, então o gatilho é o código mudar.
@@ -315,6 +326,16 @@ modelos que têm pré-registro e cujos números nunca apareceram, e bloqueia nes
 (`C7`). Passe todos os diffs que o build produziu numa chamada só —
 `compare diff/*.json`, não uma chamada por arquivo — porque uma regra sobre o
 que *falta* só enxerga o que lhe foi entregue.
+
+Passe `--base <git ref>` — a branch que o pull request mira, como o
+`templates/ci.yml` faz — e ele lê o pré-registro que cada modelo tinha no
+merge-base, o mesmo ponto contra o qual o `gate` compara. Um que continua
+idêntico a ele é a previsão da `main`, não deste pull request: a `C7` não pede o
+diff dele, e um diff medido contra ele é recusado (`C0`). Sem `--base`, todo
+pré-registro do projeto conta como sendo deste pull request. Isso é mais
+estrito, nunca mais frouxo — a `C7` pede diff de cada um, e um herdado é
+comparado em vez de recusado — então uma rodada local sem a flag pode bloquear
+por um modelo em que você nunca tocou. Passe a flag.
 
 **Quando roda.** Etapa E, uma vez por PR, depois do build completo.
 
@@ -717,6 +738,7 @@ ponto desta lista.
 | Produzir o diff | É específico do warehouse. Recce, dbt-audit-helper ou o seu SQL; as ferramentas exigem o formato, não o método. README §3 Etapa E passo 2. |
 | Um modelo alterado só no yml, de um jeito que move números | A `G8` pede pré-registro quando o `.sql` de um modelo muda, porque a Etapa B amarra o intervalo a escrever código. Uma materialização trocada, um `config` editado, um `+where` posto só no yml podem mover números com o `.sql` intocado, e a `G8` não vai pedir. README §3 Etapa B. |
 | Um schema yml escrito com jinja | O dbt renderiza yml com jinja antes de ler; estas ferramentas usam um parser YAML puro. Um `{% for %}` que gera entradas de modelo, ou um `{{ ... }}` sem aspas num valor, é ilegível aqui, e um arquivo ilegível é exit 2 para a rodada inteira — fail closed, mas a rodada fica parada até o arquivo mudar. A mensagem diz que a causa é jinja, para o leitor não caçar um typo que não existe. Mantenha yml gerado fora dos caminhos de marts, ou renderize num passo de pre-commit. README §3 Etapa A. |
+| `compare` sem `--base` | Ele não consegue distinguir um pré-registro escrito para este pull request de um que a `main` já tinha, então todos os do projeto contam como deste PR: a `C7` pede diff de todo modelo pré-registrado, e um herdado é comparado em vez de recusado. Mais estrito, nunca mais frouxo — mas uma rodada local pode bloquear por um modelo em que você nunca tocou. Passe `--base`, como o `templates/ci.yml` faz. README §3 Etapa B. |
 | O `gate` não confere se o `--marts-path` existe | O `check` e o `compare` leem o diretório do projeto, então um caminho que não é diretório é exit 2 — "nothing to check is not OK". O `gate` lê o git e nunca olha, então `gate --marts-path models/martz` percorre a branch, não acha yml de modelo nenhum e imprime `OK`. Um typo num dos dois lugares em que a flag é escrita — o workflow de CI e o `AGENTS.md` pedem que sejam idênticos — vira um rebaixamento silencioso em vez de um erro. Até ser corrigido, mantenha a flag num lugar só e copie. README §3 Etapa A. |
 | Um projeto dbt que não está na raiz do repositório git | O `gate` pede caminhos ao `git ls-tree` e depois o conteúdo ao `git cat-file`; o primeiro responde relativo ao diretório atual e o segundo lê a partir da raiz do repositório, então, num subdiretório `dbt/`, toda leitura falha e o comando é exit 2. Fail closed, então não é aprovação silenciosa — mas o `gate` simplesmente não roda nesse layout, e o `--project-dir` não salva. O `spec.reconciliation_query` e a entrada de `analyses/` no `CODEOWNERS` discordam sobre a raiz no mesmo layout. README §2 Controle 5B. |
 | A `T1` recusa um teste de unicidade *mais forte* que a primary key | O `unique_combination_of_columns` aceito precisa nomear exatamente a `primary_key` da spec. Um `unique` numa das colunas de uma chave de duas é uma afirmação mais estrita e ainda assim se lê como "no uniqueness test on primary key". Acrescente a forma que você usa a `ACCEPTED_PK_TESTS`, ou escreva também o teste que a regra pede. README §2 Regra 2. |

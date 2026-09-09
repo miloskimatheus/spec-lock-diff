@@ -71,10 +71,13 @@ what you think it is.
   yml may live anywhere under `models/` — what puts a model in scope is where
   its `.sql` is.
 - Your own `meta.pre_registration`, once you have written it. If you change a
-  model's `.sql` and no pre-registration is there, `gate` blocks (`G8`): a model
-  with no interval is not a model that fails the diff, it is a model the diff
-  never mentions, and deleting the prediction must not be cheaper for you than
-  missing it. If the numbers land outside it, say so — see below.
+  model's `.sql` and no pre-registration is there, or the one there is the one
+  `main` already had, `gate` blocks (`G8`): a model with no interval is not a
+  model that fails the diff, it is a model the diff never mentions, and deleting
+  the prediction must not be cheaper for you than missing it. A pre-registration
+  belongs to one pull request: the previous change's stays in the file as its
+  record, and you replace it — you do not inherit it. If the numbers land
+  outside yours, say so — see below.
 
 ## When to stop and ask a human
 

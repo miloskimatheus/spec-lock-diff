@@ -3,6 +3,33 @@
 Versions are tagged `tools-v<version>`. The framework README is versioned
 separately; these tools implement it and never lead it.
 
+## 0.4.0 — the second pull request
+
+0.3.0 fixed what the fixtures' *shape* hid. This one fixes what their *number*
+hid: every fixture was a first pull request. A branch forked from a main that
+had never merged an agent's work, a model no one had pre-registered before, a
+test no one had written a macro for. The steady state of a project that has
+used the framework for a month looked nothing like that, and the tools had
+never seen it.
+
+### Changed behaviour
+
+- **A pre-registration belongs to one pull request.** It lives in the model's
+  yml, and nobody deletes it at merge, so the next change to that model found
+  one already there — written for another change, against another production.
+  `G8` was satisfied by it: an agent that rewrote the sql and wrote no interval
+  at all got `OK (1 commit)`. `C7` demanded a diff of every model anyone had
+  ever pre-registered, in every later pull request, and an all-zero diff for an
+  untouched model then failed `C1` against the old band. Replacing it honestly
+  was counted by `I1` as an edit. README §3 Stage B now says whose a
+  pre-registration is: one identical to the merge-base's is `main`'s, not this
+  pull request's, and counts as absent. `G8` blocks on it; `I1` counts from the
+  first commit whose pre-registration differs from `main`'s; `compare` takes
+  `--base` and, given it, refuses numbers measured against an inherited
+  pre-registration (`C0`) and does not ask for its diff (`C7`). Without
+  `--base` every pre-registration counts as this pull request's — stricter,
+  never looser. `templates/ci.yml` passes it.
+
 ## 0.3.0 — the shape of the project, not the shape of the fixtures
 
 0.2.0 closed the silent passes the rules had. This one closes the silent passes

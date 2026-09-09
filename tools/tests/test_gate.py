@@ -27,6 +27,13 @@ def test_gate_case(case, tmp_path):
     assert_expected(case, code, out, err)
 
 
+def test_replacing_mains_pre_registration_is_not_an_edit(tmp_path):
+    """README §3 Stage B: a pre-registration belongs to one pull request. I1 counts this PR's edits."""
+    repo = build(FIXTURES / "gate" / "I1_stale_replaced_then_edited", tmp_path)
+    _, out, _ = run_slp(["gate", "--base", "base"], repo)
+    assert "pre-registration was modified 1 time after it was first written" in out, out
+
+
 def test_nothing_changed_says_so(tmp_path):
     repo = build(QUIET, tmp_path)
     code, out, _ = run_slp(["gate", "--base", "base"], repo)
