@@ -19,3 +19,5 @@ venv/
 # Tools
 .pytest_cache/
 tools/tools-backlog.md
+# Drafts of the Framework improvement issues the tools need opened (SLP-27).
+tools/framework-issues/
