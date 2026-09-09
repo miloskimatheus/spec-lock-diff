@@ -589,13 +589,32 @@ def gate_spec_changed(ctx):
                              "human changes it in a separate PR", "G7"))
     return out
 
+def gate_prereg_counter(ctx):
+    """README §3 Stage B — "a change counter is incremented in the PR (visible to the Author in review)"."""
+    out = []
+    for model in sorted(ctx.after["preregs"]):
+        if ctx.after["preregs"][model] is None:
+            continue
+        seen, edits = None, 0
+        for inv in ctx.walk:  # the commit it first appears in is not an edit
+            current = inv["preregs"].get(model)
+            if current is None:
+                continue
+            if seen is not None and _canon(current) != seen:
+                edits += 1
+            seen = _canon(current)
+        if edits:
+            out.append(info(_file(ctx, model), model, "pre-registration was modified %s after "
+                            "it was first written" % _count(edits, "time"), "I1"))
+    return out
+
 # --- Rule registries. A rule is one function: context in, findings out. ---
 
 CHECK_RULES = [check_spec_present, check_spec_schema, check_spec_consistency,
                check_prereg_schema, check_prereg_consistency, check_pk_test]
 GATE_RULES = [gate_test_removed, gate_test_filter, gate_test_severity,
               gate_unit_test_changed, gate_recon_with_model, gate_packages,
-              gate_spec_changed]
+              gate_spec_changed, gate_prereg_counter]
 COMPARE_RULES = []
 
 def apply_rules(rules, context):
