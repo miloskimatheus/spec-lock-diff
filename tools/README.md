@@ -235,6 +235,22 @@ needs the commits:
       --head ${{ github.event.pull_request.head.sha }}
 ```
 
+**The pre-registration is not optional.** Stage B is where the agent commits to
+intervals before it sees any result, and until `G8` nothing made it happen.
+`check` validated a pre-registration only when it found one; no `gate` rule
+looked for its absence; and `C7` walks the models that *carry* one, so a model
+without a pre-registration is not a model `compare` reports as missing — it is a
+model `compare` has never heard of. Deleting the prediction was cheaper than
+missing it. `G8` blocks when the `.sql` of a marts model changed on the branch
+and no `meta.pre_registration` is there to hold its numbers against.
+
+It is scoped to the `.sql` on purpose: Stage B says the agent declares what it
+expects *before writing any code*, so the code changing is the trigger. Adding a
+test, writing a description or documenting a column does not ask for an
+interval. A change made only in the yml that does move numbers — a
+materialisation, a `config` — is a gap, and it is in
+[section 9](#9-what-v0-does-not-do).
+
 **What a test the branch adds is allowed to be.** `G2` and `G3` compare a test
 against its earlier self, and a test written on this branch has none — so for
 years' worth of dbt projects the way past both was to add the test in the same
@@ -642,6 +658,7 @@ against the source so none of them can quietly grow a `BLOCK`.
 | §2 Control 5B — "analyses/reconciliation_* changed in the same PR as the model" | `G5` | `gate/G5_recon_and_sql_changed` | `gate/G5_ok_recon_only` |
 | §2 Control 5B — "Package pin changed" | `G6` | `gate/G6_version_bumped` | `gate/G6_ok_untouched` |
 | §1 Principle 1, §3 Stage A — the spec is decided before the code | `G7` | `gate/G7_existing_spec_edited` | `gate/G7_ok_new_spec_untouched` |
+| §3 Stage C — "cannot start without a valid pre-registration" | `G8` | `gate/G8_sql_changed_no_prereg` | `gate/G8_ok_prereg_present` |
 | §3 Stage B — "a change counter is incremented in the PR" | `I1` | `gate/I1_two_edits` | `gate/I1_ok_written_once` |
 | §2 Control 5B — "WHERE or exclusion clause added to a test", for a test this branch adds | `I3` | `gate/I3_new_test_with_where` | `gate/I3_ok_new_test_plain` |
 | §3 Stage E step 3 — the diff and the pre-registration must both be readable | `C0` | `compare/C0_no_prereg` | `compare/C1_inside` |
@@ -672,9 +689,10 @@ point of this list.
 | "The pre-registration is immutable from the moment stage D begins" | That needs state outside git — CI has to remember when it first ran. `gate` counts the changes instead and prints the count (`I1`), which is what the README asks the Author to see. README §3 Stage B. |
 | Running the reconciliation query | It reads the warehouse with full data. Your CI runs it and writes the two numbers into `diff.json`; `compare` reads them (`C6`). README §3 Stage E step 4. |
 | Producing the diff | Warehouse-specific. Recce, dbt-audit-helper or your own SQL; the tools demand the shape, not the method. README §3 Stage E step 2. |
+| A model changed only in its yml, in a way that moves numbers | `G8` asks for a pre-registration when a model's `.sql` changes, because Stage B ties the interval to writing code. A materialisation swapped, a `config` edited, a `+where` added in the yml alone can move numbers with the `.sql` untouched, and `G8` will not ask. README §3 Stage B. |
 | `dbt_project.yml`, and severity set from it | `gate` reads the model yml, `tests/`, `analyses/reconciliation_*` and the package files. It does not read `dbt_project.yml`, so `data_tests: {+severity: warn}` or `+enabled: false` there turns every test in the project non-blocking and `gate` says `OK (no changes)`. CODEOWNERS protects the file (Control 5A) so a human must approve the change — but the gate will not be the one to tell them what it does. README §2 Control 5B. |
 | `macros/` | Same list, same gap. dbt's custom generic tests conventionally live in `macros/`, and Rule 3 names "modifies a test macro" — the gate does not read them. CODEOWNERS covers the approval. README §2 Rule 3. |
-| A spec or a pre-registration **deleted** | `G7` fires when a spec *changes*; a spec removed outright trips no `gate` rule, and `check` catches only the symptom (`S1`, "model has no meta.spec"), which reads like a model that never had one. A pre-registration written on the branch and then deleted produces no `I1` either. README §3 Stage A, Stage B. |
+| A spec **deleted** | `G7` fires when a spec *changes*; a spec removed outright trips no `gate` rule, and `check` catches only the symptom (`S1`, "model has no meta.spec"), which reads like a model that never had one. A pre-registration deleted alongside a model change is `G8` now; one deleted on its own, with the model untouched, still trips nothing. README §3 Stage A, Stage B. |
 | History-shaped evasion of `G7` and `I1` | The commit walk uses `--first-parent`, so work done on a side branch and merged into the pull request is skipped. A spec created *and* edited inside such a branch passes `G7`, and `I1`'s edit count is understated. Same content, different verdict depending on branch topology — which sits badly with Principle 3. Squash or rebase the branch, or read `I1` as a floor. README §3 Stage B. |
 | Each spec edge becoming a unit test (Rule 2) | The spec's `known_edges` are validated as text and nothing checks that each became a unit test with a synthetic fixture. A spec with five edges and no unit tests passes `check`. README §2 Rule 2. |
 | Whether a tolerance or an anchor can fail | `reconciliation_tolerance: "999%"` and `external_validation: "TODO"` satisfy the schema. The same argument the pre-registration schema makes about open intervals applies to them; the schema does not make it yet. README §3 Stage A. |

@@ -15,6 +15,7 @@ fixture that fails against 0.2.0.
 
 | Rule | What it blocks |
 | --- | --- |
+| `G8` | a model whose **sql changed on this branch** and which carries no `meta.pre_registration`. Stage B was opt-out: `check` validated a pre-registration only when it found one, no `gate` rule watched for its absence, and `C7` iterates the models that *have* one — so an agent that rewrote a model and deleted its own pre-registration passed all three commands, and `compare` never so much as named the model. Deleting the prediction was cheaper than missing it |
 | `I3` | nothing. It shows every test this branch **adds** that carries a `where`, because such a test has no earlier self to be weaker than and `G2` therefore never looked at it — and because a filter may be honest scoping or may be the rows that would have failed, which is a reading and not a measurement |
 
 ### Changed behaviour

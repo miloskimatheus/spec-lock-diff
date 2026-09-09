@@ -11,12 +11,13 @@ models:
         known_edges: []
         sensitive_columns: []
       pre_registration:
-        type: data_change
-        reason: "code follows the spec that was written first"
-        row_delta: {min: 0, max: 5000}
+        type: refactoring
+        reason: "rename a CTE; no number moves"
+        row_delta: {min: 0, max: 0}
         removed_pks: {max: 0}
         altered_columns: []
-        metrics:
-          {}
+        metrics: {}
     columns:
       - name: order_id
+        tests:
+          - unique

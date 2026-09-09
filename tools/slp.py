@@ -41,7 +41,7 @@ CFG_KEYS = ("enabled", "error_if", "fail_calc", "limit", "severity",
 # Every rule id these tools can print. The README coverage table has one row per
 # id and the fixtures one folder per id; meta-test M2 keeps the three in step.
 RULE_IDS = ("S1", "S2", "S3", "S4", "P1", "P2", "T1",
-            "G1", "G2", "G3", "G4", "G5", "G6", "G7", "I1", "I3",
+            "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "I1", "I3",
             "C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "I2")
 # Rules that only ever inform. The README asks for what they say to be visible,
 # not for it to stop the pull request, so they never raise the exit code.
@@ -494,10 +494,10 @@ def inventory(root, commit, full=True, marts=MARTS):
     the commit walk of G7 and I1 needs.
     """
     inv = {"tests": {}, "files": {}, "units": {}, "specs": {}, "preregs": {},
-           "models": {}, "sqls": {}, "recons": {}, "packages": {}, "where": {}}
+           "models": {}, "sqls": {}, "code": {}, "recons": {}, "packages": {},
+           "where": {}}
     listing = git(root, "ls-tree", "-r", "-z", "--name-only", commit, "--",
                   *(_dirs(marts, True) + ("tests", "analyses") + PKG_FILES))
-    sql = {}
     for path in sorted(p for p in listing.split("\0") if p):
         if path.startswith(_dirs(marts, True)) and path.endswith((".yml", ".yaml")):
             text = git(root, "show", "%s:%s" % (commit, path))
@@ -524,8 +524,9 @@ def inventory(root, commit, full=True, marts=MARTS):
         elif not full:
             continue
         elif path.startswith(_dirs(marts, True)) and path.endswith(".sql"):
-            inv["sqls"][path.rsplit("/", 1)[-1][:-4]] = path
-            sql[path.rsplit("/", 1)[-1][:-4]] = _sha(git(root, "show", "%s:%s" % (commit, path)))
+            name = path.rsplit("/", 1)[-1][:-4]
+            inv["sqls"][name] = path
+            inv["code"][name] = _sha(git(root, "show", "%s:%s" % (commit, path)))
         elif path.startswith("tests/"):
             inv["files"][path] = _sha(git(root, "show", "%s:%s" % (commit, path)))
         elif path.startswith("analyses/reconciliation_"):
@@ -533,7 +534,7 @@ def inventory(root, commit, full=True, marts=MARTS):
         elif path in PKG_FILES:
             inv["packages"][path] = _sha(git(root, "show", "%s:%s" % (commit, path)))
     for name in inv["models"]:  # a model is its yml entry and its sql, together
-        inv["models"][name] += sql.get(name, "")
+        inv["models"][name] += inv["code"].get(name, "")
     return inv
 
 # --- gate rules: what this branch did to the tests (README §2 Control 5B) ---
@@ -719,6 +720,21 @@ def gate_spec_changed(ctx):
             out.append(block(_file(ctx, model), model, "meta.spec changed after it was first "
                              "written on this branch; the spec is the human's decision, and a "
                              "human changes it in a separate PR", "G7"))
+    return out
+
+def gate_prereg_present(ctx):
+    """README §3 Stage C — "Cannot start without a valid pre-registration"; Stage B — the agent declares the numerical changes it expects "before writing any code"."""
+    out = []
+    for model in sorted(ctx.after["code"]):
+        if ctx.before["code"].get(model) == ctx.after["code"][model]:
+            continue
+        if ctx.after["preregs"].get(model) is not None \
+                or model not in ctx.after["where"] or not _in_marts(ctx, model):
+            continue
+        out.append(block(_file(ctx, model), model, "the sql of this model changed on this "
+                         "branch and it carries no meta.pre_registration; nothing downstream "
+                         "has an interval to hold its numbers against, and compare will not "
+                         "so much as look at it", "G8"))
     return out
 
 def gate_prereg_counter(ctx):
@@ -930,7 +946,8 @@ CHECK_RULES = [check_spec_present, check_model_declared, check_spec_schema,
                check_prereg_schema, check_prereg_consistency, check_pk_test]
 GATE_RULES = [gate_test_removed, gate_test_filter, gate_test_severity,
               gate_test_narrowed, gate_unit_test_changed, gate_recon_with_model,
-              gate_packages, gate_spec_changed, gate_prereg_counter]
+              gate_packages, gate_spec_changed, gate_prereg_present,
+              gate_prereg_counter]
 COMPARE_RULES = [compare_contract, compare_rows, compare_removed_pks,
                  compare_columns, compare_metrics, compare_refactoring,
                  compare_reconciliation, compare_summary]

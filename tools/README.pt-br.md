@@ -237,6 +237,23 @@ inteiro — a caminhada precisa dos commits:
       --head ${{ github.event.pull_request.head.sha }}
 ```
 
+**O pré-registro não é opcional.** A Etapa B é onde o agente se compromete com
+intervalos antes de ver qualquer resultado, e até a `G8` nada fazia isso
+acontecer. O `check` validava um pré-registro só quando achava um; nenhuma regra
+do `gate` procurava pela ausência dele; e a `C7` percorre os modelos que *têm*
+um, então um modelo sem pré-registro não é um modelo que o `compare` reporta
+como faltante — é um modelo de que o `compare` nunca ouviu falar. Apagar a
+previsão saía mais barato que errar nela. A `G8` bloqueia quando o `.sql` de um
+modelo de marts mudou na branch e não há `meta.pre_registration` para segurar os
+números dele.
+
+O escopo é o `.sql` de propósito: a Etapa B diz que o agente declara o que
+espera *antes de escrever qualquer código*, então o gatilho é o código mudar.
+Adicionar um teste, escrever uma descrição ou documentar uma coluna não pede
+intervalo. Uma mudança feita só no yml que mesmo assim move números — uma
+materialização, um `config` — é uma lacuna, e está na
+[seção 9](#9-o-que-a-v0-não-faz).
+
 **O que um teste adicionado pela branch pode ser.** A `G2` e a `G3` comparam um
 teste com o eu anterior dele, e um teste escrito nesta branch não tem nenhum —
 então o caminho por fora das duas sempre foi adicionar o teste no mesmo PR. A
@@ -648,6 +665,7 @@ ganhe um `BLOCK` em silêncio.
 | §2 Controle 5B — "analyses/reconciliation_* alterado no mesmo PR do modelo" | `G5` | `gate/G5_recon_and_sql_changed` | `gate/G5_ok_recon_only` |
 | §2 Controle 5B — "Pin de pacote alterado" | `G6` | `gate/G6_version_bumped` | `gate/G6_ok_untouched` |
 | §1 Princípio 1, §3 Etapa A — a spec é decidida antes do código | `G7` | `gate/G7_existing_spec_edited` | `gate/G7_ok_new_spec_untouched` |
+| §3 Etapa C — "não pode começar sem um pré-registro válido" | `G8` | `gate/G8_sql_changed_no_prereg` | `gate/G8_ok_prereg_present` |
 | §3 Etapa B — "um contador de alterações é incrementado no PR" | `I1` | `gate/I1_two_edits` | `gate/I1_ok_written_once` |
 | §2 Controle 5B — "`WHERE` ou cláusula de exclusão adicionada a um teste", para um teste que esta branch adiciona | `I3` | `gate/I3_new_test_with_where` | `gate/I3_ok_new_test_plain` |
 | §3 Etapa E passo 3 — o diff e o pré-registro precisam ser legíveis | `C0` | `compare/C0_no_prereg` | `compare/C1_inside` |
@@ -678,9 +696,10 @@ ponto desta lista.
 | "O pré-registro é imutável a partir do momento em que a etapa D começa" | Isso exige estado fora do git — o CI precisa lembrar quando rodou pela primeira vez. O `gate` conta as alterações e imprime a contagem (`I1`), que é o que o README pede que o Autor veja. README §3 Etapa B. |
 | Rodar a query de reconciliação | Ela lê o warehouse com dado completo. Seu CI roda e escreve os dois números no `diff.json`; o `compare` lê (`C6`). README §3 Etapa E passo 4. |
 | Produzir o diff | É específico do warehouse. Recce, dbt-audit-helper ou o seu SQL; as ferramentas exigem o formato, não o método. README §3 Etapa E passo 2. |
+| Um modelo alterado só no yml, de um jeito que move números | A `G8` pede pré-registro quando o `.sql` de um modelo muda, porque a Etapa B amarra o intervalo a escrever código. Uma materialização trocada, um `config` editado, um `+where` posto só no yml podem mover números com o `.sql` intocado, e a `G8` não vai pedir. README §3 Etapa B. |
 | `dbt_project.yml`, e a severity definida a partir dele | O `gate` lê os yml de modelo, `tests/`, `analyses/reconciliation_*` e os arquivos de pacote. Não lê o `dbt_project.yml`, então `data_tests: {+severity: warn}` ou `+enabled: false` ali dentro deixa todo teste do projeto sem poder bloquear e o `gate` diz `OK (no changes)`. O CODEOWNERS protege o arquivo (Controle 5A), então um humano precisa aprovar — mas não será o gate a contar a ele o que aquilo faz. README §2 Controle 5B. |
 | `macros/` | Mesma lista, mesma lacuna. Os generic tests customizados do dbt moram, por convenção, em `macros/`, e a Regra 3 fala em "modificar uma macro de teste" — o gate não os lê. O CODEOWNERS cobre a aprovação. README §2 Regra 3. |
-| Uma spec ou um pré-registro **apagado** | A `G7` dispara quando uma spec *muda*; uma spec removida por inteiro não aciona regra nenhuma do `gate`, e o `check` pega só o sintoma (`S1`, "model has no meta.spec"), que se lê como um modelo que nunca teve uma. Um pré-registro escrito na branch e depois apagado também não gera `I1`. README §3 Etapa A, Etapa B. |
+| Uma spec **apagada** | A `G7` dispara quando uma spec *muda*; uma spec removida por inteiro não aciona regra nenhuma do `gate`, e o `check` pega só o sintoma (`S1`, "model has no meta.spec"), que se lê como um modelo que nunca teve uma. Um pré-registro apagado junto com uma mudança no modelo agora é `G8`; um apagado sozinho, com o modelo intocado, ainda não aciona nada. README §3 Etapa A, Etapa B. |
 | Evasão da `G7` e da `I1` pelo formato do histórico | A caminhada pelos commits usa `--first-parent`, então trabalho feito numa branch lateral e mesclado no pull request é pulado. Uma spec criada *e* editada dentro de uma branch dessas passa pela `G7`, e a contagem da `I1` fica subestimada. Mesmo conteúdo, veredito diferente conforme a topologia da branch — o que combina mal com o Princípio 3. Faça squash ou rebase da branch, ou leia a `I1` como piso. README §3 Etapa B. |
 | Cada edge da spec virar um unit test (Regra 2) | Os `known_edges` da spec são validados como texto e nada confere que cada um virou um unit test com fixture sintética. Uma spec com cinco edges e nenhum unit test passa no `check`. README §2 Regra 2. |
 | Se uma tolerância ou uma âncora conseguem falhar | `reconciliation_tolerance: "999%"` e `external_validation: "TODO"` satisfazem o schema. O mesmo argumento que o schema do pré-registro faz sobre intervalos abertos vale para eles; o schema ainda não faz esse argumento. README §3 Etapa A. |
