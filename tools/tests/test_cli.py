@@ -32,7 +32,29 @@ def test_no_command_prints_usage():
 def test_valid_project_passes_with_a_model_count():
     code, out, err = run_slp(["check"], CLI / "valid")
     assert (code, err) == (0, "")
-    assert out.strip().endswith("slp check: OK (1 model)")
+    assert out.strip().endswith("slp check: OK (1 model in models/marts/, of 1 model read)")
+
+
+def test_the_summary_counts_what_was_checked_apart_from_what_was_read():
+    """A count of every model read reads like coverage. Only the marts ones are."""
+    code, out, _ = run_slp(["check", "--marts-path", "models/core"], CLI / "other_marts")
+    assert code == 0
+    assert out.strip().endswith("slp check: OK (1 model in models/core/, of 2 models read)")
+
+
+def test_marts_somewhere_else_is_an_error_until_the_flag_says_where():
+    """R3: a tool pointed at a folder that is not there has checked nothing."""
+    code, _, err = run_slp(["check"], CLI / "other_marts")
+    assert code == 2
+    assert "models/marts/ not found" in err
+
+
+def test_more_than_one_marts_path_is_read_as_one_set():
+    case = CLI / "other_marts"
+    code, out, _ = run_slp(["check", "--marts-path", "models/core",
+                            "--marts-path", "models/staging"], case)
+    assert code == 1  # stg_orders is now a marts model, and it has no spec
+    assert "models/staging/stg_orders.yml" in out and "[S1]" in out
 
 
 @pytest.mark.parametrize("case,expected", [

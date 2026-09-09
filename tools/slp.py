@@ -27,6 +27,12 @@ import yaml
 __version__ = "0.1.0"
 SCHEMA_DIR = pathlib.Path(__file__).resolve().parent / "schemas"
 
+# Where the models the framework makes mandatory live (README §3 Stage A: "In all
+# models within models/marts/**"). A project that keeps them elsewhere says so
+# with --marts-path, because a tool pointed at the wrong folder finds nothing
+# wrong with anything, and that reads exactly like a pass.
+MARTS = ("models/marts",)
+
 # Keys that say how a test runs rather than what it asserts. They are kept apart
 # from the test arguments because gate rules read them (G2 where, G3 severity).
 CFG_KEYS = ("enabled", "error_if", "fail_calc", "limit", "severity",
@@ -210,7 +216,7 @@ def normalize_test(item, where):
                 args[("config." if key == "config" else "") + name_] = value_
     return name, json.dumps(args, sort_keys=True, default=str), cfg
 
-def read_doc(doc, rel):
+def read_doc(doc, rel, marts=MARTS):
     """The models and unit tests declared in one yml document, on disk or at a commit."""
     if not isinstance(doc, dict):
         raise SlpError("%s is not a yml mapping" % rel)
@@ -234,7 +240,7 @@ def read_doc(doc, rel):
                 tests.append((cname,) + normalize_test(item, where))
         models.append(Model(name, rel, entry, _one_of(entry, "spec", where),
                             _one_of(entry, "pre_registration", where), columns,
-                            sensitive, tests, rel.startswith("models/marts/")))
+                            sensitive, tests, rel.startswith(_dirs(marts))))
     for entry in _entries(doc.get("unit_tests"), "unit_tests", rel):
         name = entry.get("name")
         if not isinstance(name, str) or not name:
@@ -242,17 +248,26 @@ def read_doc(doc, rel):
         units.append(UnitTest(name, entry.get("model") or "", rel, entry))
     return models, units
 
-def read_project(project_dir):
-    """Read models/**.yml into models and unit tests. No git, no dbt, no warehouse."""
+def _dirs(marts):
+    """The marts paths as prefixes a relative path can be tested against."""
+    return tuple(p.strip("/") + "/" for p in marts)
+
+def _tops(marts):
+    """The directories that hold the marts paths: where the yml files are looked for."""
+    return sorted(set(p.split("/")[0] for p in _dirs(marts)))
+
+def read_project(project_dir, marts=MARTS):
+    """Read the model yml into models and unit tests. No git, no dbt, no warehouse."""
     root = pathlib.Path(project_dir).resolve()
-    if not (root / "models" / "marts").is_dir():
-        raise SlpError("models/marts/ not found under %s; nothing to check is not OK"
-                       % project_dir)
+    for path in _dirs(marts):
+        if not (root / path).is_dir():
+            raise SlpError("%s not found under %s; nothing to check is not OK"
+                           % (path, project_dir))
     models, units = {}, []
-    for path in sorted(p for p in (root / "models").rglob("*")
+    for path in sorted(p for top in _tops(marts) for p in (root / top).rglob("*")
                        if p.suffix in (".yml", ".yaml") and p.is_file()):
         rel = path.relative_to(root).as_posix()
-        found, unit_tests = read_doc(load_yaml(path), rel)
+        found, unit_tests = read_doc(load_yaml(path), rel, marts)
         for model in found:
             if model.name in models:
                 raise SlpError("model %s is declared twice: %s and %s"
@@ -400,7 +415,7 @@ PKG_FILES = ("packages.yml", "package-lock.yml", "dependencies.yml")
 # What the gate rules read: the tree at the merge-base, the tree at head, and one
 # light inventory per commit in between (oldest first, merge-base included).
 Gate = NamedTuple("Gate", [("root", object), ("before", dict), ("after", dict),
-                           ("walk", list)])
+                           ("walk", list), ("marts", tuple)])
 
 def _canon(obj):
     """One text for one value, whatever order the yml file happened to use."""
@@ -425,7 +440,7 @@ def _without_prereg(entry):
             holder["meta"].pop("pre_registration", None)
     return _canon(copy)
 
-def inventory(root, commit, full=True):
+def inventory(root, commit, full=True, marts=MARTS):
     """Everything the gate compares, as it was at one commit.
 
     A pure function of the commit: same commit in, same inventory out, whichever
@@ -435,12 +450,13 @@ def inventory(root, commit, full=True):
     inv = {"tests": {}, "files": {}, "units": {}, "specs": {}, "preregs": {},
            "models": {}, "recons": {}, "packages": {}, "where": {}}
     listing = git(root, "ls-tree", "-r", "-z", "--name-only", commit, "--",
-                  "models", "tests", "analyses", *PKG_FILES)
+                  *(_tops(marts) + ["tests", "analyses"] + list(PKG_FILES)))
     sql = {}
     for path in sorted(p for p in listing.split("\0") if p):
-        if path.startswith("models/") and path.endswith((".yml", ".yaml")):
+        if path.startswith(tuple(_tops(marts))) and path.endswith((".yml", ".yaml")):
             text = git(root, "show", "%s:%s" % (commit, path))
-            models, units = read_doc(parse_yaml(text, "%s at %s" % (path, commit[:8])), path)
+            models, units = read_doc(parse_yaml(text, "%s at %s" % (path, commit[:8])),
+                                     path, marts)
             for model in models:
                 inv["where"][model.name] = path
                 inv["specs"][model.name] = model.spec
@@ -453,7 +469,7 @@ def inventory(root, commit, full=True):
                 inv["units"][unit.name] = (unit.file, unit.model, _canon(body))
         elif not full:
             continue
-        elif path.startswith("models/") and path.endswith(".sql"):
+        elif path.startswith(tuple(_tops(marts))) and path.endswith(".sql"):
             sql[path.rsplit("/", 1)[-1][:-4]] = _sha(git(root, "show", "%s:%s" % (commit, path)))
         elif path.startswith("tests/"):
             inv["files"][path] = _sha(git(root, "show", "%s:%s" % (commit, path)))
@@ -579,7 +595,7 @@ def gate_spec_changed(ctx):
     out = []
     for model in sorted(ctx.after["specs"]):
         spec = ctx.after["specs"][model]
-        if spec is None or not _file(ctx, model).startswith("models/marts/"):
+        if spec is None or not _file(ctx, model).startswith(_dirs(ctx.marts)):
             continue
         first = next((inv["specs"][model] for inv in ctx.walk
                       if inv["specs"].get(model) is not None), None)
@@ -757,11 +773,18 @@ def apply_rules(rules, context):
 
 # --- Command line ---
 
+def _checked(project, marts):
+    """What check actually held to the framework: the marts models, of all it read."""
+    inside = sum(1 for m in project.models.values() if m.is_marts)
+    return "%s in %s, of %s read" % (_count(inside, "model") or "no model",
+                                     ", ".join(_dirs(marts)),
+                                     _count(len(project.models), "model") or "none")
+
 def cmd_check(args):
     """check: read the project, run the check rules, print what they found."""
-    project = read_project(args.project_dir)
+    project = read_project(args.project_dir, args.marts_path)
     return report(apply_rules(CHECK_RULES, project), "check",
-                  _count(len(project.models), "model"))
+                  _checked(project, args.marts_path))
 
 def cmd_gate(args):
     """gate: compare the merge-base with head, and walk the commits between them."""
@@ -772,15 +795,16 @@ def cmd_gate(args):
                   "%s..%s" % (base, args.head)).split()
     if not commits:
         return report([], "gate", "no commits")
-    before, after = inventory(root, base), inventory(root, args.head)
+    marts = tuple(args.marts_path)
+    before, after = inventory(root, base, marts=marts), inventory(root, args.head, marts=marts)
     # The walk starts at the merge-base and ends at head, both already read.
-    walk = [before] + [inventory(root, ref, full=False) for ref in commits[:-1]] + [after]
-    return report(apply_rules(GATE_RULES, Gate(root, before, after, walk)), "gate",
+    walk = [before] + [inventory(root, ref, False, marts) for ref in commits[:-1]] + [after]
+    return report(apply_rules(GATE_RULES, Gate(root, before, after, walk, marts)), "gate",
                   "no changes" if before == after else _count(len(commits), "commit"))
 
 def cmd_compare(args):
     """compare: hold every diff.json against the pre-registration of its model."""
-    project = read_project(args.project_dir)
+    project = read_project(args.project_dir, args.marts_path)
     out = []
     for path in args.diffs:
         data = load_json(path)
@@ -804,12 +828,17 @@ def build_parser():
     compare.add_argument("diffs", nargs="+", metavar="diff.json")
     for sub in (check, gate, compare):
         sub.add_argument("--project-dir", default=".", help="root of the dbt project")
+        sub.add_argument("--marts-path", action="append", metavar="PATH",
+                         help="directory the framework makes mandatory; repeat for "
+                              "more than one (default: %s)" % ", ".join(MARTS))
     return parser
 
 def main(argv=None):
     """Parse, run, and turn anything unexpected into exit code 2."""
     parser = build_parser()
     args = parser.parse_args(argv)
+    if getattr(args, "marts_path", None) is None:
+        args.marts_path = list(MARTS)
     if not args.command:
         parser.print_usage(sys.stderr)
         return 2

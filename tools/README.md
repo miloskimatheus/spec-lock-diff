@@ -81,9 +81,9 @@ says nothing, these tools do nothing.
 ## 3. The three commands
 
 ```
-python tools/slp.py check   [--project-dir .]
-python tools/slp.py gate    --base <git ref> [--head HEAD] [--project-dir .]
-python tools/slp.py compare <diff.json> [<diff.json> ...] [--project-dir .]
+python tools/slp.py check   [--project-dir .] [--marts-path models/marts]
+python tools/slp.py gate    --base <git ref> [--head HEAD] [--project-dir .] [--marts-path ...]
+python tools/slp.py compare <diff.json> [<diff.json> ...] [--project-dir .] [--marts-path ...]
 python tools/slp.py --version
 ```
 
@@ -102,8 +102,23 @@ on the spec's primary_key."
 `config.meta.spec`), validates it against `schemas/spec.schema.json`, checks the
 few things a schema cannot — do the primary key columns exist? does the
 reconciliation query exist? do the sensitive columns and the `meta.sensitive`
-flags agree? — and prints one line per problem. It never opens a `.sql` file,
-never calls git, and never touches the warehouse.
+flags agree? — and prints one line per problem. It never calls git and never
+touches the warehouse.
+
+**Where it looks.** `models/marts/`, because that is where README §3 Stage A
+makes the spec mandatory. If your marts live somewhere else, say so with
+`--marts-path`, and repeat the flag for more than one directory:
+
+```
+python tools/slp.py check --marts-path models/core --marts-path models/finance
+```
+
+Pass the same paths to `gate` and `compare`. A path that is not a directory is
+an error (exit 2), not a pass — a tool pointed at a folder that is not there
+finds nothing wrong with anything, and that reads exactly like a clean run.
+That is also why the summary line separates the two numbers: **how many models
+were held to the framework**, and how many were read in all. Only the first is
+coverage.
 
 **When it runs.** Stage A, while the Author writes the spec. Stage C, before
 the agent commits. Stage D, in CI, on every push.
@@ -112,7 +127,7 @@ the agent commits. Stage D, in CI, on every push.
 
 ```
 $ python tools/slp.py check
-slp check: OK (1 model)
+slp check: OK (1 model in models/marts/, of 1 model read)
 ```
 
 ```

@@ -81,9 +81,9 @@ não diz nada, estas ferramentas não fazem nada.
 ## 3. Os três comandos
 
 ```
-python tools/slp.py check   [--project-dir .]
-python tools/slp.py gate    --base <git ref> [--head HEAD] [--project-dir .]
-python tools/slp.py compare <diff.json> [<diff.json> ...] [--project-dir .]
+python tools/slp.py check   [--project-dir .] [--marts-path models/marts]
+python tools/slp.py gate    --base <git ref> [--head HEAD] [--project-dir .] [--marts-path ...]
+python tools/slp.py compare <diff.json> [<diff.json> ...] [--project-dir .] [--marts-path ...]
 python tools/slp.py --version
 ```
 
@@ -102,8 +102,23 @@ unicidade na primary_key da spec."
 (ou `config.meta.spec`), valida contra `schemas/spec.schema.json`, verifica as
 poucas coisas que um schema não vê — as colunas da primary key existem? a query
 de reconciliação existe? as colunas sensíveis e as marcações `meta.sensitive`
-concordam? — e imprime uma linha por problema. Nunca abre um arquivo `.sql`,
-nunca chama o git e nunca toca no warehouse.
+concordam? — e imprime uma linha por problema. Nunca chama o git e nunca toca
+no warehouse.
+
+**Onde olha.** Em `models/marts/`, porque é ali que o README §3 Etapa A torna a
+spec obrigatória. Se os seus marts moram em outro lugar, diga com
+`--marts-path`, e repita a flag para mais de um diretório:
+
+```
+python tools/slp.py check --marts-path models/core --marts-path models/finance
+```
+
+Passe os mesmos caminhos para o `gate` e para o `compare`. Um caminho que não é
+um diretório é erro (exit 2), não aprovação — uma ferramenta apontada para uma
+pasta que não existe não acha nada de errado em nada, e isso se lê exatamente
+como uma rodada limpa. É também por isso que a linha de resumo separa os dois
+números: **quantos modelos foram cobrados pelo framework**, e quantos foram
+lidos ao todo. Só o primeiro é cobertura.
 
 **Quando roda.** Etapa A, enquanto o Autor escreve a spec. Etapa C, antes de o
 agente commitar. Etapa D, no CI, a cada push.
@@ -112,7 +127,7 @@ agente commitar. Etapa D, no CI, a cada push.
 
 ```
 $ python tools/slp.py check
-slp check: OK (1 model)
+slp check: OK (1 model in models/marts/, of 1 model read)
 ```
 
 ```
