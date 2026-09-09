@@ -523,11 +523,33 @@ def gate_test_filter(ctx):
                              "where: %s" % (key[2], _named(key[0], key[1]), new), "G2"))
     return out
 
+def _sev(cfg):
+    """The severity dbt will use: error unless the test says otherwise."""
+    return str(cfg.get("severity", "error")).lower()
+
+def gate_test_severity(ctx):
+    """README §2 Control 5B — "severity downgraded (e.g., error → warn)": turning an error into a warning makes CI pass, but the problem remains."""
+    out = []
+    before, after = _by3(ctx.before), _by3(ctx.after)
+    for key in sorted(after):
+        old = before[key][1] if key in before else None
+        new = after[key][1]
+        said = "test '%s' on %s " % (key[2], _named(key[0], key[1]))
+        file = _file(ctx, key[0])
+        if _sev(new) == "warn" and (old is None or _sev(old) != "warn"):
+            out.append(block(file, key[0], said + ("is new and only warns" if old is None else
+                             "was downgraded from error to warn") + ", so it cannot block", "G3"))
+        for name in ("error_if", "warn_if", "fail_calc"):
+            if name in new and (old is None or old.get(name) != new[name]):
+                out.append(block(file, key[0], said + "sets %s, which changes what counts as "
+                                 "failing" % name, "G3"))
+    return out
+
 # --- Rule registries. A rule is one function: context in, findings out. ---
 
 CHECK_RULES = [check_spec_present, check_spec_schema, check_spec_consistency,
                check_prereg_schema, check_prereg_consistency, check_pk_test]
-GATE_RULES = [gate_test_removed, gate_test_filter]
+GATE_RULES = [gate_test_removed, gate_test_filter, gate_test_severity]
 COMPARE_RULES = []
 
 def apply_rules(rules, context):
