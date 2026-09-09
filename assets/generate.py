@@ -226,7 +226,7 @@ def roles(t, s):
 
 <g fill="none" stroke="{h}" stroke-width="2">
 <rect x="1" y="76" width="256" height="84"/><rect x="685" y="76" width="256" height="84"/>
-<path d="M257 118h44M641 118h44"/><path d="M293 113l8 5-8 5M677 113l8 5-8 5"/></g>
+<path d="M273 118h28M641 118h28"/><path d="M293 113l8 5-8 5M661 113l8 5-8 5"/></g>
 
 <text x="129" y="108" text-anchor="middle" font-size="19" font-weight="600" letter-spacing="1.4" fill="{h}">{s["human"]}</text>
 <text x="129" y="131" text-anchor="middle" font-size="13" fill="{h}">{s["author"]}</text>
@@ -239,13 +239,13 @@ def roles(t, s):
 # ── manifesto network ───────────────────────────────────────────────────────
 def manifesto(t, s):
     i = t["ink"]
-    return svg(942, 392, s["mani_alt"], f'''
+    return svg(942, 430, s["mani_alt"], f'''
 <defs><marker id="a" viewBox="0 0 9 9" refX="8" refY="4.5" markerWidth="8" markerHeight="8" orient="auto">
 <path d="M0 0 L9 4.5 L0 9 z" fill="{i}"/></marker></defs>
 
 <g fill="none" stroke="{i}" stroke-width="1.6" opacity=".7">
 <rect x="9" y="7" width="286" height="86"/><rect x="647" y="7" width="286" height="86"/>
-<rect x="328" y="299" width="286" height="86"/></g>
+<rect x="328" y="338" width="286" height="86"/></g>
 
 <text x="34" y="62" font-size="34" font-weight="600" fill="{i}" opacity=".28">1</text>
 <text x="80" y="46" font-size="12.5" font-weight="600" fill="{i}">{s["p1a"]}</text>
@@ -253,16 +253,16 @@ def manifesto(t, s):
 <text x="672" y="62" font-size="34" font-weight="600" fill="{i}" opacity=".28">2</text>
 <text x="718" y="46" font-size="12.5" font-weight="600" fill="{i}">{s["p2a"]}</text>
 <text x="718" y="66" font-size="12.5" font-weight="600" fill="{i}">{s["p2b"]}</text>
-<text x="353" y="354" font-size="34" font-weight="600" fill="{i}" opacity=".28">3</text>
-<text x="399" y="338" font-size="12.5" font-weight="600" fill="{i}">{s["p3a"]}</text>
-<text x="399" y="358" font-size="12.5" font-weight="600" fill="{i}">{s["p3b"]}</text>
+<text x="353" y="393" font-size="34" font-weight="600" fill="{i}" opacity=".28">3</text>
+<text x="399" y="377" font-size="12.5" font-weight="600" fill="{i}">{s["p3a"]}</text>
+<text x="399" y="397" font-size="12.5" font-weight="600" fill="{i}">{s["p3b"]}</text>
 
 <text x="152" y="117" text-anchor="middle" font-size="10" letter-spacing="1.2" fill="{i}" opacity=".55">{s["e1"]}</text>
 <text x="790" y="117" text-anchor="middle" font-size="10" letter-spacing="1.2" fill="{i}" opacity=".55">{s["e2"]}</text>
-<text x="471" y="288" text-anchor="middle" font-size="10" letter-spacing="1.2" fill="{i}" opacity=".55">{s["e3"]}</text>
+<text x="471" y="326" text-anchor="middle" font-size="10" letter-spacing="1.2" fill="{i}" opacity=".55">{s["e3"]}</text>
 
 <g fill="none" stroke="{i}" stroke-width="1.5" opacity=".55" marker-end="url(#a)">
-<path d="M152 128 L332 168"/><path d="M790 128 L610 168"/><path d="M471 276 L471 262"/></g>
+<path d="M152 128 L325 164"/><path d="M790 128 L617 164"/><path d="M471 306 L471 264"/></g>
 
 <rect x="331" y="152" width="280" height="104" fill="none" stroke="{i}" stroke-width="2.2"/>
 <path d="M331 186h280" stroke="{i}" stroke-width="1.4" opacity=".55" fill="none"/>
@@ -337,41 +337,41 @@ def process(t, s):
 <defs><marker id="p" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
 <path d="M0 0 L8 4 L0 8 z" fill="{i}" fill-opacity=".5"/></marker></defs>
 
-<rect x="186" y="7" width="516" height="146" fill="none" stroke="{i}" stroke-width="2" opacity=".75"/>
-<text x="444" y="27" text-anchor="middle" font-size="10" letter-spacing="2" fill="{i}" opacity=".6">{s["locked"]}</text>
+<rect x="191" y="7" width="516" height="146" fill="none" stroke="{i}" stroke-width="2" opacity=".75"/>
+<text x="449" y="27" text-anchor="middle" font-size="10" letter-spacing="2" fill="{i}" opacity=".6">{s["locked"]}</text>
 
-<g fill="none" stroke="{h}" stroke-width="2.2"><rect x="1" y="45" width="160" height="66"/><rect x="725" y="45" width="216" height="66"/></g>
-<text x="81" y="77" text-anchor="middle" font-size="22" font-weight="600" fill="{h}">A</text>
-<text x="81" y="99" text-anchor="middle" font-size="11.5" fill="{h}">{s["sA"]}</text>
-<text x="833" y="77" text-anchor="middle" font-size="22" font-weight="600" fill="{h}">E</text>
-<text x="833" y="99" text-anchor="middle" font-size="11.5" fill="{h}">{s["sE"]}</text>
+<g fill="none" stroke="{h}" stroke-width="2.2"><rect x="1" y="45" width="146" height="66"/><rect x="751" y="45" width="190" height="66"/></g>
+<text x="74" y="77" text-anchor="middle" font-size="22" font-weight="600" fill="{h}">A</text>
+<text x="74" y="99" text-anchor="middle" font-size="11.5" fill="{h}">{s["sA"]}</text>
+<text x="846" y="77" text-anchor="middle" font-size="22" font-weight="600" fill="{h}">E</text>
+<text x="846" y="99" text-anchor="middle" font-size="11.5" fill="{h}">{s["sE"]}</text>
 
 <g fill="none" stroke="{m}" stroke-width="2" stroke-dasharray="5 3">
-<rect x="206" y="45" width="148" height="66"/><rect x="370" y="45" width="148" height="66"/><rect x="534" y="45" width="148" height="66"/></g>
+<rect x="207" y="45" width="144" height="66"/><rect x="377" y="45" width="144" height="66"/><rect x="547" y="45" width="144" height="66"/></g>
 <g text-anchor="middle" fill="{m}">
-<text x="280" y="77" font-size="22" font-weight="600">B</text><text x="444" y="77" font-size="22" font-weight="600">C</text>
-<text x="608" y="77" font-size="22" font-weight="600">D</text>
-<text x="280" y="99" font-size="11.5">{s["sB"]}</text><text x="444" y="99" font-size="11.5">{s["sC"]}</text>
-<text x="608" y="99" font-size="11.5">{s["sD"]}</text></g>
+<text x="279" y="77" font-size="22" font-weight="600">B</text><text x="449" y="77" font-size="22" font-weight="600">C</text>
+<text x="619" y="77" font-size="22" font-weight="600">D</text>
+<text x="279" y="99" font-size="11.5">{s["sB"]}</text><text x="449" y="99" font-size="11.5">{s["sC"]}</text>
+<text x="619" y="99" font-size="11.5">{s["sD"]}</text></g>
 
 <g fill="none" stroke="{i}" stroke-width="1.4" opacity=".5" marker-end="url(#p)">
-<path d="M161 78h32"/><path d="M354 78h12"/><path d="M518 78h12"/><path d="M682 78h36"/></g>
+<path d="M157 78h24"/><path d="M357 78h14"/><path d="M527 78h14"/><path d="M717 78h24"/></g>
 
-<g fill="none" stroke="{h}" stroke-width="1.4" opacity=".7"><path d="M1 129h160M725 129h216"/></g>
-<text x="81" y="146" text-anchor="middle" font-size="11" font-weight="600" fill="{h}">{s["decides"]}</text>
-<text x="833" y="146" text-anchor="middle" font-size="11" font-weight="600" fill="{h}">{s["onlyreads"]}</text>
+<g fill="none" stroke="{h}" stroke-width="1.4" opacity=".7"><path d="M1 129h146M751 129h190"/></g>
+<text x="74" y="146" text-anchor="middle" font-size="11" font-weight="600" fill="{h}">{s["decides"]}</text>
+<text x="846" y="146" text-anchor="middle" font-size="11" font-weight="600" fill="{h}">{s["onlyreads"]}</text>
 
 <g fill="none" stroke="{i}" stroke-width="1" stroke-dasharray="2 3" opacity=".28">
-<path d="M81 161v14M280 161v14M444 161v14M608 161v14M833 161v14"/></g>
+<path d="M74 161v14M279 161v14M449 161v14M619 161v14M846 161v14"/></g>
 <g font-size="9.5" text-anchor="middle" fill="{i}" opacity=".55">
-<text x="81" y="189">{s["bA"][0]}</text><text x="81" y="201">{s["bA"][1]}</text><text x="280" y="189">—</text>
-<text x="444" y="189">{s["bC"][0]}</text><text x="444" y="201">{s["bC"][1]}</text></g>
+<text x="74" y="189">{s["bA"][0]}</text><text x="74" y="201">{s["bA"][1]}</text><text x="279" y="189">—</text>
+<text x="449" y="189">{s["bC"][0]}</text><text x="449" y="201">{s["bC"][1]}</text></g>
 <g font-size="9.5" text-anchor="middle" fill="{b}">
-<text x="608" y="189">{s["bD"][0]}</text><text x="608" y="201">{s["bD"][1]}</text>
-<text x="833" y="189">{s["bE"][0]}</text><text x="833" y="201">{s["bE"][1]}</text></g>
+<text x="619" y="189">{s["bD"][0]}</text><text x="619" y="201">{s["bD"][1]}</text>
+<text x="846" y="189">{s["bE"][0]}</text><text x="846" y="201">{s["bE"][1]}</text></g>
 
-<g fill="none" stroke="{b}" stroke-width="1.4" opacity=".8"><path d="M534 221v10M941 221v10M534 226h407"/></g>
-<text x="737" y="245" text-anchor="middle" font-size="9.5" letter-spacing="1.2" fill="{b}">{s["canstop"]}</text>''')
+<g fill="none" stroke="{b}" stroke-width="1.4" opacity=".8"><path d="M547 221v10M941 221v10M547 226h394"/></g>
+<text x="744" y="245" text-anchor="middle" font-size="9.5" letter-spacing="1.2" fill="{b}">{s["canstop"]}</text>''')
 
 
 # ── pre-registration interval ───────────────────────────────────────────────

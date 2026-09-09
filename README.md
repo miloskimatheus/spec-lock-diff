@@ -45,7 +45,7 @@ The framework boils down to three phases:
 
 ## 0. Roles — who does what
 
-This framework defines four roles. Each person takes on one role per PR.
+This framework defines four roles.
 
 <p align="center">
   <picture>
@@ -56,10 +56,10 @@ This framework defines four roles. Each person takes on one role per PR.
 
 | Role         | Who they are             | What they do                                                                                        |
 | ------------ | ------------------------ | --------------------------------------------------------------------------------------------------- |
-| **Platform** | Infra/platform team      | Configures the setup controls (section 2) one time. Just makes sure it keeps working after that.   |
-| **Author**   | A human on the team      | Writes the model spec. Triggers the agent. Reads the diff. Is responsible for the PR.               |
-| **Partner**  | Another human (≠ Author) | Approves PRs of critical models.                                                                    |
-| **Agent**    | The AI (LLM + tools)     | Writes code, tests, and the numerical pre-registration.                                             |
+| **Platform** | Infra/platform team      | Configures the setup controls (section 2) one time. After that they only need to make sure it keeps working.   |
+| **Author**   | A human on the team      | Writes the model spec, triggers the agent and reads the diff. Is responsible for the PR.               |
+| **Partner**  | Another human (≠ Author) | Must be called in to approve PRs of critical models.                                                                    |
+| **Agent**    | The AI (LLM + tools)     | Starts by writing the numerical pre-registration, then writes the code and tests.                                             |
 
 ---
 
@@ -76,15 +76,15 @@ _Why_ the framework is being built. All rules derive from them.
 
 | # | Principle | Why it holds | What follows from it |
 |:-:|-----------|--------------|----------------------|
-| **1** | **In SQL, a bug doesn't give an error**<br>It gives a plausible — and wrong — number. | Get a `JOIN` wrong in Python and the program breaks. Get it wrong in SQL and the query runs normally, returns `16,894,203.11`, reports `1 row · no error`, and never mentions the rows it duplicated. | The human **decides before**, by writing the spec, and **checks after**, by reading the numerical diff.<br>Between those two moments the human does nothing — the agent works alone in the middle. |
-| **2** | **Limits must be configured in the infrastructure**<br>Not written down and hoped for. | "Do not access sensitive data" in an `AGENTS.md` is an _instruction_, not a control — the agent can ignore it, forget it, or interpret it differently. `REVOKE USAGE ON SCHEMA raw` is a control. | Real control means **denied database permissions**, a **resource monitor** that shuts the warehouse down, a **branch protection** that prevents pushing to `main`.<br>If the agent tries to violate, the system blocks — regardless of what the prompt says. |
-| **3** | **Checks must be deterministic**<br>The same input, always the same result. | LLMs are stochastic by nature, and that is fine while _generating_ code — the same prompt yields three different joins. It is not fine while _judging_ it. | Every verification gate — tests, diffs, reconciliations — is deterministic.<br>An LLM is never the final judge of "is the code correct?". The judges are **automated tests, numerical diffs, and human eyes**. |
+| **1** | **In SQL, a bug doesn't give an error**<br>It returns a number that is plausible, and wrong. | Get a `JOIN` wrong in Python and the program breaks. Get it wrong in SQL and the query runs normally, returns `16,894,203.11`, reports `1 row · no error`, and never mentions the rows it duplicated. | The human **decides before**, by writing the spec, and **checks after**, by reading the numerical diff.<br>Between those two moments the human does nothing — the agent works alone in the middle. |
+| **2** | **Limits must be configured in the infrastructure**<br>Not written down and hoped to work. | "Do not access sensitive data" in an `AGENTS.md` is an _instruction_, not a control — the agent can ignore it, forget it, or interpret it differently. `REVOKE USAGE ON SCHEMA raw` is a control. | Real control means **denied database permissions**, a **resource monitor** that shuts the warehouse down, a **branch protection** that prevents pushing to `main`.<br>If the agent tries to violate, the system blocks — regardless of what the prompt says. |
+| **3** | **Checks must be deterministic**<br>The same inputs must always produce the same results. | LLMs are stochastic by nature, and that is fine while _generating_ code — the same prompt yields three different joins. It is not fine while _judging_ it. | Every verification gate — tests, diffs, reconciliations — is deterministic.<br>An LLM is never the final judge of "is the code correct?". The judges are **automated tests, numerical diffs, and human eyes**. |
 
 ---
 
 ## 2. Building the lock — 5 mandatory controls
 
-This section is the whole framework. You are not writing rules for the agent to obey — you are building an environment in which the rules cannot be broken. Once these five controls are in place, the agent can be released inside them and left to work alone: it cannot spend money it was not given, read data it was not shown, or merge code no one read. That is what buys the freedom to stop reviewing its SQL line by line.
+You are not writing rules for the agent to obey — you are building an environment in which the rules cannot be broken. Once these five controls are in place, the agent can be released inside them and left to work alone, because it cannot spend money it was not given, read data it was not shown, or merge code no one read. This way we can reduce the human work and effort of reviewing SQL models line by line.
 
 **Who executes:** Platform. **When:** One time only, before the first PR with an agent.
 
@@ -475,7 +475,7 @@ The build includes:
 
 **What it is:** A full `dbt build` (without sample) followed by a numerical diff between the new version and current production. Runs once per PR, when the PR is marked as ready-for-review.
 
-**The diff is produced by automation, deterministically** — the same build, the same closed `event_time` window, the same comparison, every time. Neither a human nor the agent composes it ad hoc, and neither one gets to choose which numbers appear. The human's entire job at this stage is to _read_ it.
+**The diff is produced by automation, deterministically** — the same build, the same closed `event_time` window, the same comparison, every time. Neither a human nor the agent composes it ad hoc, and neither one gets to choose which numbers appear. The human's job at this stage must be only to _read_ the diff.
 
 <p align="center">
   <picture>
