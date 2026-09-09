@@ -32,9 +32,18 @@ dbt test --select test_type:unit
 dbt build
 ```
 
+YOU: if the marts of this project do not live in `models/marts/`, add
+`--marts-path <dir>` to both commands, once per directory, and keep it
+identical to the CI workflow.
+
 `check` and `gate` are the same commands CI runs. If `gate` blocks, do not
 work around it: the thing it found is a test you weakened, and rule 3 says the
 code is what changes.
+
+Read `check`'s last line. It says how many models it held to the framework and
+how many it read: `OK (3 models in models/marts/, of 40 models read)`. If the
+first number is not the number of marts models you touched, it is not checking
+what you think it is.
 
 ## What you must not touch
 
@@ -47,6 +56,14 @@ code is what changes.
   you started. If it is wrong, stop and say so; do not correct it.
 - Any test, unit test or reconciliation query that already exists. You may add
   tests. You may not weaken one.
+- The shape of a test you *do* add, if that shape stops it failing. A
+  `severity: warn`, a `where` that removes the rows it would have caught, an
+  `error_if` threshold it never reaches, `enabled: false` — a test that cannot
+  fail is not a test, and `check` and `gate` both say so. The uniqueness test on
+  the primary key is the one the framework makes mandatory; writing it this way
+  is the same as not writing it.
+- A model file with no yml entry. A `.sql` in a marts path that no yml declares
+  has no spec, no primary key and no test, and `check` blocks on it (`S4`).
 
 ## When to stop and ask a human
 
@@ -56,3 +73,20 @@ code is what changes.
 - The metric you need does not exist in `models/semantic/` (rule 4).
 - The diff came back outside your pre-registration. You do not widen the
   pre-registration; you explain what you found.
+
+## How to read what the tools print
+
+`BLOCK` fails the run. `INFO` never does, and is there to be read.
+
+`compare` prints an `I2` line for every number it compared — the row delta, the
+removed primary keys, each metric, the altered columns, the reconciliation —
+next to the band your pre-registration declared for it and how wide that band
+is. It prints them whether or not anything blocked. That is not noise: a human
+reads those lines to answer *"was this pre-registration narrow enough to be
+able to fail?"*, and a band wide enough to swallow any result is a finding
+about you, not about the data. Write bands you could actually miss.
+
+`I1` counts how many times the pre-registration changed after it was first
+written. The count is visible to the Author in review. Predicting once and
+predicting well is the point; editing the prediction until it fits the answer
+is the thing pre-registration exists to prevent.

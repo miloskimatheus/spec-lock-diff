@@ -31,7 +31,7 @@ não diz nada, estas ferramentas não fazem nada.
 
 | Caminho | O que é |
 | --- | --- |
-| `slp.py` | A ferramenta inteira: três comandos, vinte e uma regras, um arquivo que se lê de uma sentada. |
+| `slp.py` | A ferramenta inteira: três comandos, vinte e quatro regras, um arquivo que se lê de uma sentada. |
 | `schemas/spec.schema.json` | Como uma `meta.spec` precisa ser (README §3 Etapa A). |
 | `schemas/pre_registration.schema.json` | Como um `meta.pre_registration` precisa ser (README §3 Etapa B). |
 | `schemas/diff.schema.json` | Como um `diff.json` precisa ser — a única interface com o que quer que meça o seu diff. |
@@ -73,7 +73,7 @@ não diz nada, estas ferramentas não fazem nada.
    python tools/slp.py --version
    ```
 7. **Opcional, e vale a pena:** `pip install pytest && pytest tools/tests -q`.
-   Cerca de duzentos testes, alguns segundos, sem rede. Se passam, os gates da
+   Cerca de duzentos e trinta testes, alguns segundos, sem rede. Se passam, os gates da
    sua máquina são os gates do CI.
 
 ---
@@ -556,6 +556,30 @@ confere essa promessa contra o código-fonte, para que uma regra não ganhe um
 `BLOCK` em silêncio. O que elas dizem existe para ser *lido*, e é por isso que
 o `templates/ci.yml` joga os dois comandos no resumo do job.
 
+**Como ler uma rodada.** Três perguntas, nesta ordem.
+
+1. **Saiu com 2?** Então nada foi julgado. Um arquivo que não deu para ler, yml
+   que não deu para parsear, um `--marts-path` que não é diretório. Resolva
+   isso primeiro; um exit 2 não diz nada sobre o código.
+2. **Tem algum `BLOCK`?** Cada um diz o que foi medido e o que foi prometido, e
+   termina num id de regra que você acha na
+   [tabela de cobertura](#8-tabela-de-cobertura). Um bloqueio do `gate` quase
+   nunca é coisa para contornar: é um teste que ficou mais fraco, e a Regra 3
+   do framework diz que quem muda é o código.
+3. **Aí leia as linhas `INFO`.** Elas nunca mudam o exit code, e é justamente
+   por isso que são fáceis de pular e valem não pular. A `I1` diz quantas vezes
+   o pré-registro foi editado depois de escrito — um número que o README pede
+   que o Autor veja. A `I2` é o diff em si: cada número ao lado da faixa
+   declarada para ele, e a largura dessa faixa.
+
+Uma rodada que não bloqueia nada não é a mesma coisa que uma rodada que não
+achou nada para olhar. `slp check: OK (3 models in models/marts/, of 40 models
+read)` é uma afirmação de cobertura; leia o primeiro número. `slp compare: OK
+(1 file)` num pull request que pré-registrou dois modelos agora é impossível
+(`C7`), e essa é a forma da maior parte do que esta ferramenta existe para
+fazer: um verde que quer dizer *"eu não olhei"* é a falha que o framework
+existe para impedir.
+
 **Onde as ferramentas procuram as coisas.** O dbt 1.10 moveu `meta` para dentro
 de `config`, então as duas grafias são lidas. Se as duas estiverem presentes
 para a mesma coisa, isso é erro (saída 2, "ambiguous: defined twice") — a
@@ -575,8 +599,11 @@ ferramenta não adivinha qual você quis dizer.
 Uma linha por regra: a frase do README que ela impõe, a fixture em que a regra
 dispara e a fixture em que ela fica calada. O meta-teste **M2** falha se uma
 regra não tem linha aqui, ou se uma linha aponta para uma fixture que não existe
-ou que não faz o que a linha diz. Toda regra bloqueia, menos a `I1`, que só
-informa — o README pede que a contagem esteja visível, não que ela pare o PR.
+ou que não faz o que a linha diz. Toda regra bloqueia, menos as duas em
+`INFO_RULES` — a `I1`, contador de alterações do pré-registro, e a `I2`, os
+números em si —, que só informam. O README pede que o que elas dizem esteja
+*visível*, não que pare o PR, e o **M2** confere isso contra o código-fonte,
+para que nenhuma das duas ganhe um `BLOCK` em silêncio.
 
 | README | Regra | Fixture em que dispara | Fixture em que fica calada |
 | --- | --- | --- | --- |
@@ -623,6 +650,12 @@ ponto desta lista.
 | "O pré-registro é imutável a partir do momento em que a etapa D começa" | Isso exige estado fora do git — o CI precisa lembrar quando rodou pela primeira vez. O `gate` conta as alterações e imprime a contagem (`I1`), que é o que o README pede que o Autor veja. README §3 Etapa B. |
 | Rodar a query de reconciliação | Ela lê o warehouse com dado completo. Seu CI roda e escreve os dois números no `diff.json`; o `compare` lê (`C6`). README §3 Etapa E passo 4. |
 | Produzir o diff | É específico do warehouse. Recce, dbt-audit-helper ou o seu SQL; as ferramentas exigem o formato, não o método. README §3 Etapa E passo 2. |
+| `dbt_project.yml`, e a severity definida a partir dele | O `gate` lê os yml de modelo, `tests/`, `analyses/reconciliation_*` e os arquivos de pacote. Não lê o `dbt_project.yml`, então `data_tests: {+severity: warn}` ou `+enabled: false` ali dentro deixa todo teste do projeto sem poder bloquear e o `gate` diz `OK (no changes)`. O CODEOWNERS protege o arquivo (Controle 5A), então um humano precisa aprovar — mas não será o gate a contar a ele o que aquilo faz. README §2 Controle 5B. |
+| `macros/` | Mesma lista, mesma lacuna. Os generic tests customizados do dbt moram, por convenção, em `macros/`, e a Regra 3 fala em "modificar uma macro de teste" — o gate não os lê. O CODEOWNERS cobre a aprovação. README §2 Regra 3. |
+| Uma spec ou um pré-registro **apagado** | A `G7` dispara quando uma spec *muda*; uma spec removida por inteiro não aciona regra nenhuma do `gate`, e o `check` pega só o sintoma (`S1`, "model has no meta.spec"), que se lê como um modelo que nunca teve uma. Um pré-registro escrito na branch e depois apagado também não gera `I1`. README §3 Etapa A, Etapa B. |
+| Evasão da `G7` e da `I1` pelo formato do histórico | A caminhada pelos commits usa `--first-parent`, então trabalho feito numa branch lateral e mesclado no pull request é pulado. Uma spec criada *e* editada dentro de uma branch dessas passa pela `G7`, e a contagem da `I1` fica subestimada. Mesmo conteúdo, veredito diferente conforme a topologia da branch — o que combina mal com o Princípio 3. Faça squash ou rebase da branch, ou leia a `I1` como piso. README §3 Etapa B. |
+| Cada edge da spec virar um unit test (Regra 2) | Os `known_edges` da spec são validados como texto e nada confere que cada um virou um unit test com fixture sintética. Uma spec com cinco edges e nenhum unit test passa no `check`. README §2 Regra 2. |
+| Se uma tolerância ou uma âncora conseguem falhar | `reconciliation_tolerance: "999%"` e `external_validation: "TODO"` satisfazem o schema. O mesmo argumento que o schema do pré-registro faz sobre intervalos abertos vale para eles; o schema ainda não faz esse argumento. README §3 Etapa A. |
 | Detectar dado real em fixtures (Regra 7) | Estas ferramentas só verificam as próprias fixtures (meta-teste M6). Para o seu repositório use gitleaks com regras para e-mail e CPF, como o README §3 Etapa D descreve. |
 | Modo identidade de bot: julgar só os commits do agente | Não existe identidade de bot para configurar, e autor de commit é texto que qualquer um escreve. O gate julga o PR inteiro; veja [Escopo do gate](#gate). |
 | O hook `PreToolUse` que recusa escrita em paths protegidos | É específico do agente e opcional. README §2 Controle 5B, "Opcional (camada extra de proteção)". |
@@ -646,13 +679,14 @@ ponto desta lista.
 - **As duas línguas.** `tools/README.md` e `tools/README.pt-br.md` são o mesmo
   documento. Se você muda a substância de um, mude o outro, ou diga no PR que
   não conseguiu.
-- **Um arquivo.** Toda a lógica mora no `slp.py`. O backlog que planejou estas
-  ferramentas limitou o arquivo a 600 linhas, antes de as regras serem
-  contadas: vinte e uma delas, com mensagens legíveis e guardas que falham
-  fechado, deram cerca de oitocentas, e o limite agora é 850 — verificado pelo
-  meta-teste M8. A promessa que o limite protege é que uma pessoa consegue ler
-  o arquivo inteiro de uma sentada, e isso continua valendo. Se deixar de
-  valer, a resposta é menos regras ou outra estrutura, não um número maior.
+- **Um arquivo.** Toda a lógica mora no `slp.py`. O meta-teste **M8** limita o
+  arquivo, e o que ele limita são as linhas que precisam ser *entendidas* —
+  código, sem linhas em branco, comentários e docstrings — em 750, mais o
+  arquivo inteiro em 1000. Antes ele contava toda linha, o que punha a prosa do
+  lado errado da conta: o jeito mais barato de ganhar espaço era apagar a
+  explicação que torna o arquivo legível. A promessa que o limite protege é que
+  uma pessoa consegue ler o arquivo inteiro de uma sentada. Se deixar de valer,
+  a resposta é menos regras ou outra estrutura, não um número maior.
 
 Veja o [CONTRIBUTING.md](../CONTRIBUTING.md) e os templates de issue em
 `.github/ISSUE_TEMPLATE/`.

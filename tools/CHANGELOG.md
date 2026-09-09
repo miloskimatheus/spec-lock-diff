@@ -3,6 +3,59 @@
 Versions are tagged `tools-v<version>`. The framework README is versioned
 separately; these tools implement it and never lead it.
 
+## 0.2.0 — the silent passes
+
+Every finding below was a run that printed `OK` while the thing it exists to
+check had not happened. That is the failure this framework was built to
+prevent, and the tools had seven of them. Each has a proof in
+`tests/fixtures/` that fails against 0.1.0.
+
+### New rules
+
+| Rule | What it blocks |
+| --- | --- |
+| `S4` | a `.sql` file in a marts path that no yml declares as a model. `check` read yml and nothing else, so a model that existed only as SQL had no spec to be missing and no test to be absent — Stage A was bypassed by leaving a file out rather than by weakening anything |
+| `C7` | a model that carries a `meta.pre_registration` and whose `diff.json` was never handed to `compare`. `compare` only ever looked at the files it was given, so a diff step that emitted two files for three models passed. Pass every diff in one call — `compare diff/*.json` — because a rule about what is missing can only see what it was given |
+| `I2` | nothing, and that is the point. It prints every number the diff measured next to the band the pre-registration declared for it, how wide that band is, the reason given, and a note when the diff carries no `window`. Stage E step 5 asks the Author "is the pre-registration narrow enough to be able to fail?", and until now the automation answered with a blank line |
+
+### Rules that were not doing what they said
+
+| Rule | What was wrong |
+| --- | --- |
+| `G1`, `G2`, `G3` | tests were grouped by (model, column, name) with **one** config per group — whichever sorted first by arguments. A column with two `relationships` tests is ordinary dbt, and every one but the first could be given a `where`, a `severity: warn` or an `enabled: false` unseen. The verdict depended on alphabetical order of the arguments. Each declaration now keeps its own config, and the finding names which one it means |
+| `G1`, `G4` | unit tests were held in a dict keyed by name. dbt only makes a unit test unique *inside its model*, so two marts may each have one called `cancelled_orders_are_excluded`; whichever file sorted later overwrote the other and neither rule could see the first model's test change **or be deleted**. `gate` reported `OK (no changes)`. Keyed by `(model, name)` now |
+| `T1` | `unique` with `where: "1 = 0"` satisfied the primary key requirement. `_blocks()` read `enabled` and `severity` and nothing else, so a mandatory test could be born asserting nothing — and no `gate` rule covered it either, because `G2` and `G3` compare a test against its earlier self and a new test has none. `where`, `error_if`, `warn_if`, `fail_calc` and `limit` now disqualify it, and the message says which one it found |
+
+### Changed behaviour
+
+- **`--marts-path`**, repeatable, on all three commands. `models/marts/` was
+  hard-coded in three places. A project with marts in more than one directory
+  got a clean run that had checked only one of them.
+- **`check`'s summary line** counted every model it read, marts or not:
+  `OK (40 models)` when three were in scope. It now reads
+  `OK (3 models in models/marts/, of 40 models read)`. Only the first number is
+  coverage.
+- **Findings sort** blocks before infos, then by rule id, and ties keep the
+  order the rule produced them in — so `I2`'s lines read in the order Stage E
+  asks for rather than alphabetically.
+- **`INFO_RULES`** names the rules that never change the exit code (`I1`,
+  `I2`), and meta-test **M2** checks that against the source.
+- **`COMPARE_RUN_RULES`** is a second registry for rules that judge the run
+  rather than one file. Same docstring, rule id and fixture rules apply.
+- **M8** caps the lines that have to be *understood* — code, with blanks,
+  comments and docstrings taken out — at 750, and the file as a whole at 1000.
+  The old cap counted every line, which made deleting explanatory prose the
+  cheapest way to buy room.
+
+### Still not enforced
+
+The seven above are fixed. Three more were found with them and are **not**:
+`dbt_project.yml` is never read, so `data_tests: {+severity: warn}` disables
+every test in the project unseen; the `--first-parent` walk lets `G7` and `I1`
+be evaded or undercounted by doing the work on a merged side branch; and a
+deleted `meta.spec` trips no `gate` rule (`check` catches the symptom via
+`S1`). They are listed in README section 9 with the rest.
+
 ## 0.1.0 — first reference implementation
 
 Three commands in one file, no model, no network, no warehouse.
@@ -14,16 +67,15 @@ Three commands in one file, no model, no network, no warehouse.
 | `S1` | a model under `models/marts/` with no `meta.spec` |
 | `S2` | a spec that does not match `schemas/spec.schema.json` |
 | `S3` | a primary key or sensitive column the model does not declare, a model with no columns at all, a `meta.sensitive` flag missing from the spec or missing from the column, a critical model whose reconciliation query does not exist |
-| `S4` | a `.sql` file in a marts path that no yml declares as a model: it has no spec to check, and every other rule passes it in silence |
 | `P1` | a pre-registration that does not match `schemas/pre_registration.schema.json`, including the open interval the README calls invalid |
 | `P2` | a min above its max, a metric the spec never defined, a spec metric with no interval, an altered column the model does not declare, a pre-registration on a model with no spec |
-| `T1` | no uniqueness test on the spec's primary key, or one that cannot fail the build: disabled, `severity: warn`, or narrowed by `where`, `error_if`, `warn_if`, `fail_calc` or `limit` |
+| `T1` | no uniqueness test on the spec's primary key, or one that cannot fail the build |
 
 ### `gate` — the lock (README §2 Control 5B, §1 Principle 1)
 
 | Rule | What it blocks |
 | --- | --- |
-| `G1` | a data test removed, its arguments changed or disabled; a file under `tests/` deleted or rewritten; a unit test removed. Unit tests are held by model *and* name, so one model's cannot shadow another's |
+| `G1` | a data test removed, its arguments changed or disabled; a file under `tests/` deleted or rewritten; a unit test removed |
 | `G2` | a `where` added to or changed on an existing test, written on the test or in its `config` |
 | `G3` | an existing test downgraded to `severity: warn`, an `error_if` / `warn_if` / `fail_calc` added or changed, or a new test created that cannot block |
 | `G4` | any part of an existing unit test's body: `given`, `expect`, `overrides`, the model. Only `description` may change |
@@ -43,8 +95,6 @@ Three commands in one file, no model, no network, no warehouse.
 | `C4` | a pre-registered metric that was not measured, one outside its interval, one that cannot be evaluated because production is 0, and one measured but never pre-registered |
 | `C5` | a `refactoring` that moved any number |
 | `C6` | a critical model with no reconciliation numbers, numbers with no tolerance to read them against, and a difference above the tolerance |
-| `I2` | nothing. It prints every number the diff measured next to the band the pre-registration declared for it, the reason given, and a note when the diff carries no window — the three readings of Stage E step 5 need the numbers in front of them |
-| `C7` | a model that carries a pre-registration and whose `diff.json` was never handed to `compare`. Stage E compares every pre-registered model or it has not run |
 
 ### Also in this release
 

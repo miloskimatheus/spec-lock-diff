@@ -40,12 +40,18 @@ jobs:
           python-version: "3.12"
 
       # YOU: replace dbt-postgres with the adapter of your warehouse, for example
-      # dbt-snowflake or dbt-bigquery. dbt brings PyYAML and jsonschema, which are
-      # the only libraries tools/slp.py uses.
-      - run: pip install dbt-core dbt-postgres
+      # dbt-snowflake or dbt-bigquery. PyYAML and jsonschema are the only two
+      # libraries tools/slp.py uses; dbt pulls both in today, and they are named
+      # here anyway so a change on dbt's side cannot take the gates down with it.
+      - run: pip install dbt-core dbt-postgres "pyyaml" "jsonschema>=4"
 
       # Stage A and Rule 2: every marts model has a complete spec, a valid
       # pre-registration when it has one, and a uniqueness test on its primary key.
+      #
+      # YOU: if your marts do not live in models/marts/, add --marts-path for each
+      # directory that does hold them, here and on the gate and compare steps
+      # below. Read the summary line: it says how many models were held to the
+      # framework and how many were read at all, and only the first is coverage.
       - name: slp check
         run: python tools/slp.py check
 
@@ -56,6 +62,11 @@ jobs:
       - name: slp gate
         shell: bash  # bash -eo pipefail, so tee cannot swallow a failure
         run: |
+          # The findings are tab separated. Without a fence the job summary
+          # renders them as one paragraph, which is unreadable; the trap closes
+          # the fence even when the gate blocks and -e ends the step.
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          trap 'echo "```" >> "$GITHUB_STEP_SUMMARY"' EXIT
           python tools/slp.py gate \
             --base ${{ github.event.pull_request.base.sha }} \
             --head ${{ github.event.pull_request.head.sha }} \
@@ -100,7 +111,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - run: pip install dbt-core dbt-postgres  # YOU: your adapter, as above
+      - run: pip install dbt-core dbt-postgres "pyyaml" "jsonschema>=4"  # YOU: your adapter, as above
 
       - name: warehouse auth
         run: |
@@ -134,7 +145,15 @@ jobs:
 
       # Stage E step 3 and 4: every number against the interval that was declared
       # before the code was written, and the reconciliation against its tolerance.
+      #
+      # Every diff in ONE call. C7 blocks when a model carries a pre-registration
+      # and no diff.json turned up for it, and it can only see the files it was
+      # given - one call per file would make that rule useless. The I2 lines are
+      # the numbers themselves, printed pass or fail: they are what the Author
+      # reads for Stage E step 5, so they go in the job summary too.
       - name: slp compare
         shell: bash  # bash -eo pipefail, so tee cannot swallow a failure
         run: |
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          trap 'echo "```" >> "$GITHUB_STEP_SUMMARY"' EXIT
           python tools/slp.py compare diff/*.json | tee -a "$GITHUB_STEP_SUMMARY"

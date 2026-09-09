@@ -23,5 +23,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       # The only dependencies the tools are allowed to have (backlog rule R5).
-      - run: pip install pyyaml jsonschema pytest
+      # jsonschema is floored because the schemas are draft 2020-12, and
+      # Draft202012Validator arrived in 4.0.
+      - run: pip install pyyaml "jsonschema>=4" pytest
       - run: pytest tools/tests -q

@@ -31,7 +31,7 @@ says nothing, these tools do nothing.
 
 | Path | What it is |
 | --- | --- |
-| `slp.py` | The whole tool: three commands, twenty-one rules, one file you can read in one sitting. |
+| `slp.py` | The whole tool: three commands, twenty-four rules, one file you can read in one sitting. |
 | `schemas/spec.schema.json` | What a `meta.spec` must look like (README §3 Stage A). |
 | `schemas/pre_registration.schema.json` | What a `meta.pre_registration` must look like (README §3 Stage B). |
 | `schemas/diff.schema.json` | What a `diff.json` must look like — the one interface to whatever measures your diff. |
@@ -73,7 +73,7 @@ says nothing, these tools do nothing.
    python tools/slp.py --version
    ```
 7. **Optional, and worth it:** `pip install pytest && pytest tools/tests -q`.
-   Around a hundred and fifty tests, a few seconds, no network. If they pass,
+   Around two hundred and thirty tests, a few seconds, no network. If they pass,
    the gates on your machine are the gates in CI.
 
 ---
@@ -552,6 +552,29 @@ pre-registration change counter, and `I2`, the numbers themselves. Meta-test
 `BLOCK`. What they say is meant to be *read*, which is why `templates/ci.yml`
 pipes both commands into the job summary.
 
+**How to read a run.** Three questions, in this order.
+
+1. **Did it exit 2?** Then nothing was judged. A file it could not read, yml it
+   could not parse, a `--marts-path` that is not a directory. Fix that first;
+   an exit 2 tells you nothing about the code.
+2. **Is there a `BLOCK`?** Each one names what was measured and what was
+   promised, and ends in a rule id you can look up in the
+   [coverage table](#8-coverage-table). A `gate` block is almost never
+   something to work around: it is a test that got weaker, and the framework's
+   Rule 3 says the code is what changes.
+3. **Then read the `INFO` lines.** They never change the exit code, which is
+   exactly why they are easy to skip and worth not skipping. `I1` says how many
+   times the pre-registration was edited after it was first written — a number
+   the README asks the Author to see. `I2` is the diff itself: every number
+   next to the band declared for it, and how wide that band is.
+
+A run that blocks nothing is not the same as a run that found nothing to look
+at. `slp check: OK (3 models in models/marts/, of 40 models read)` is a
+coverage statement; read the first number. `slp compare: OK (1 file)` on a pull
+request that pre-registered two models is now impossible (`C7`), and that is
+the shape of most of what this tool is for: a green that means *"I did not
+look"* is the failure the framework exists to prevent.
+
 **Where the tools look for things.** dbt 1.10 moved `meta` under `config`, so
 both spellings are read. If both are present for the same thing, that is an
 error (exit 2, "ambiguous: defined twice") — the tool does not guess which one
@@ -571,8 +594,11 @@ you meant.
 One row per rule: the README sentence it enforces, the fixture where the rule
 fires, and the fixture where it stays silent. Meta-test **M2** fails if a rule
 has no row here, or a row names a fixture that does not exist or does not do
-what it says. Every rule blocks except `I1`, which only ever informs — the
-README asks for the count to be visible, not for it to stop the PR.
+what it says. Every rule blocks except the two in `INFO_RULES` — `I1`, the
+pre-registration change counter, and `I2`, the numbers themselves — which only
+ever inform. The README asks for what they say to be *visible*, not for it to
+stop the PR, and **M2** checks that against the source so neither can quietly
+grow a `BLOCK`.
 
 | README | Rule | Fixture where it fires | Fixture where it stays silent |
 | --- | --- | --- | --- |
@@ -619,6 +645,12 @@ point of this list.
 | "The pre-registration is immutable from the moment stage D begins" | That needs state outside git — CI has to remember when it first ran. `gate` counts the changes instead and prints the count (`I1`), which is what the README asks the Author to see. README §3 Stage B. |
 | Running the reconciliation query | It reads the warehouse with full data. Your CI runs it and writes the two numbers into `diff.json`; `compare` reads them (`C6`). README §3 Stage E step 4. |
 | Producing the diff | Warehouse-specific. Recce, dbt-audit-helper or your own SQL; the tools demand the shape, not the method. README §3 Stage E step 2. |
+| `dbt_project.yml`, and severity set from it | `gate` reads the model yml, `tests/`, `analyses/reconciliation_*` and the package files. It does not read `dbt_project.yml`, so `data_tests: {+severity: warn}` or `+enabled: false` there turns every test in the project non-blocking and `gate` says `OK (no changes)`. CODEOWNERS protects the file (Control 5A) so a human must approve the change — but the gate will not be the one to tell them what it does. README §2 Control 5B. |
+| `macros/` | Same list, same gap. dbt's custom generic tests conventionally live in `macros/`, and Rule 3 names "modifies a test macro" — the gate does not read them. CODEOWNERS covers the approval. README §2 Rule 3. |
+| A spec or a pre-registration **deleted** | `G7` fires when a spec *changes*; a spec removed outright trips no `gate` rule, and `check` catches only the symptom (`S1`, "model has no meta.spec"), which reads like a model that never had one. A pre-registration written on the branch and then deleted produces no `I1` either. README §3 Stage A, Stage B. |
+| History-shaped evasion of `G7` and `I1` | The commit walk uses `--first-parent`, so work done on a side branch and merged into the pull request is skipped. A spec created *and* edited inside such a branch passes `G7`, and `I1`'s edit count is understated. Same content, different verdict depending on branch topology — which sits badly with Principle 3. Squash or rebase the branch, or read `I1` as a floor. README §3 Stage B. |
+| Each spec edge becoming a unit test (Rule 2) | The spec's `known_edges` are validated as text and nothing checks that each became a unit test with a synthetic fixture. A spec with five edges and no unit tests passes `check`. README §2 Rule 2. |
+| Whether a tolerance or an anchor can fail | `reconciliation_tolerance: "999%"` and `external_validation: "TODO"` satisfy the schema. The same argument the pre-registration schema makes about open intervals applies to them; the schema does not make it yet. README §3 Stage A. |
 | Detecting real data in fixtures (Rule 7) | These tools only check their own fixtures (meta-test M6). For your repository use gitleaks with rules for email and document numbers, as README §3 Stage D describes. |
 | Bot-identity mode: judging only the agent's commits | There is no bot identity to configure, and a commit author is text anyone can write. The gate judges the whole pull request; see [Gate scope](#gate). |
 | The `PreToolUse` hook that refuses writes to protected paths | Agent-specific and optional. README §2 Control 5B, "Optional (extra layer of protection)". |
@@ -641,13 +673,14 @@ point of this list.
 - **Both languages.** `tools/README.md` and `tools/README.pt-br.md` are the same
   document. If you change the substance of one, change the other, or say in the
   PR that you could not.
-- **One file.** All the logic lives in `slp.py`. The backlog that planned these
-  tools capped it at 600 lines; twenty-one rules, their messages and their
-  fail-closed guards came to about eight hundred, and the cap is now 850 —
-  checked by meta-test M8. The promise the cap protects is that one person can
-  read the whole thing in one sitting, and that still holds. If it stops
-  holding, the answer is fewer rules or a different structure, not a bigger
-  number.
+- **One file.** All the logic lives in `slp.py`. Meta-test **M8** caps it, and
+  what it caps is the lines that have to be *understood* — code, with blanks,
+  comments and docstrings taken out — at 750, plus the file as a whole at 1000.
+  It used to count every line, which put the prose on the wrong side of the
+  ledger: the cheapest way to buy room was to delete the explanation that makes
+  the file readable. The promise the cap protects is that one person can read
+  the whole thing in one sitting. If it stops holding, the answer is fewer
+  rules or a different structure, not a bigger number.
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md) and the issue templates in
 `.github/ISSUE_TEMPLATE/`.

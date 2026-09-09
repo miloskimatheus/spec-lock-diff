@@ -24,7 +24,7 @@ from typing import NamedTuple
 import jsonschema
 import yaml
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 SCHEMA_DIR = pathlib.Path(__file__).resolve().parent / "schemas"
 
 # Where the models the framework makes mandatory live (README §3 Stage A: "In all

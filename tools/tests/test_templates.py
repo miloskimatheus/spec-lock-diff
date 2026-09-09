@@ -97,3 +97,24 @@ def test_ci_yml_pipes_the_gate_into_the_job_summary_without_losing_its_exit_code
         if "tee -a" in line:
             assert "GITHUB_STEP_SUMMARY" in line
     assert text.count("shell: bash") == 2  # bash -eo pipefail on both piped steps
+
+
+def test_ci_yml_fences_the_findings_so_the_job_summary_can_be_read():
+    """A finding is tab separated; unfenced, the summary renders the lot as one paragraph."""
+    workflow = yaml.safe_load((TEMPLATES / "ci.yml").read_text(encoding="utf-8"))
+    piped = [step for job in workflow["jobs"].values() for step in job["steps"]
+             if "tee -a" in str(step.get("run", ""))]
+    assert len(piped) == 2
+    for step in piped:
+        run = step["run"]
+        assert run.count("```") == 2, step["name"]
+        # A trap, so the fence closes even when the command blocks and -e ends
+        # the step - an unclosed fence swallows everything printed after it.
+        assert "trap " in run and run.index("trap ") < run.index("tee -a"), step["name"]
+
+
+def test_ci_yml_hands_compare_every_diff_in_one_call():
+    """C7 blocks on a pre-registered model with no diff, and only sees what it was given."""
+    workflow = yaml.safe_load((TEMPLATES / "ci.yml").read_text(encoding="utf-8"))
+    steps = "\n".join(str(s.get("run", "")) for s in workflow["jobs"]["diff"]["steps"])
+    assert "python tools/slp.py compare diff/*.json" in steps

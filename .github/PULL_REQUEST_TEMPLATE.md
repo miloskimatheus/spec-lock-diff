@@ -41,7 +41,17 @@
 **Which fixture proves it blocks, and which proves it passes?**
 
 <!-- Every rule needs one fixture that blocks and one that passes.
-     Meta-test M2 fails if a rule id has no fixture and no coverage-table row. -->
+     Meta-test M2 fails if a rule id has no fixture and no coverage-table row.
+     A rule that only informs (INFO_RULES) has no healthy-and-silent case; its
+     second fixture is one where the tool could not read the numbers at all. -->
+
+**Can it pass something it should have looked at?**
+
+<!-- The failure this framework exists to prevent is a green that means "I did
+     not look". If the rule reads a list, ask what happens when something is
+     missing from the list rather than wrong in it: a model with no yml, a diff
+     that never arrived, a second test of the same name. Those were seven real
+     bugs in v0.1.0, and every one of them printed OK. -->
 
 ## Checklist
 
