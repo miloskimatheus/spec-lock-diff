@@ -97,6 +97,10 @@ def make_repo(tmp_path, *trees):
             if path.name != ".git":
                 shutil.rmtree(path) if path.is_dir() else path.unlink()
         shutil.copytree(str(tree), str(repo), dirs_exist_ok=True)
+        # Forget the index before adding: git trusts size and mtime, and two fixture
+        # trees written in the same second with the same file size look identical
+        # to it. Rebuilding the index from the tree hashes the content instead.
+        git(repo, "rm", "-r", "--cached", "-q", "--ignore-unmatch", ".")
         git(repo, "add", "-A")
         git(repo, "commit", "-q", "--allow-empty", "-m", "commit %d" % number)
         if number == 1:
