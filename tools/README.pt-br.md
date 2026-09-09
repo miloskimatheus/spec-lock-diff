@@ -102,8 +102,10 @@ unicidade na primary_key da spec."
 (ou `config.meta.spec`), valida contra `schemas/spec.schema.json`, verifica as
 poucas coisas que um schema não vê — as colunas da primary key existem? a query
 de reconciliação existe? as colunas sensíveis e as marcações `meta.sensitive`
-concordam? — e imprime uma linha por problema. Nunca chama o git e nunca toca
-no warehouse.
+concordam? — e imprime uma linha por problema. Também lista os arquivos `.sql`
+dos caminhos de marts, para que um modelo que ninguém declarou num yml não
+passe por falta do que cobrar (`S4`); nunca lê o que há dentro deles, nunca
+chama o git e nunca toca no warehouse.
 
 **Onde olha.** Em `models/marts/`, porque é ali que o README §3 Etapa A torna a
 spec obrigatória. Se os seus marts moram em outro lugar, diga com
@@ -523,6 +525,7 @@ informa — o README pede que a contagem esteja visível, não que ela pare o PR
 | §3 Etapa A — "PR não pode avançar sem spec preenchida" | `S1` | `check/marts_no_spec` | `check/spec_ok` |
 | §3 Etapa A — os seis campos obrigatórios e o formato deles | `S2` | `check/spec_invalid_tier` | `check/spec_ok` |
 | §3 Etapa A — a spec nomeia colunas deste modelo, e uma query de reconciliação que existe | `S3` | `check/sensitive_mismatch` | `check/spec_ok` |
+| §3 Etapa A — um arquivo de modelo que nenhum yml declara não tem spec a cobrar | `S4` | `check/sql_without_yml` | `check/spec_ok` |
 | §3 Etapa B — o formato do pré-registro | `P1` | `check/prereg_open_interval` | `check/prereg_ok` |
 | §3 Etapa B, Regra 6 — intervalos fechados, e as métricas da spec | `P2` | `check/prereg_min_gt_max` | `check/prereg_ok` |
 | §2 Regra 2 — "cria um teste de unicidade na primary_key da spec" | `T1` | `check/pk_single_missing` | `check/pk_single_unique` |

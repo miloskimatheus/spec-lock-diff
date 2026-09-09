@@ -40,7 +40,7 @@ CFG_KEYS = ("enabled", "error_if", "fail_calc", "limit", "severity",
 
 # Every rule id these tools can print. The README coverage table has one row per
 # id and the fixtures one folder per id; meta-test M2 keeps the three in step.
-RULE_IDS = ("S1", "S2", "S3", "P1", "P2", "T1",
+RULE_IDS = ("S1", "S2", "S3", "S4", "P1", "P2", "T1",
             "G1", "G2", "G3", "G4", "G5", "G6", "G7", "I1",
             "C0", "C1", "C2", "C3", "C4", "C5", "C6")
 
@@ -164,7 +164,8 @@ Model = NamedTuple("Model", [("name", str), ("file", str), ("entry", dict),
 UnitTest = NamedTuple("UnitTest", [("name", str), ("model", str), ("file", str),
                                    ("body", dict)])
 # Everything the check rules need from a dbt project, read once.
-Project = NamedTuple("Project", [("dir", object), ("models", dict), ("unit_tests", list)])
+Project = NamedTuple("Project", [("dir", object), ("models", dict), ("unit_tests", list),
+                                 ("files", dict)])
 
 def _entries(value, what, where):
     """A yml list of mappings, or nothing. Anything else cannot be read, so it errors."""
@@ -263,7 +264,10 @@ def read_project(project_dir, marts=MARTS):
         if not (root / path).is_dir():
             raise SlpError("%s not found under %s; nothing to check is not OK"
                            % (path, project_dir))
-    models, units = {}, []
+    models, units, files = {}, [], {}
+    for path in sorted(p for top in _dirs(marts) for p in (root / top).rglob("*.sql")
+                       if p.is_file()):
+        files[path.stem] = path.relative_to(root).as_posix()
     for path in sorted(p for top in _tops(marts) for p in (root / top).rglob("*")
                        if p.suffix in (".yml", ".yaml") and p.is_file()):
         rel = path.relative_to(root).as_posix()
@@ -274,7 +278,7 @@ def read_project(project_dir, marts=MARTS):
                                % (model.name, models[model.name].file, model.file))
             models[model.name] = model
         units.extend(unit_tests)
-    return Project(root, models, units)
+    return Project(root, models, units, files)
 
 
 # --- check: the spec of every model (README §3 Stage A, Rule 1) ---
@@ -291,6 +295,13 @@ def check_spec_present(project):
     """README §3 Stage A — "PR cannot advance without a completed spec"; Rule 1: no spec, stop and ask."""
     return [block(m.file, m.name, "model has no meta.spec (README §3 Stage A)", "S1")
             for m in _sorted_models(project) if m.is_marts and m.spec is None]
+
+def check_model_declared(project):
+    """README §3 Stage A — "PR cannot advance without a completed spec": a model no yml declares has no spec, and nothing here can ask it for one."""
+    return [block(project.files[name], name, "no yml declares this model; an undeclared "
+                  "model has no spec, no primary key and no test, and every other rule "
+                  "here would pass it in silence", "S4")
+            for name in sorted(set(project.files) - set(project.models))]
 
 def check_spec_schema(project):
     """README §3 Stage A — the six mandatory fields and their format, as schemas/spec.schema.json."""
@@ -642,7 +653,7 @@ def compare_contract(ctx):
         out.append(block(ctx.file, ctx.name, "the model has no meta.pre_registration; a number "
                          "nobody committed to in advance is not evidence", "C0"))
     else:
-        one = Project(ctx.project.dir, {ctx.name: ctx.model}, [])
+        one = Project(ctx.project.dir, {ctx.name: ctx.model}, [], {})
         out += [f._replace(file=ctx.file, rule_id="C0")
                 for f in apply_rules([check_prereg_schema, check_prereg_consistency], one)]
     window = ctx.data.get("window")
@@ -757,7 +768,8 @@ def compare_reconciliation(ctx):
 
 # --- Rule registries. A rule is one function: context in, findings out. ---
 
-CHECK_RULES = [check_spec_present, check_spec_schema, check_spec_consistency,
+CHECK_RULES = [check_spec_present, check_model_declared, check_spec_schema,
+               check_spec_consistency,
                check_prereg_schema, check_prereg_consistency, check_pk_test]
 GATE_RULES = [gate_test_removed, gate_test_filter, gate_test_severity,
               gate_unit_test_changed, gate_recon_with_model, gate_packages,

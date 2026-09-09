@@ -102,8 +102,10 @@ on the spec's primary_key."
 `config.meta.spec`), validates it against `schemas/spec.schema.json`, checks the
 few things a schema cannot — do the primary key columns exist? does the
 reconciliation query exist? do the sensitive columns and the `meta.sensitive`
-flags agree? — and prints one line per problem. It never calls git and never
-touches the warehouse.
+flags agree? — and prints one line per problem. It also lists the `.sql` files
+in the marts paths, so a model nobody declared in a yml cannot slip past for
+lack of anything to check (`S4`); it never reads what is inside them, never
+calls git, and never touches the warehouse.
 
 **Where it looks.** `models/marts/`, because that is where README §3 Stage A
 makes the spec mandatory. If your marts live somewhere else, say so with
@@ -517,6 +519,7 @@ README asks for the count to be visible, not for it to stop the PR.
 | §3 Stage A — "PR cannot advance without a completed spec" | `S1` | `check/marts_no_spec` | `check/spec_ok` |
 | §3 Stage A — the six mandatory fields and their format | `S2` | `check/spec_invalid_tier` | `check/spec_ok` |
 | §3 Stage A — the spec names columns of this model, and a reconciliation query that exists | `S3` | `check/sensitive_mismatch` | `check/spec_ok` |
+| §3 Stage A — a model file no yml declares has no spec to ask for | `S4` | `check/sql_without_yml` | `check/spec_ok` |
 | §3 Stage B — the pre-registration format | `P1` | `check/prereg_open_interval` | `check/prereg_ok` |
 | §3 Stage B, Rule 6 — closed intervals, and the spec's metrics | `P2` | `check/prereg_min_gt_max` | `check/prereg_ok` |
 | §2 Rule 2 — "creates a uniqueness test on the spec's primary_key" | `T1` | `check/pk_single_missing` | `check/pk_single_unique` |

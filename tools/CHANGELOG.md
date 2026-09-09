@@ -14,6 +14,7 @@ Three commands in one file, no model, no network, no warehouse.
 | `S1` | a model under `models/marts/` with no `meta.spec` |
 | `S2` | a spec that does not match `schemas/spec.schema.json` |
 | `S3` | a primary key or sensitive column the model does not declare, a model with no columns at all, a `meta.sensitive` flag missing from the spec or missing from the column, a critical model whose reconciliation query does not exist |
+| `S4` | a `.sql` file in a marts path that no yml declares as a model: it has no spec to check, and every other rule passes it in silence |
 | `P1` | a pre-registration that does not match `schemas/pre_registration.schema.json`, including the open interval the README calls invalid |
 | `P2` | a min above its max, a metric the spec never defined, a spec metric with no interval, an altered column the model does not declare, a pre-registration on a model with no spec |
 | `T1` | no uniqueness test on the spec's primary key, or one that cannot fail the build |
