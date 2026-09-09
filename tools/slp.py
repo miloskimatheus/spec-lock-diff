@@ -465,11 +465,58 @@ def inventory(root, commit, full=True):
         inv["models"][name] += sql.get(name, "")
     return inv
 
+# --- gate rules: what this branch did to the tests (README §2 Control 5B) ---
+
+def _by3(inv):
+    """Data tests grouped by (model, column, test name), whatever their arguments."""
+    out = {}
+    for (model, column, name, args), cfg in sorted(inv["tests"].items()):
+        out.setdefault((model, column, name), (set(), cfg))[0].add(args)
+    return out
+
+def _on(cfg):
+    """A test that is switched off asserts nothing."""
+    return cfg.get("enabled", True) is True
+
+def _named(model, column):
+    return "%s.%s" % (model, column) if column else model
+
+def _file(ctx, model):
+    """The yml that declares the model now, or the one that declared it before."""
+    return ctx.after["where"].get(model) or ctx.before["where"].get(model) or ""
+
+def _changed(ctx, kind, keys=None):
+    """Keys of one part of the inventory whose value is not the same on both sides."""
+    if keys is None:
+        keys = set(ctx.before[kind]) | set(ctx.after[kind])
+    return sorted(k for k in keys if ctx.before[kind].get(k) != ctx.after[kind].get(k))
+
+def gate_test_removed(ctx):
+    """README §2 Control 5B — "Test removed": an agent can remove a failing test instead of fixing the code."""
+    before, after = _by3(ctx.before), _by3(ctx.after)
+    out = []
+    for key in sorted(before):
+        model, column, name = key
+        said, file = "test '%s' on %s " % (name, _named(model, column)), _file(ctx, model)
+        if key not in after:
+            out.append(block(file, model, said + "exists on main but not in this PR", "G1"))
+        elif before[key][0] - after[key][0]:
+            out.append(block(file, model, said + "changed its arguments; if that is intended, a "
+                             "human changes it before the agent starts, or in a separate PR", "G1"))
+        elif _on(before[key][1]) and not _on(after[key][1]):
+            out.append(block(file, model, said + "was disabled", "G1"))
+    for path in _changed(ctx, "files", set(ctx.before["files"])):
+        out.append(block(path, "", "singular or generic test %s was removed or changed" % path, "G1"))
+    for name in sorted(set(ctx.before["units"]) - set(ctx.after["units"])):
+        file, model, _ = ctx.before["units"][name]
+        out.append(block(file, model, "unit test '%s' was removed" % name, "G1"))
+    return out
+
 # --- Rule registries. A rule is one function: context in, findings out. ---
 
 CHECK_RULES = [check_spec_present, check_spec_schema, check_spec_consistency,
                check_prereg_schema, check_prereg_consistency, check_pk_test]
-GATE_RULES = []
+GATE_RULES = [gate_test_removed]
 COMPARE_RULES = []
 
 def apply_rules(rules, context):

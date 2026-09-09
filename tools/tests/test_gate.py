@@ -8,9 +8,11 @@ happen, so adding a rule means adding a folder - never editing this file.
 import pytest
 
 import slp
-from conftest import assert_expected, cases, git, make_repo, run_slp
+from conftest import FIXTURES, assert_expected, cases, git, make_repo, run_slp
 
 TREES = ("before", "mid", "after")
+# The plumbing tests need a repository, not a rule: this one changes nothing.
+QUIET = FIXTURES / "gate" / "gate_ok_identical"
 
 
 def build(case, tmp_path):
@@ -26,13 +28,13 @@ def test_gate_case(case, tmp_path):
 
 
 def test_nothing_changed_says_so(tmp_path):
-    repo = build(cases("gate")[0], tmp_path)
+    repo = build(QUIET, tmp_path)
     code, out, _ = run_slp(["gate", "--base", "base"], repo)
     assert (code, out) == (0, "slp gate: OK (no changes)\n")
 
 
 def test_head_at_the_merge_base_is_not_a_pull_request(tmp_path):
-    repo = build(cases("gate")[0], tmp_path)
+    repo = build(QUIET, tmp_path)
     code, out, _ = run_slp(["gate", "--base", "HEAD"], repo)
     assert (code, out) == (0, "slp gate: OK (no commits)\n")
 
@@ -46,7 +48,7 @@ def test_outside_a_git_repository_it_refuses_to_judge(tmp_path):
 
 
 def test_a_base_that_does_not_exist_is_an_error(tmp_path):
-    repo = build(cases("gate")[0], tmp_path)
+    repo = build(QUIET, tmp_path)
     code, _, err = run_slp(["gate", "--base", "no-such-branch"], repo)
     assert code == 2
     assert err.startswith("ERROR git merge-base")
@@ -54,7 +56,7 @@ def test_a_base_that_does_not_exist_is_an_error(tmp_path):
 
 def test_a_merge_commit_in_the_range_is_walked_first_parent(tmp_path):
     """A branch merged into the PR must not make the walk explode or double count."""
-    repo = build(cases("gate")[0], tmp_path)
+    repo = build(QUIET, tmp_path)
     git(repo, "checkout", "-q", "-b", "side", "base")
     (repo / "models" / "marts" / "side.yml").write_text(
         "models:\n  - name: fct_side\n", encoding="utf-8")
@@ -70,13 +72,13 @@ def test_a_merge_commit_in_the_range_is_walked_first_parent(tmp_path):
 
 def test_the_inventory_is_the_same_for_the_same_commit(tmp_path):
     """The rules compare inventories, so an inventory must be a pure function of a commit."""
-    repo = build(cases("gate")[0], tmp_path)
+    repo = build(QUIET, tmp_path)
     head = git(repo, "rev-parse", "HEAD").strip()
     assert slp.inventory(repo, head) == slp.inventory(repo, head)
 
 
 def test_the_inventory_holds_what_the_rules_compare(tmp_path):
-    repo = build(cases("gate")[0], tmp_path)
+    repo = build(QUIET, tmp_path)
     inv = slp.inventory(repo, "HEAD")
     assert inv["tests"] == {("fct_orders", "order_id", "unique", "{}"): {}}
     assert inv["where"] == {"fct_orders": "models/marts/fct_orders.yml"}
@@ -86,7 +88,7 @@ def test_the_inventory_holds_what_the_rules_compare(tmp_path):
 
 def test_a_light_inventory_reads_only_the_yml_files(tmp_path):
     """The commit walk needs specs and pre-registrations, not every file hash."""
-    repo = build(cases("gate")[0], tmp_path)
+    repo = build(QUIET, tmp_path)
     (repo / "packages.yml").write_text("packages: []\n", encoding="utf-8")
     git(repo, "add", "-A")
     git(repo, "commit", "-q", "-m", "add packages")
