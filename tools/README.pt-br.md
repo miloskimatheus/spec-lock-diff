@@ -207,6 +207,10 @@ primeiro. Numerá-los seria errado justamente no caso que importa, porque tirar 
 primeiro de dois passa o número dele para o segundo, e isso se lê como edição de
 config em vez de teste removido. Para as duas regras que precisam de histórico,
 ele caminha pelos commits com `--first-parent`, do mais antigo para o mais novo.
+Tudo o que um commit tem é lido por um único `git cat-file --batch`, então um
+pull request custa cerca de dois processos de git por commit em vez de um por
+arquivo por commit — 150 modelos numa branch de 30 commits gastavam vinte
+segundos só abrindo processos antes de qualquer regra olhar para alguma coisa.
 
 **Quando roda.** Etapa C, antes de o agente commitar (`--base main`). Etapa D,
 no CI, a cada push, com o base e o head do PR.

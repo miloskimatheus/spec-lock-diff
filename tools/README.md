@@ -205,6 +205,10 @@ and not the first. Numbering them instead would be wrong in the case that
 matters, because removing the first of two hands its number to the second,
 which reads as a config edit rather than as a removed test. For the two rules
 that need history, it walks the commits with `--first-parent`, oldest first.
+Everything one commit holds is read down a single `git cat-file --batch`, so a
+pull request costs about two git processes per commit rather than one per file
+per commit — 150 models across a 30-commit branch used to spend twenty seconds
+starting processes before a rule had looked at anything.
 
 **When it runs.** Stage C, before the agent commits (`--base main`). Stage D, in
 CI, on every push, with the base and head of the pull request.

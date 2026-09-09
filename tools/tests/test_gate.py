@@ -94,3 +94,36 @@ def test_a_light_inventory_reads_only_the_yml_files(tmp_path):
     git(repo, "commit", "-q", "-m", "add packages")
     assert slp.inventory(repo, "HEAD")["packages"] != {}
     assert slp.inventory(repo, "HEAD", full=False)["packages"] == {}
+
+
+def test_every_file_at_one_commit_is_read_in_one_git_process(tmp_path, monkeypatch):
+    """One process per file made the commit walk quadratic in a real project."""
+    repo = build(QUIET, tmp_path)
+    for n in range(12):
+        (repo / "models" / "marts" / ("m%02d.yml" % n)).write_text(
+            "models:\n  - name: fct_m%02d\n" % n, encoding="utf-8")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "twelve more models")
+    calls = []
+    real = slp.subprocess.run
+    monkeypatch.setattr(slp.subprocess, "run",
+                        lambda *a, **k: (calls.append(a[0][3]), real(*a, **k))[1])
+    slp.inventory(repo, "HEAD")
+    # ls-tree, then one cat-file for the thirteen yml and the one sql.
+    assert calls == ["ls-tree", "cat-file"], calls
+
+
+def test_a_file_with_multibyte_characters_is_read_whole(tmp_path):
+    """cat-file sizes blobs in bytes; splitting the stream by characters loses them."""
+    repo = build(QUIET, tmp_path)
+    (repo / "models" / "marts" / "acentos.yml").write_text(
+        'models:\n  - name: fct_reconciliação\n    description: "não é ascii"\n',
+        encoding="utf-8")
+    (repo / "models" / "marts" / "after.yml").write_text(
+        "models:\n  - name: fct_after\n", encoding="utf-8")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "accents")
+    inv = slp.inventory(repo, "HEAD")
+    # The file after the multibyte one still parses, which it cannot if the
+    # stream was cut in the wrong place.
+    assert "fct_reconciliação" in inv["where"] and "fct_after" in inv["where"]

@@ -30,6 +30,15 @@ fixture that fails against 0.2.0.
   `G3`, with `where` held apart in `DEAD_KEYS` because it is the one key that
   might be scoping rather than evasion.
 
+- **`gate` reads one commit in one git process.** It ran `git show` once per
+  file per commit: 150 models across a 30-commit branch spawned 4,983 git
+  processes and spent 19.5 s on a local SSD before a rule had looked at
+  anything, and the cost is the product of the two numbers, so a real project
+  with a long branch is worse. `git cat-file --batch` answers a whole commit
+  down one pipe — the same repository is now 64 processes and 5.0 s. Blob sizes
+  in that stream are counted in bytes, so it is split before decoding; a test
+  covers the multibyte case that gets wrong.
+
 - **M8 is three caps, not one.** The shared machinery, any one rule on its own,
   and the file as a whole. One global number had stopped measuring the promise
   it was written for — a reader reads the machinery once and then one rule at a

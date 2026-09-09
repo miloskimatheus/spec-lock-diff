@@ -478,6 +478,38 @@ def git(root, *args):
         raise SlpError("git %s: %s" % (" ".join(args), " ".join(done.stderr.split())))
     return done.stdout
 
+def git_blobs(root, commit, paths):
+    """The content of many files at one commit, read down one pipe.
+
+    `git show` costs a process per file, and the commit walk asks for every yml
+    at every commit: a project of 150 models with a 30-commit branch spawned
+    close to five thousand of them, twenty seconds of process start-up before a
+    rule had looked at anything. `cat-file --batch` answers the lot at once.
+    """
+    if not paths:
+        return {}
+    asked = "".join("%s:%s\n" % (commit, path) for path in paths)
+    done = subprocess.run(["git", "-C", str(root), "cat-file", "--batch"],
+                          input=asked.encode("utf-8"), capture_output=True)
+    if done.returncode != 0:
+        raise SlpError("git cat-file: %s"
+                       % " ".join(done.stderr.decode("utf-8", "replace").split()))
+    out, data, at = {}, done.stdout, 0
+    for path in paths:
+        # One header line - sha, type, size in bytes - then that many bytes, then
+        # a newline. Sizes are in bytes, so the split happens before decoding.
+        end = data.index(b"\n", at)
+        header = data[at:end].split()
+        if len(header) != 3:
+            raise SlpError("cannot read %s at %s: %s"
+                           % (path, commit[:8], data[at:end].decode("utf-8", "replace")))
+        at = end + 1 + int(header[2]) + 1
+        try:
+            out[path] = data[end + 1:at - 1].decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise SlpError("cannot read %s at %s: %s" % (path, commit[:8], exc))
+    return out
+
 def _without_prereg(entry):
     """A model's yml entry as the gate compares it: the pre-registration does not count."""
     copy = json.loads(_canon(entry))
@@ -498,41 +530,51 @@ def inventory(root, commit, full=True, marts=MARTS):
            "where": {}}
     listing = git(root, "ls-tree", "-r", "-z", "--name-only", commit, "--",
                   *(_dirs(marts, True) + ("tests", "analyses") + PKG_FILES))
+    # What to read is decided first and read in one go, so that the cost of the
+    # commit walk is one git process per commit rather than one per file.
+    plan = []
     for path in sorted(p for p in listing.split("\0") if p):
         if path.startswith(_dirs(marts, True)) and path.endswith((".yml", ".yaml")):
-            text = git(root, "show", "%s:%s" % (commit, path))
-            models, units = read_doc(parse_yaml(text, "%s at %s" % (path, commit[:8])),
-                                     path, marts)
-            for model in models:
-                inv["where"][model.name] = path
-                inv["specs"][model.name] = model.spec
-                inv["preregs"][model.name] = model.prereg
-                inv["models"][model.name] = _sha(_without_prereg(model.entry))
-                # A list, not one config: two declarations of one test on one
-                # column can differ only in their config - two
-                # `expression_is_true` with the same expression and a `where`
-                # each - and one config per key made the second overwrite the
-                # first, which is a whole test removed in silence.
-                for column, name, args, cfg in model.tests:
-                    inv["tests"].setdefault((model.name, column, name, args), []).append(cfg)
-            for unit in units:
-                body = dict((k, v) for k, v in unit.body.items() if k != "description")
-                # By model and name, never by name alone: dbt makes a unit test
-                # unique inside its model, so two models may each hold one called
-                # `cancelled_orders_are_excluded` and neither is a duplicate.
-                inv["units"][(unit.model, unit.name)] = (unit.file, unit.model, _canon(body))
+            plan.append(("yml", path))
         elif not full:
             continue
         elif path.startswith(_dirs(marts, True)) and path.endswith(".sql"):
+            plan.append(("sql", path))
+        elif path.startswith("tests/"):
+            plan.append(("files", path))
+        elif path.startswith("analyses/reconciliation_"):
+            plan.append(("recons", path))
+        elif path in PKG_FILES:
+            plan.append(("packages", path))
+    blobs = git_blobs(root, commit, [path for _, path in plan])
+    for kind, path in plan:
+        if kind == "sql":
             name = path.rsplit("/", 1)[-1][:-4]
             inv["sqls"][name] = path
-            inv["code"][name] = _sha(git(root, "show", "%s:%s" % (commit, path)))
-        elif path.startswith("tests/"):
-            inv["files"][path] = _sha(git(root, "show", "%s:%s" % (commit, path)))
-        elif path.startswith("analyses/reconciliation_"):
-            inv["recons"][path] = _sha(git(root, "show", "%s:%s" % (commit, path)))
-        elif path in PKG_FILES:
-            inv["packages"][path] = _sha(git(root, "show", "%s:%s" % (commit, path)))
+            inv["code"][name] = _sha(blobs[path])
+            continue
+        if kind != "yml":
+            inv[kind][path] = _sha(blobs[path])
+            continue
+        models, units = read_doc(parse_yaml(blobs[path], "%s at %s" % (path, commit[:8])),
+                                 path, marts)
+        for model in models:
+            inv["where"][model.name] = path
+            inv["specs"][model.name] = model.spec
+            inv["preregs"][model.name] = model.prereg
+            inv["models"][model.name] = _sha(_without_prereg(model.entry))
+            # A list, not one config: two declarations of one test on one column
+            # can differ only in their config - two `expression_is_true` with the
+            # same expression and a `where` each - and one config per key made
+            # the second overwrite the first, a whole test removed in silence.
+            for column, name, args, cfg in model.tests:
+                inv["tests"].setdefault((model.name, column, name, args), []).append(cfg)
+        for unit in units:
+            body = dict((k, v) for k, v in unit.body.items() if k != "description")
+            # By model and name, never by name alone: dbt makes a unit test
+            # unique inside its model, so two models may each hold one called
+            # `cancelled_orders_are_excluded` and neither is a duplicate.
+            inv["units"][(unit.model, unit.name)] = (unit.file, unit.model, _canon(body))
     for name in inv["models"]:  # a model is its yml entry and its sql, together
         inv["models"][name] += inv["code"].get(name, "")
     return inv
