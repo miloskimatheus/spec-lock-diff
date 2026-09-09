@@ -91,7 +91,7 @@ def make_repo(tmp_path, *trees):
     """
     repo = pathlib.Path(tmp_path) / "repo"
     repo.mkdir(parents=True)
-    git(repo, "init", "-q", "-b", "main")
+    git(repo, "init", "-q", "-b", "main", "--template=")  # no sample hooks to copy
     for number, tree in enumerate(trees, start=1):
         for path in sorted(repo.iterdir()):
             if path.name != ".git":

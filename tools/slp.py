@@ -13,9 +13,11 @@ its job. 2 is a failure, never a pass: what cannot be read cannot be approved.
 """
 
 import argparse
+import hashlib
 import json
 import pathlib
 import re
+import subprocess
 import sys
 from typing import NamedTuple
 
@@ -390,6 +392,79 @@ def check_pk_test(project):
                              % (", ".join(keys), ", ".join(ACCEPTED_PK_TESTS)), "T1"))
     return out
 
+# --- gate: the two states it compares, as git sees them (README §2 Control 5B) ---
+
+# Files that pin what the project builds with. Any change to one is a G6 finding.
+PKG_FILES = ("packages.yml", "package-lock.yml", "dependencies.yml")
+
+# What the gate rules read: the tree at the merge-base, the tree at head, and one
+# light inventory per commit in between (oldest first, merge-base included).
+Gate = NamedTuple("Gate", [("root", object), ("before", dict), ("after", dict),
+                           ("walk", list)])
+
+def _canon(obj):
+    """One text for one value, whatever order the yml file happened to use."""
+    return json.dumps(obj, sort_keys=True, default=str)
+
+def _sha(text):
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+def git(root, *args):
+    """Run one read-only git command. git is the only program these tools ever run."""
+    done = subprocess.run(["git", "-C", str(root)] + list(args),
+                          capture_output=True, text=True)
+    if done.returncode != 0:
+        raise SlpError("git %s: %s" % (" ".join(args), " ".join(done.stderr.split())))
+    return done.stdout
+
+def _without_prereg(entry):
+    """A model's yml entry as the gate compares it: the pre-registration does not count."""
+    copy = json.loads(_canon(entry))
+    for holder in (copy, copy.get("config")):
+        if isinstance(holder, dict) and isinstance(holder.get("meta"), dict):
+            holder["meta"].pop("pre_registration", None)
+    return _canon(copy)
+
+def inventory(root, commit, full=True):
+    """Everything the gate compares, as it was at one commit.
+
+    A pure function of the commit: same commit in, same inventory out, whichever
+    machine runs it. With full=False only the yml files are read, which is all
+    the commit walk of G7 and I1 needs.
+    """
+    inv = {"tests": {}, "files": {}, "units": {}, "specs": {}, "preregs": {},
+           "models": {}, "recons": {}, "packages": {}, "where": {}}
+    listing = git(root, "ls-tree", "-r", "-z", "--name-only", commit, "--",
+                  "models", "tests", "analyses", *PKG_FILES)
+    sql = {}
+    for path in sorted(p for p in listing.split("\0") if p):
+        if path.startswith("models/") and path.endswith((".yml", ".yaml")):
+            text = git(root, "show", "%s:%s" % (commit, path))
+            models, units = read_doc(parse_yaml(text, "%s at %s" % (path, commit[:8])), path)
+            for model in models:
+                inv["where"][model.name] = path
+                inv["specs"][model.name] = model.spec
+                inv["preregs"][model.name] = model.prereg
+                inv["models"][model.name] = _sha(_without_prereg(model.entry))
+                for column, name, args, cfg in model.tests:
+                    inv["tests"][(model.name, column, name, args)] = cfg
+            for unit in units:
+                body = dict((k, v) for k, v in unit.body.items() if k != "description")
+                inv["units"][unit.name] = (unit.file, unit.model, _canon(body))
+        elif not full:
+            continue
+        elif path.startswith("models/") and path.endswith(".sql"):
+            sql[path.rsplit("/", 1)[-1][:-4]] = _sha(git(root, "show", "%s:%s" % (commit, path)))
+        elif path.startswith("tests/"):
+            inv["files"][path] = _sha(git(root, "show", "%s:%s" % (commit, path)))
+        elif path.startswith("analyses/reconciliation_"):
+            inv["recons"][path] = _sha(git(root, "show", "%s:%s" % (commit, path)))
+        elif path in PKG_FILES:
+            inv["packages"][path] = _sha(git(root, "show", "%s:%s" % (commit, path)))
+    for name in inv["models"]:  # a model is its yml entry and its sql, together
+        inv["models"][name] += sql.get(name, "")
+    return inv
+
 # --- Rule registries. A rule is one function: context in, findings out. ---
 
 CHECK_RULES = [check_spec_present, check_spec_schema, check_spec_consistency,
@@ -409,6 +484,21 @@ def cmd_check(args):
     project = read_project(args.project_dir)
     return report(apply_rules(CHECK_RULES, project), "check",
                   _count(len(project.models), "model"))
+
+def cmd_gate(args):
+    """gate: compare the merge-base with head, and walk the commits between them."""
+    root = pathlib.Path(args.project_dir).resolve()
+    # The merge-base, not the branch tip: a main that moved on is not this PR's doing.
+    base = git(root, "merge-base", args.base, args.head).strip()
+    commits = git(root, "rev-list", "--first-parent", "--reverse",
+                  "%s..%s" % (base, args.head)).split()
+    if not commits:
+        return report([], "gate", "no commits")
+    before, after = inventory(root, base), inventory(root, args.head)
+    # The walk starts at the merge-base and ends at head, both already read.
+    walk = [before] + [inventory(root, ref, full=False) for ref in commits[:-1]] + [after]
+    return report(apply_rules(GATE_RULES, Gate(root, before, after, walk)), "gate",
+                  "no changes" if before == after else _count(len(commits), "commit"))
 
 def build_parser():
     """The command line of Section 2 of the backlog, and nothing else."""
@@ -433,7 +523,7 @@ def main(argv=None):
         parser.print_usage(sys.stderr)
         return 2
     try:
-        return {"check": cmd_check}[args.command](args)
+        return {"check": cmd_check, "gate": cmd_gate}[args.command](args)
     except SlpError as exc:
         sys.stderr.write("ERROR %s\n" % exc)
         return 2
