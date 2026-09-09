@@ -122,6 +122,12 @@ como uma rodada limpa. É também por isso que a linha de resumo separa os dois
 números: **quantos modelos foram cobrados pelo framework**, e quantos foram
 lidos ao todo. Só o primeiro é cobertura.
 
+Um modelo conta como modelo de marts quando **o `.sql` que o produz** mora num
+caminho de marts — não quando o yml que o documenta mora. Um projeto que mantém
+um único `models/schema.yml` para tudo, que é o que o `dbt init` monta, é dbt
+comum; decidir pelo caminho do yml teria isentado todo modelo desse projeto de
+`S1`, `T1` e `G7` enquanto o `check` imprimia `OK`.
+
 **Quando roda.** Etapa A, enquanto o Autor escreve a spec. Etapa C, antes de o
 agente commitar. Etapa D, no CI, a cada push.
 

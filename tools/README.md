@@ -122,6 +122,12 @@ That is also why the summary line separates the two numbers: **how many models
 were held to the framework**, and how many were read in all. Only the first is
 coverage.
 
+A model counts as a marts model when **the `.sql` that makes it** lives in a
+marts path — not when the yml that documents it does. A project that keeps one
+`models/schema.yml` for everything, which is what `dbt init` scaffolds, is
+ordinary dbt; deciding by the yml path would have exempted every model in it
+from `S1`, `T1` and `G7` while `check` printed `OK`.
+
 **When it runs.** Stage A, while the Author writes the spec. Stage C, before
 the agent commits. Stage D, in CI, on every push.
 

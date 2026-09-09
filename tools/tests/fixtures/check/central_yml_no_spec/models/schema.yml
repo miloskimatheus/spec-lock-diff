@@ -1,0 +1,7 @@
+version: 2
+
+models:
+  - name: fct_orders
+    description: "declared where dbt init puts it, and nowhere near models/marts/"
+    columns:
+      - name: order_id

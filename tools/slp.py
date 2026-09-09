@@ -24,7 +24,7 @@ from typing import NamedTuple
 import jsonschema
 import yaml
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 SCHEMA_DIR = pathlib.Path(__file__).resolve().parent / "schemas"
 
 # Where the models the framework makes mandatory live (README §3 Stage A: "In all
@@ -286,6 +286,11 @@ def read_project(project_dir, marts=MARTS):
                                % (model.name, models[model.name].file, model.file))
             models[model.name] = model
         units.extend(unit_tests)
+    # A model is in marts when the sql that makes it is, wherever its yml sits: a
+    # project that documents everything in one models/schema.yml is ordinary dbt,
+    # and reading only the yml path would exempt every one of those models.
+    for name in set(files) & set(models):
+        models[name] = models[name]._replace(is_marts=True)
     return Project(root, models, units, files)
 
 
@@ -485,7 +490,7 @@ def inventory(root, commit, full=True, marts=MARTS):
     the commit walk of G7 and I1 needs.
     """
     inv = {"tests": {}, "files": {}, "units": {}, "specs": {}, "preregs": {},
-           "models": {}, "recons": {}, "packages": {}, "where": {}}
+           "models": {}, "sqls": {}, "recons": {}, "packages": {}, "where": {}}
     listing = git(root, "ls-tree", "-r", "-z", "--name-only", commit, "--",
                   *(_dirs(marts, True) + ("tests", "analyses") + PKG_FILES))
     sql = {}
@@ -510,6 +515,7 @@ def inventory(root, commit, full=True, marts=MARTS):
         elif not full:
             continue
         elif path.startswith(_dirs(marts, True)) and path.endswith(".sql"):
+            inv["sqls"][path.rsplit("/", 1)[-1][:-4]] = path
             sql[path.rsplit("/", 1)[-1][:-4]] = _sha(git(root, "show", "%s:%s" % (commit, path)))
         elif path.startswith("tests/"):
             inv["files"][path] = _sha(git(root, "show", "%s:%s" % (commit, path)))
@@ -553,6 +559,11 @@ def _named(model, column):
 def _file(ctx, model):
     """The yml that declares the model now, or the one that declared it before."""
     return ctx.after["where"].get(model) or ctx.before["where"].get(model) or ""
+
+def _in_marts(ctx, model):
+    """In marts when the yml that declares the model is, or the sql that makes it is."""
+    return any((inv[kind].get(model) or "").startswith(_dirs(ctx.marts))
+               for inv in (ctx.before, ctx.after) for kind in ("where", "sqls"))
 
 def _changed(ctx, kind, keys=None):
     """Keys of one part of the inventory whose value is not the same on both sides."""
@@ -656,7 +667,7 @@ def gate_spec_changed(ctx):
     out = []
     for model in sorted(ctx.after["specs"]):
         spec = ctx.after["specs"][model]
-        if spec is None or not _file(ctx, model).startswith(_dirs(ctx.marts)):
+        if spec is None or not _in_marts(ctx, model):
             continue
         first = next((inv["specs"][model] for inv in ctx.walk
                       if inv["specs"].get(model) is not None), None)

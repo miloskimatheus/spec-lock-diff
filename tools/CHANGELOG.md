@@ -3,6 +3,20 @@
 Versions are tagged `tools-v<version>`. The framework README is versioned
 separately; these tools implement it and never lead it.
 
+## 0.3.0 — the shape of the project, not the shape of the fixtures
+
+0.2.0 closed the silent passes the rules had. This one closes the silent passes
+the *fixtures* had: every `check` and `gate` fixture kept a model's yml beside
+its sql inside `models/marts/`, and every rule that asks "is this a marts
+model?" was really asking "is this yml under marts?". Each entry below has a
+fixture that fails against 0.2.0.
+
+### Rules that were not doing what they said
+
+| Rule | What was wrong |
+| --- | --- |
+| `S1`, `T1`, `G7` | a model was held to be in marts when the **yml that declares it** was, not when the **sql that makes it** was. A project with one `models/schema.yml` — which is what `dbt init` scaffolds — had every marts model exempted: no spec demanded, no uniqueness test demanded, and a `meta.spec` the agent rewrote on the branch produced `slp gate: OK`. `S4` did not rescue it either, because the model *was* declared, just elsewhere |
+
 ## 0.2.0 — the silent passes
 
 Every finding below was a run that printed `OK` while the thing it exists to
