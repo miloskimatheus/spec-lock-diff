@@ -1,0 +1,57 @@
+name: Framework improvement
+description: Propose a change or addition to the Spec-Lock-Diff framework
+title: "[improvement] "
+labels: ["improvement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For substantive changes, please open this issue before writing a PR.
+        It is cheaper to disagree about an idea than about a diff.
+
+        Contributions in English or Portuguese (pt-BR) are equally welcome.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of the framework?
+      options:
+        - "0 — Roles"
+        - "1 — Manifesto / principles"
+        - "2 — Setup controls"
+        - "3 — PR flow (stages A–E)"
+        - "4 — After the merge"
+        - "Reference implementation (schemas, anti-fraud gate, CI)"
+        - "Other / cross-cutting"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does the current framework not solve?
+      description: Describe the failure the framework lets through today.
+      placeholder: "An agent can still ... because nothing checks ..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+    validations:
+      required: true
+  - type: textarea
+    id: mechanism
+    attributes:
+      label: What mechanism enforces it?
+      description: >
+        Principle 2 of the framework: limits belong in infrastructure, not in text
+        instructions. A rule with no enforcing mechanism is a suggestion. Which
+        permission, CI gate, schema, or branch protection makes this real?
+    validations:
+      required: true
+  - type: textarea
+    id: cost
+    attributes:
+      label: What does it cost?
+      description: Extra CI minutes, warehouse spend, human review time, setup burden.
+    validations:
+      required: false

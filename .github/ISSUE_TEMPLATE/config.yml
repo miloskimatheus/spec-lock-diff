@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Read the framework first
+    url: https://github.com/miloskimatheus/spec-lock-diff#readme
+    about: The full Spec-Lock-Diff specification, in English and pt-BR.
+  - name: Contributing guide
+    url: https://github.com/miloskimatheus/spec-lock-diff/blob/main/CONTRIBUTING.md
+    about: How to propose changes, and how the two language versions stay in sync.

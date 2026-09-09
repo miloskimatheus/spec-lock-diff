@@ -1,0 +1,41 @@
+name: Question / unclear passage
+description: Ask something, or flag a part of the document that is ambiguous
+title: "[question] "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If a passage is ambiguous, that is a defect in the framework, not in you.
+        Contributions in English or Portuguese (pt-BR) are equally welcome.
+  - type: dropdown
+    id: lang
+    attributes:
+      label: Which version were you reading?
+      options:
+        - "README.md (English)"
+        - "README.pt-br.md (Português)"
+        - "Both"
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Where?
+      description: Section number, control number, or stage letter.
+      placeholder: "Control 4 / Stage B / section 3"
+    validations:
+      required: false
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+    validations:
+      required: true
+  - type: textarea
+    id: interpretation
+    attributes:
+      label: How did you interpret it? What was the other possible reading?
+      description: Naming both readings makes the fix obvious.
+    validations:
+      required: false

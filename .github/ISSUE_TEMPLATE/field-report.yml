@@ -1,0 +1,68 @@
+name: Field report
+description: Share what happened when you implemented Spec-Lock-Diff for real
+title: "[field report] "
+labels: ["field-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        These are the most valuable issues in this repository. A framework that has
+        never met a real warehouse is a hypothesis.
+
+        Please do not paste real data, real metric values, table names you consider
+        confidential, or anything from a production system you cannot share publicly.
+  - type: dropdown
+    id: warehouse
+    attributes:
+      label: Warehouse
+      options:
+        - Snowflake
+        - BigQuery
+        - Databricks
+        - Redshift
+        - DuckDB
+        - Other
+    validations:
+      required: true
+  - type: checkboxes
+    id: adopted
+    attributes:
+      label: Which parts did you actually implement?
+      options:
+        - label: "Control 1 — dedicated agent identity"
+        - label: "Control 2 — restricted data access / masking"
+        - label: "Control 3 — spending caps"
+        - label: "Control 4 — aggregate statistical profiles"
+        - label: "Control 5 — protected paths + anti-fraud gate"
+        - label: "Stage A — spec in meta.spec"
+        - label: "Stage B — numeric pre-registration"
+        - label: "Stage D — automatic CI"
+        - label: "Stage E — diff vs. pre-registration"
+        - label: "Reconciliation / external validation"
+  - type: textarea
+    id: worked
+    attributes:
+      label: What worked?
+    validations:
+      required: true
+  - type: textarea
+    id: friction
+    attributes:
+      label: What was painful, slow, or impossible to implement as written?
+    validations:
+      required: true
+  - type: textarea
+    id: caught
+    attributes:
+      label: Did a gate ever catch a real bug? Which one, and what kind?
+      description: >
+        Especially interesting: a case where the tests passed but the diff,
+        the pre-registration, or the reconciliation blocked it anyway.
+    validations:
+      required: false
+  - type: textarea
+    id: escaped
+    attributes:
+      label: Did anything wrong reach production despite the framework?
+    validations:
+      required: false
