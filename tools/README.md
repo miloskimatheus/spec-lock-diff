@@ -247,16 +247,40 @@ blocks on those (`C7`). Hand it every diff your build produced, in one call —
 ```
 $ python tools/slp.py compare diff.json
 INFO	diff.json	fct_orders	measured over order_date from 2025-01-01 to 2025-01-31	[C0]
-slp compare: 1 info - OK
+INFO	diff.json	fct_orders	declared as a data_change, because: include status partially_shipped, previously excluded incorrectly	[I2]
+INFO	diff.json	fct_orders	row_delta 8400, declared 0..12000 (a band 12000 wide)	[I2]
+INFO	diff.json	fct_orders	removed_pks 0, declared at most 0	[I2]
+INFO	diff.json	fct_orders	metric gross_revenue moved 0.42 percent, declared 0.0..0.8 (a band 0.8 wide)	[I2]
+INFO	diff.json	fct_orders	altered columns measured [gross_revenue], declared [gross_revenue]	[I2]
+slp compare: 6 infos - OK
 ```
 
 ```
 $ python tools/slp.py compare diff.json
 BLOCK	diff.json	fct_orders	metric gross_revenue moved 2.5 percent, pre-registration allows 0.0..0.8	[C4]
-slp compare: 1 block - BLOCKED
+INFO	diff.json	fct_orders	declared as a data_change, because: include status partially_shipped, previously excluded incorrectly	[I2]
+INFO	diff.json	fct_orders	row_delta 8400, declared 0..12000 (a band 12000 wide)	[I2]
+slp compare: 1 block, 6 infos - BLOCKED
 ```
 
-Every message names both numbers: what was measured and what was promised.
+Every message names both numbers: what was measured and what was promised —
+and `I2` names them **whether or not anything blocked**. That is the point of
+it. Stage E step 5 asks the Author three questions, and the second is *"Is the
+pre-registration narrow enough to be able to fail? Does the reason justify the
+interval?"* A `row_delta` of 8,400 inside a band 12,000 wide is a different
+review from the same 8,400 inside a band 200 wide, and a run that prints only
+`OK` gives you no way to tell them apart. So `compare` prints the reason that
+was given, every number, the band declared for it, and how wide that band is —
+which is the width the README calls out when it says `{min: -999999, max:
+999999}` is useless.
+
+It also says so when the diff carries no `window`, because README §3 Stage E
+step 2 calls the closed, identical window essential and nothing here can verify
+it — the second line of that output is the tool telling you which of its
+promises it cannot keep for you.
+
+`I2` never changes the exit code. Neither does `I1`. What they say has to be
+*read*, which is why `templates/ci.yml` pipes both into the job summary.
 
 **How to change it.** Same shape as the gate: one function, one docstring with
 its README sentence, one rule id, appended to `COMPARE_RULES`, with a blocking
@@ -495,8 +519,17 @@ slp gate: 1 block, 1 info - BLOCKED
 Exit code 2 is a failure, never a pass. What cannot be read cannot be approved:
 a silent pass is the exact failure this framework exists to prevent.
 
-Findings are sorted by file, then model, then rule id. The same files in give
-the same lines out, in the same order, on every machine.
+Findings are sorted by file, then model, then what blocks before what only
+informs, then rule id — and ties keep the order the rule produced them in,
+because a rule with several things to say usually has a reading order for them.
+`I2`'s is the order Stage E asks you to read the numbers in. The same files in
+give the same lines out, in the same order, on every machine.
+
+Two rules only ever inform and never change the exit code: `I1`, the
+pre-registration change counter, and `I2`, the numbers themselves. Meta-test
+**M2** checks that promise against the source, so a rule cannot quietly grow a
+`BLOCK`. What they say is meant to be *read*, which is why `templates/ci.yml`
+pipes both commands into the job summary.
 
 **Where the tools look for things.** dbt 1.10 moved `meta` under `config`, so
 both spellings are read. If both are present for the same thing, that is an
@@ -545,6 +578,7 @@ README asks for the count to be visible, not for it to stop the PR.
 | §3 Stage E step 3 — "the type is refactoring but some delta is not zero" | `C5` | `compare/C5_refactoring_nonzero` | `compare/C1_inside` |
 | §3 Stage E step 4 — "if the difference is greater than the tolerance, the PR is blocked" | `C6` | `compare/C6_over` | `compare/C6_ok_within` |
 | §3 Stage E step 3 — every pre-registered model is compared, not only the ones whose numbers turned up | `C7` | `compare/C7_prereg_without_diff` | `compare/C1_inside` |
+| §3 Stage E step 5 — "Is the pre-registration narrow enough to be able to fail? Does the reason justify the interval?" | `I2` | `compare/C1_inside` | `compare/C0_no_prereg` |
 
 ---
 

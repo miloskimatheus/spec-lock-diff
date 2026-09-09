@@ -42,7 +42,10 @@ CFG_KEYS = ("enabled", "error_if", "fail_calc", "limit", "severity",
 # id and the fixtures one folder per id; meta-test M2 keeps the three in step.
 RULE_IDS = ("S1", "S2", "S3", "S4", "P1", "P2", "T1",
             "G1", "G2", "G3", "G4", "G5", "G6", "G7", "I1",
-            "C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7")
+            "C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "I2")
+# Rules that only ever inform. The README asks for what they say to be visible,
+# not for it to stop the pull request, so they never raise the exit code.
+INFO_RULES = ("I1", "I2")
 
 
 class SlpError(Exception):
@@ -74,8 +77,16 @@ def _count(n, word):
     return "" if not n else "%d %s%s" % (n, word, "" if n == 1 else "s")
 
 def report(findings, command, ok_note=""):
-    """Print the findings sorted, then one summary line. Returns the exit code."""
-    for finding in sorted(findings, key=lambda f: (f.file, f.model, f.rule_id, f)):
+    """Print the findings sorted, then one summary line. Returns the exit code.
+
+    By file, then by model, then what blocks before what only informs, and ties
+    are left in the order the rules produced them - which is itself sorted, so
+    two runs still print the same lines in the same order. A rule that has
+    several things to say usually has a reading order for them, and I2's is the
+    order Stage E asks the reviewer to read the numbers in.
+    """
+    for finding in sorted(findings,
+                          key=lambda f: (f.file, f.model, f.severity != "BLOCK", f.rule_id)):
         print(finding.line())
     blocks = sum(1 for f in findings if f.severity == "BLOCK")
     counts = [c for c in (_count(blocks, "block"),
@@ -737,6 +748,17 @@ def compare_refactoring(ctx):
     return [block(ctx.file, ctx.name, "pre-registered as a refactoring, which may not change "
                   "any number, and the diff moved: %s" % "; ".join(moved), "C5")]
 
+def _drift(numbers):
+    """How far the model is from the source of truth, in percent; None when there is no percentage."""
+    outside = numbers["external_value"]
+    return None if outside == 0 else abs(numbers["model_value"] - outside) / abs(outside) * 100
+
+def _band(low, high):
+    """How wide an interval is - the number Stage E asks the reviewer to judge."""
+    width = high - low
+    return " (a band %s wide)" % ("%g" % width if isinstance(width, float) else width) \
+        if width else " (a band that pins it to one value)"
+
 def compare_reconciliation(ctx):
     """README §3 Stage E step 4 — "If the difference is greater than the tolerance, the PR is blocked"."""
     if not ctx.ok:
@@ -755,16 +777,46 @@ def compare_reconciliation(ctx):
                       "no reconciliation_tolerance to read them against", "C6")]
     measured, outside = numbers["model_value"], numbers["external_value"]
     said = "the model says %s and the source of truth says %s" % (measured, outside)
-    if outside == 0:
+    drift = _drift(numbers)
+    if drift is None:
         if measured == 0:
             return []
         return [block(ctx.file, ctx.name, "reconciliation: %s; no percentage makes that "
                       "difference small" % said, "C6")]
-    drift = abs(measured - outside) / abs(outside) * 100
     if drift <= float(allowed[:-1]):
         return []
     return [block(ctx.file, ctx.name, "reconciliation: %s, a difference of %.4g percent, and "
                   "the spec allows %s" % (said, drift, allowed), "C6")]
+
+def compare_summary(ctx):
+    """README §3 Stage E step 5 — "Is the pre-registration narrow enough to be able to fail? Does the reason justify the interval?": the human is asked to judge the interval, so the interval, the reason and the number that landed in it are printed whether or not anything blocked."""
+    if not ctx.ok:
+        return []
+    pre, data, out = ctx.model.prereg, ctx.data, []
+    say = lambda text: out.append(info(ctx.file, ctx.name, text, "I2"))
+    say("declared as a %s, because: %s" % (pre["type"], pre["reason"]))
+    low, high = _interval(pre["row_delta"])
+    say("row_delta %s, declared %s..%s%s" % (data["row_delta"], low, high, _band(low, high)))
+    say("removed_pks %s, declared at most %s" % (data["removed_pks"], pre["removed_pks"]["max"]))
+    for name in sorted(pre["metrics"]):
+        low, high = _interval(pre["metrics"][name]["delta_pct"])
+        say("metric %s moved %s percent, declared %s..%s%s"
+            % (name, (data["metrics"].get(name) or {}).get("delta_pct"),
+               low, high, _band(low, high)))
+    say("altered columns measured [%s], declared [%s]"
+        % (", ".join(sorted(data["altered_columns"])), ", ".join(sorted(pre["altered_columns"]))))
+    numbers = data.get("reconciliation")
+    if numbers is not None:
+        drift = _drift(numbers)
+        say("reconciliation: model %s against source of truth %s, a difference of %s, and "
+            "the spec allows %s" % (numbers["model_value"], numbers["external_value"],
+                                    "no percentage" if drift is None else "%.4g percent" % drift,
+                                    (ctx.model.spec or {}).get("reconciliation_tolerance")))
+    if not isinstance(data.get("window"), dict):
+        say("this diff declares no window; README §3 Stage E step 2 asks for a closed "
+            "event_time window identical on both sides, and nothing here can check that")
+    return out
+
 
 # What compare has to say about the run as a whole rather than about one file.
 Run = NamedTuple("Run", [("project", object), ("measured", set), ("files", int)])
@@ -789,7 +841,7 @@ GATE_RULES = [gate_test_removed, gate_test_filter, gate_test_severity,
               gate_spec_changed, gate_prereg_counter]
 COMPARE_RULES = [compare_contract, compare_rows, compare_removed_pks,
                  compare_columns, compare_metrics, compare_refactoring,
-                 compare_reconciliation]
+                 compare_reconciliation, compare_summary]
 # Rules about the whole run. They see every file at once, so they cannot live in
 # the loop above; everything else about them - docstring, rule id, fixtures - is
 # the same, and the meta-tests hold them to it.

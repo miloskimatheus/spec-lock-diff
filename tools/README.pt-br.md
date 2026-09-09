@@ -250,16 +250,39 @@ que *falta* só enxerga o que lhe foi entregue.
 ```
 $ python tools/slp.py compare diff.json
 INFO	diff.json	fct_orders	measured over order_date from 2025-01-01 to 2025-01-31	[C0]
-slp compare: 1 info - OK
+INFO	diff.json	fct_orders	declared as a data_change, because: include status partially_shipped, previously excluded incorrectly	[I2]
+INFO	diff.json	fct_orders	row_delta 8400, declared 0..12000 (a band 12000 wide)	[I2]
+INFO	diff.json	fct_orders	removed_pks 0, declared at most 0	[I2]
+INFO	diff.json	fct_orders	metric gross_revenue moved 0.42 percent, declared 0.0..0.8 (a band 0.8 wide)	[I2]
+INFO	diff.json	fct_orders	altered columns measured [gross_revenue], declared [gross_revenue]	[I2]
+slp compare: 6 infos - OK
 ```
 
 ```
 $ python tools/slp.py compare diff.json
 BLOCK	diff.json	fct_orders	metric gross_revenue moved 2.5 percent, pre-registration allows 0.0..0.8	[C4]
-slp compare: 1 block - BLOCKED
+INFO	diff.json	fct_orders	declared as a data_change, because: include status partially_shipped, previously excluded incorrectly	[I2]
+INFO	diff.json	fct_orders	row_delta 8400, declared 0..12000 (a band 12000 wide)	[I2]
+slp compare: 1 block, 6 infos - BLOCKED
 ```
 
-Toda mensagem diz os dois números: o que foi medido e o que foi prometido.
+Toda mensagem diz os dois números: o que foi medido e o que foi prometido — e a
+`I2` diz **tenha bloqueado alguma coisa ou não**. É esse o ponto dela. A Etapa E
+passo 5 faz três perguntas ao Autor, e a segunda é *"O pré-registro é estreito o
+suficiente para poder falhar? A razão justifica o intervalo?"* Um `row_delta` de
+8.400 dentro de uma faixa de 12.000 é uma revisão diferente dos mesmos 8.400
+dentro de uma faixa de 200, e uma rodada que imprime só `OK` não te dá como
+distinguir as duas. Então o `compare` imprime a razão declarada, cada número, a
+faixa declarada para ele, e a largura dessa faixa — que é a largura de que o
+README fala quando diz que `{min: -999999, max: 999999}` é inútil.
+
+Também avisa quando o diff não traz `window`, porque o README §3 Etapa E passo 2
+chama de essencial a janela fechada e idêntica dos dois lados, e nada aqui
+consegue verificar isso — a segunda linha dessa saída é a ferramenta dizendo
+qual das próprias promessas ela não consegue cumprir por você.
+
+A `I2` nunca muda o exit code. A `I1` também não. O que elas dizem tem de ser
+*lido*, e é por isso que o `templates/ci.yml` joga as duas no resumo do job.
 
 **Como mudar.** Mesma forma do gate: uma função, uma docstring com a frase do
 README, um id de regra, acrescentada em `COMPARE_RULES`, com uma fixture que
@@ -500,9 +523,18 @@ O código 2 é falha, nunca aprovação. O que não pode ser lido não pode ser
 aprovado: uma aprovação silenciosa é exatamente a falha que este framework
 existe para evitar.
 
-Os achados são ordenados por arquivo, depois modelo, depois id da regra. Os
-mesmos arquivos na entrada dão as mesmas linhas na saída, na mesma ordem, em
-qualquer máquina.
+Os achados são ordenados por arquivo, depois modelo, depois o que bloqueia
+antes do que só informa, depois id da regra — e empates mantêm a ordem em que a
+regra os produziu, porque uma regra com várias coisas a dizer normalmente tem
+uma ordem de leitura para elas. A da `I2` é a ordem em que a Etapa E pede que
+os números sejam lidos. Os mesmos arquivos na entrada dão as mesmas linhas na
+saída, na mesma ordem, em qualquer máquina.
+
+Duas regras só informam e nunca mudam o exit code: a `I1`, o contador de
+alterações do pré-registro, e a `I2`, os números em si. O meta-teste **M2**
+confere essa promessa contra o código-fonte, para que uma regra não ganhe um
+`BLOCK` em silêncio. O que elas dizem existe para ser *lido*, e é por isso que
+o `templates/ci.yml` joga os dois comandos no resumo do job.
 
 **Onde as ferramentas procuram as coisas.** O dbt 1.10 moveu `meta` para dentro
 de `config`, então as duas grafias são lidas. Se as duas estiverem presentes
@@ -551,6 +583,7 @@ informa — o README pede que a contagem esteja visível, não que ela pare o PR
 | §3 Etapa E passo 3 — "o tipo é refactoring mas algum delta não é zero" | `C5` | `compare/C5_refactoring_nonzero` | `compare/C1_inside` |
 | §3 Etapa E passo 4 — "se a diferença for maior que a tolerância, o PR é bloqueado" | `C6` | `compare/C6_over` | `compare/C6_ok_within` |
 | §3 Etapa E passo 3 — todo modelo pré-registrado é comparado, não só aqueles cujos números apareceram | `C7` | `compare/C7_prereg_without_diff` | `compare/C1_inside` |
+| §3 Etapa E passo 5 — "O pré-registro é estreito o suficiente para poder falhar? A razão justifica o intervalo?" | `I2` | `compare/C1_inside` | `compare/C0_no_prereg` |
 
 ---
 

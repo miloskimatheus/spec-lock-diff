@@ -21,10 +21,10 @@ def test_the_lines_say_what_is_wrong_and_where():
     code, out, _ = run_slp(["check"], case)
     assert code == 1
     assert out == (
-        "BLOCK\tmodels/marts/dim_customers.yml\tdim_customers\tcolumn customer_document"
-        " is marked meta.sensitive: true but is not in spec.sensitive_columns\t[S3]\n"
         "BLOCK\tmodels/marts/dim_customers.yml\tdim_customers\tspec.sensitive_columns"
         " names customer_email, but that column is not marked meta.sensitive: true\t[S3]\n"
+        "BLOCK\tmodels/marts/dim_customers.yml\tdim_customers\tcolumn customer_document"
+        " is marked meta.sensitive: true but is not in spec.sensitive_columns\t[S3]\n"
         "slp check: 2 blocks - BLOCKED\n")
 
 

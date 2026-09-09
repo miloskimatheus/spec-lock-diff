@@ -56,7 +56,28 @@ def test_m2_each_rule_has_a_fixture_that_fires_and_one_that_does_not(row):
         assert (FIXTURES / name).is_dir(), "no fixture folder %s" % name
     assert rule in expectation(FIXTURES / fires)["rules"], fires
     quiet = expectation(FIXTURES / silent)
-    assert quiet["exit"] == 0 and rule not in quiet["rules"], silent
+    assert rule not in quiet["rules"], silent
+    # The silent fixture is a healthy run - except for a rule that only ever
+    # informs, which has no healthy silence to point at. I2 speaks whenever
+    # there are numbers to show, so the one case where it says nothing is the
+    # case where the tool could not read them, and that case blocks.
+    assert quiet["exit"] == 0 or rule in slp.INFO_RULES, silent
+
+
+def test_m2_a_rule_that_only_informs_never_blocks():
+    """INFO_RULES is a promise about the exit code. This is that promise, checked."""
+    seen = set()
+    for node in ast.walk(TREE):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        body = ast.get_source_segment(SOURCE, node)
+        ids = set(re.findall(r'"([A-Z]\d)"', body)) & set(slp.RULE_IDS)
+        if not ids & set(slp.INFO_RULES):
+            continue
+        seen |= ids
+        assert ids <= set(slp.INFO_RULES), "%s mixes %s" % (node.name, sorted(ids))
+        assert not re.search(r"\bblock\(", body), "%s can block" % node.name
+    assert seen == set(slp.INFO_RULES), sorted(set(slp.INFO_RULES) - seen)
 
 
 def test_m3_the_tools_depend_on_nothing_new():

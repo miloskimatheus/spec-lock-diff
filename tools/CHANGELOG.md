@@ -43,6 +43,7 @@ Three commands in one file, no model, no network, no warehouse.
 | `C4` | a pre-registered metric that was not measured, one outside its interval, one that cannot be evaluated because production is 0, and one measured but never pre-registered |
 | `C5` | a `refactoring` that moved any number |
 | `C6` | a critical model with no reconciliation numbers, numbers with no tolerance to read them against, and a difference above the tolerance |
+| `I2` | nothing. It prints every number the diff measured next to the band the pre-registration declared for it, the reason given, and a note when the diff carries no window — the three readings of Stage E step 5 need the numbers in front of them |
 | `C7` | a model that carries a pre-registration and whose `diff.json` was never handed to `compare`. Stage E compares every pre-registered model or it has not run |
 
 ### Also in this release
