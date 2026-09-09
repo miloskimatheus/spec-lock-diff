@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/miloskimatheus/spec-lock-diff/tools/schemas/diff.schema.json",
+  "title": "diff.json",
+  "description": "One measured model, as the diff of README section 3, Stage E publishes it: row count, removed primary keys, columns with altered values, and the value of each metric. The tools do not produce this file - that is warehouse-specific - they only demand its shape. Its keys mirror the pre-registration on purpose.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["model", "row_delta", "removed_pks", "altered_columns", "metrics"],
+  "properties": {
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "description": "must name the dbt model these numbers were measured on"
+    },
+    "row_delta": {
+      "type": "integer",
+      "description": "must be the rows in the PR build minus the rows in production, inside the window, as a whole number"
+    },
+    "removed_pks": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "must be how many primary keys exist in production and not in the PR build"
+    },
+    "altered_columns": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "description": "must be a column name"},
+      "description": "must list the columns with at least one primary-key-matched row whose value differs"
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["delta_pct"],
+        "properties": {
+          "delta_pct": {
+            "type": ["number", "null"],
+            "description": "must be (pr - prod) / prod * 100, in percentage points written as a plain number, or null when the production value is 0"
+          }
+        },
+        "description": "must be an object with a delta_pct"
+      },
+      "description": "must hold one measurement per metric; write {} when the model has none"
+    },
+    "reconciliation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model_value", "external_value"],
+      "properties": {
+        "model_value": {"type": "number", "description": "must be the number the reconciliation query read from the model"},
+        "external_value": {"type": "number", "description": "must be the number the reconciliation query read from the source of truth outside the warehouse"}
+      },
+      "description": "must give both numbers the reconciliation query returned; critical models need it"
+    },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["column", "start", "end"],
+      "properties": {
+        "column": {"type": "string", "minLength": 1, "description": "must name the event_time column the window was cut on"},
+        "start": {"type": "string", "minLength": 1, "description": "must be where the window starts, identical on both sides of the diff"},
+        "end": {"type": "string", "minLength": 1, "description": "must be where the window ends, identical on both sides of the diff"}
+      },
+      "description": "must describe the closed window both sides were measured over; compare prints it for the reviewer"
+    },
+    "extra": {
+      "type": "object",
+      "description": "anything else the team wants to carry along; the tools ignore it"
+    }
+  }
+}

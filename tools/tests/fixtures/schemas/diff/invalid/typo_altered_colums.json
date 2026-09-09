@@ -1,0 +1,3 @@
+// expect: additionalProperties
+{"model": "fct_orders", "row_delta": 0, "removed_pks": 0,
+ "altered_colums": [], "metrics": {}}

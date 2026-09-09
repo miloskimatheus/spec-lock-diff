@@ -1,0 +1,10 @@
+{
+  "model": "fct_invoices",
+  "row_delta": 0,
+  "removed_pks": 0,
+  "altered_columns": [],
+  "metrics": {"invoiced_amount": {"delta_pct": 0.0}},
+  "reconciliation": {"model_value": 1000000.0, "external_value": 1000200.0},
+  "window": {"column": "invoice_date", "start": "2025-11-01", "end": "2025-11-30"},
+  "extra": {"built_in_schema": "ci_pr_42_full"}
+}

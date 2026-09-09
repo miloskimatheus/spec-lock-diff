@@ -19,8 +19,15 @@ KINDS = tuple(sorted(p.name.split(".")[0]
 
 
 def _load(path):
+    """The fixture, without the first line where an invalid one names its keyword.
+
+    yml carries that line as a # comment; json has no comments, so a // line is
+    stripped before parsing.
+    """
     text = path.read_text(encoding="utf-8")
-    return json.loads(text) if path.suffix == ".json" else yaml.safe_load(text)
+    if path.suffix == ".json":
+        return json.loads(text.split("\n", 1)[1] if text.startswith("//") else text)
+    return yaml.safe_load(text)
 
 
 def _fixtures(group):
