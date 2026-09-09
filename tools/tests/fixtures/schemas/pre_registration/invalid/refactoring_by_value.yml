@@ -1,0 +1,8 @@
+# expect: not
+type: refactoring
+reason: "a model production does not have cannot be refactored"
+row_delta: {min: 0, max: 0}
+removed_pks: {max: 0}
+altered_columns: []
+metrics:
+  gross_revenue: {value: {min: 0, max: 1}}

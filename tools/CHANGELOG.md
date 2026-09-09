@@ -30,6 +30,19 @@ never seen it.
   `--base` every pre-registration counts as this pull request's — stricter,
   never looser. `templates/ci.yml` passes it.
 
+- **A model production does not have can be pre-registered.** The framework's
+  first case — an agent builds a new mart from a spec — has no production side,
+  so every metric's `delta_pct` is `null` and `C4` blocked it with no way
+  through except `metrics: {}` in the spec, which removed the diff's substance
+  from exactly the models it exists for. README §3 Stage B now lets a metric
+  declare `value: {min, max}` instead of `delta_pct` — the value itself, in the
+  diff's window, written around the number in `external_validation` — and
+  Stage E publishes `value` for such a model. `C4` holds the one against the
+  other, `I2` prints it, and a metric pre-registered by percentage on a model
+  production does not have blocks with a message that says which of the two to
+  write. A metric declares one of the two, never both, and a refactoring may
+  not declare `value`: both are schema rules with their own sentence.
+
 ## 0.3.0 — the shape of the project, not the shape of the fixtures
 
 0.2.0 closed the silent passes the rules had. This one closes the silent passes

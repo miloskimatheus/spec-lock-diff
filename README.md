@@ -410,6 +410,13 @@ pre_registration:
     # For each metric in the spec, the expected percentage range of variation.
     # Example: gross_revenue should increase between 0% and 0.8%.
     # If the actual variation is -1% or +2%, the PR is blocked.
+    #
+    # A model that does not exist in production has no percentage to predict.
+    # Declare the value itself, inside the diff's window, written around the
+    # number in external_validation:
+    #   gross_revenue: {value: {min: 14000000, max: 14400000}}
+    # A metric declares one of the two, never both. row_delta is then the row
+    # count itself, and altered_columns is empty.
 ```
 
 **When it is mandatory:** For every model whose code the PR changes. Stage C cannot start without it, and stage E has nothing to compare against without it — a model that reaches the diff with no pre-registration is not a model that fails the comparison, it is a model nobody compared. Deleting the prediction must not be cheaper than missing it.
@@ -511,6 +518,7 @@ Using Recce or `dbt-audit-helper` in summary mode (never in mode that shows indi
 
 - The diff is calculated over a **closed `event_time` window**, identical on both sides (production and new version). This is essential: if production has data up to yesterday and the new version has data up to today, the "today" rows would appear as false differences.
 - The diff publishes: row count, removed PKs, columns with altered values, and the value of each metric defined in the spec.
+- For a model production does not have there is no delta to publish: the diff publishes each metric's value itself, in the window, and compares it with the value interval the pre-registration declared (stage B).
 
 **Step 3 — Comparison with the pre-registration**
 
@@ -518,6 +526,7 @@ Each diff number is automatically compared with the intervals declared in the pr
 
 - A number is outside the declared interval (e.g., row delta is 15,000, but the pre-registration said `max: 12000`).
 - A column shows a difference but is not in the pre-registration's `altered_columns` list.
+- A metric pre-registered by value lands outside its interval — or a model production does not have was pre-registered by percentage, when there is no production number to take a percentage of.
 - The type is `refactoring` but some delta is not zero.
 
 **Step 4 — Reconciliation (critical models only)**

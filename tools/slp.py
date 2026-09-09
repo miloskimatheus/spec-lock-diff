@@ -371,6 +371,18 @@ def _interval(value):
         return value["min"], value["max"]
     return None
 
+def _by(body):
+    """How a metric is pre-registered: by the value itself, for a model production does not have, or by its percentage move."""
+    return "value" if isinstance(body, dict) and "value" in body else "delta_pct"
+
+def _moved(by, got):
+    """One metric's measurement in words: what it is, or how far it moved."""
+    if by == "value":
+        return "was not measured" if got is None else "is %s" % got
+    if got is None:
+        return "moved by a percentage that cannot be evaluated, because the production value is 0"
+    return "moved %s percent" % got
+
 def check_prereg_schema(project):
     """README §3 Stage B — the pre-registration format, as schemas/pre_registration.schema.json."""
     return [block(m.file, m.name, message, "P1") for m in _sorted_models(project)
@@ -391,7 +403,7 @@ def check_prereg_consistency(project):
         declared = prereg.get("metrics") if isinstance(prereg.get("metrics"), dict) else {}
         wanted = model.spec.get("metrics") if isinstance(model.spec.get("metrics"), dict) else {}
         intervals = [("row_delta", _interval(prereg.get("row_delta")))]
-        intervals += [("metrics.%s.delta_pct" % name, _interval(body.get("delta_pct")))
+        intervals += [("metrics.%s.%s" % (name, _by(body)), _interval(body.get(_by(body))))
                       for name, body in sorted(declared.items()) if isinstance(body, dict)]
         for name, ends in intervals:
             if ends and ends[0] > ends[1]:
@@ -900,28 +912,31 @@ def compare_columns(ctx):
     return out
 
 def compare_metrics(ctx):
-    """README §3 Stage E step 3 — each metric of the spec is compared with the percentage interval the pre-registration declared for it."""
+    """README §3 Stage E step 3 — each metric of the spec is compared with the interval the pre-registration declared for it: its percentage move, or "the value itself" for a model production does not have."""
     if not ctx.ok:
         return []
     out = []
     declared, measured = ctx.model.prereg["metrics"], ctx.data["metrics"]
     for name in sorted(declared):
-        low, high = _interval(declared[name]["delta_pct"])
-        if name not in measured:
-            out.append(block(ctx.file, ctx.name, "metric %s was pre-registered and the diff "
-                             "does not measure it" % name, "C4"))
-            continue
-        value = measured[name]["delta_pct"]
-        if value is None:
-            out.append(block(ctx.file, ctx.name, "metric %s cannot be evaluated: the "
-                             "production value is 0" % name, "C4"))
-        elif not low <= value <= high:
-            out.append(block(ctx.file, ctx.name, "metric %s moved %s percent, pre-registration "
-                             "allows %s..%s" % (name, value, low, high), "C4"))
-    out += [block(ctx.file, ctx.name, "metric %s moved %s percent and was not pre-registered"
-                  % (name, measured[name]["delta_pct"], ), "C4")
-            for name in sorted(set(measured) - set(declared))
-            if measured[name]["delta_pct"] != 0]
+        by = _by(declared[name])
+        low, high = _interval(declared[name][by])
+        got = (measured.get(name) or {}).get(by)
+        if name not in measured or (by == "value" and got is None):
+            out.append(block(ctx.file, ctx.name, "metric %s was pre-registered by %s and the "
+                             "diff does not measure it" % (name, by), "C4"))
+        elif got is None:
+            out.append(block(ctx.file, ctx.name, "metric %s cannot be evaluated: the production "
+                             "value is 0; a model production does not have is pre-registered by "
+                             "value, not by delta_pct" % name, "C4"))
+        elif not low <= got <= high:
+            out.append(block(ctx.file, ctx.name, "metric %s %s, pre-registration allows %s..%s"
+                             % (name, _moved(by, got), low, high), "C4"))
+    for name in sorted(set(measured) - set(declared)):
+        if measured[name]["delta_pct"] != 0:
+            by = "value" if measured[name]["delta_pct"] is None and "value" in measured[name] \
+                else "delta_pct"
+            out.append(block(ctx.file, ctx.name, "metric %s %s and was not pre-registered"
+                             % (name, _moved(by, measured[name][by])), "C4"))
     return out
 
 def compare_refactoring(ctx):
@@ -990,9 +1005,9 @@ def compare_summary(ctx):
     say("row_delta %s, %s" % (data["row_delta"], _band(pre["row_delta"])))
     say("removed_pks %s, declared at most %s" % (data["removed_pks"], pre["removed_pks"]["max"]))
     for name in sorted(pre["metrics"]):
-        say("metric %s moved %s percent, %s"
-            % (name, (data["metrics"].get(name) or {}).get("delta_pct"),
-               _band(pre["metrics"][name]["delta_pct"])))
+        by, body = _by(pre["metrics"][name]), data["metrics"].get(name)
+        say("metric %s %s, %s" % (name, "was not measured" if body is None
+                                  else _moved(by, body.get(by)), _band(pre["metrics"][name][by])))
     say("altered columns measured [%s], declared [%s]"
         % (", ".join(sorted(data["altered_columns"])), ", ".join(sorted(pre["altered_columns"]))))
     numbers = data.get("reconciliation")

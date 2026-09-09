@@ -398,7 +398,7 @@ a comparação seja chave a chave.
 | `row_delta` | inteiro | sim | linhas no build do PR menos linhas em produção, dentro da janela |
 | `removed_pks` | inteiro ≥ 0 | sim | primary keys presentes em produção e ausentes no build do PR |
 | `altered_columns` | lista de strings | sim | colunas com pelo menos uma linha casada por PK cujo valor difere |
-| `metrics` | objeto de `{delta_pct: número ou null}` | sim (pode ser `{}`) | uma medição por métrica |
+| `metrics` | objeto de `{delta_pct: número ou null, value: número}` | sim (pode ser `{}`) | uma medição por métrica; `value` quando a produção não tem o modelo |
 | `reconciliation` | `{model_value, external_value}` | não | modelos críticos |
 | `window` | `{column, start, end}` | não | impressa pelo `compare` para quem revisa |
 | `extra` | objeto | não | qualquer outra coisa que você queira carregar; ignorada |
@@ -413,6 +413,19 @@ simples, calculados como `(pr − prod) / prod × 100`.
 > build do PR somar *menos* que produção, o número é negativo. Quando produção é
 > 0 a porcentagem não existe: escreva `null`, e o `compare` bloqueia, porque um
 > número que ninguém consegue avaliar não é um número que alguém aprovou.
+
+**Um modelo que a produção não tem.** O primeiro caso do framework — um agente
+constrói um mart novo a partir de uma spec — não tem lado de produção, então não
+há percentual a prever e `delta_pct` é `null` para toda métrica. Até a 0.4.0
+isso era um bloqueio `C4` sem saída a não ser `metrics: {}` na spec, o que
+tirava a substância do diff exatamente dos modelos para os quais ele existe.
+Agora o pré-registro declara o próprio valor, `value: {min, max}`, escrito em
+torno do número da `external_validation`, e o diff carrega `value`, o valor da
+métrica no build do PR dentro da janela; o `compare` confronta um com o outro
+(`C4`), imprime na `I2`, e bloqueia uma métrica pré-registrada por percentual
+nesse modelo com uma mensagem que diz qual dos dois escrever. `row_delta` passa
+a ser a própria contagem de linhas, e `altered_columns` é `[]` dos dois lados,
+porque não há linhas casadas por chave primária para diferir.
 
 **De onde vêm os números.** De qualquer coisa determinística: Recce,
 `dbt-audit-helper` em modo sumário, ou o seu próprio SQL. A janela precisa ser

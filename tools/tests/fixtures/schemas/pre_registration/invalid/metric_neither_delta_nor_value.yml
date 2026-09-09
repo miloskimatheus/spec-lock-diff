@@ -1,0 +1,8 @@
+# expect: oneOf
+type: data_change
+reason: "no interval at all"
+row_delta: {min: 0, max: 10}
+removed_pks: {max: 0}
+altered_columns: []
+metrics:
+  gross_revenue: {}

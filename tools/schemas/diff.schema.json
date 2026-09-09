@@ -37,11 +37,15 @@
           "delta_pct": {
             "type": ["number", "null"],
             "description": "must be (pr - prod) / prod * 100, in percentage points written as a plain number, or null when the production value is 0"
+          },
+          "value": {
+            "type": "number",
+            "description": "must be the metric's value in the PR build inside the window; required when the model does not exist in production, welcome otherwise"
           }
         },
-        "description": "must be an object with a delta_pct"
+        "description": "must be an object with a delta_pct, and a value when production has no such model"
       },
-      "description": "must hold one measurement per metric; write {} when the model has none"
+      "description": "must hold one measurement per metric, with the value itself when production has no such model; write {} when the model has none"
     },
     "reconciliation": {
       "type": "object",

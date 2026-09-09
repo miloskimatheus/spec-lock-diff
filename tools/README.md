@@ -397,7 +397,7 @@ comparison is key by key.
 | `row_delta` | integer | yes | rows in the PR build minus rows in production, inside the window |
 | `removed_pks` | integer ≥ 0 | yes | primary keys present in production and absent in the PR build |
 | `altered_columns` | array of strings | yes | columns with at least one PK-matched row whose value differs |
-| `metrics` | object of `{delta_pct: number or null}` | yes (may be `{}`) | one measurement per metric |
+| `metrics` | object of `{delta_pct: number or null, value: number}` | yes (may be `{}`) | one measurement per metric; `value` when production has no such model |
 | `reconciliation` | `{model_value, external_value}` | no | critical models |
 | `window` | `{column, start, end}` | no | printed by `compare` for the reviewer |
 | `extra` | object | no | anything else you want to carry; ignored |
@@ -413,6 +413,19 @@ number, computed as `(pr − prod) / prod × 100`.
 > When production is 0 the percentage does not exist: write `null`, and
 > `compare` blocks, because a number nobody can evaluate is not a number
 > anybody approved.
+
+**A model production does not have.** The framework's first case — an agent
+builds a new mart from a spec — has no production side, so there is no
+percentage to predict and `delta_pct` is `null` for every metric. Until 0.4.0
+that was a `C4` block with no way through except `metrics: {}` in the spec,
+which removed the diff's substance for exactly the models it exists for. Now
+the pre-registration declares the value itself, `value: {min, max}`, written
+around the number in `external_validation`, and the diff carries `value`, the
+metric's value in the PR build inside the window; `compare` holds the one
+against the other (`C4`), prints it in `I2`, and blocks a metric pre-registered
+by percentage on such a model with a message that says which of the two to
+write. `row_delta` is then the row count itself, and `altered_columns` is `[]`
+on both sides, because there are no primary-key-matched rows to differ.
 
 **Where the numbers come from.** Anything deterministic: Recce,
 `dbt-audit-helper` in summary mode, or your own SQL. The window must be closed

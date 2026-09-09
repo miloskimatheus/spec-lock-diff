@@ -46,7 +46,7 @@
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["delta_pct"],
+        "oneOf": [{"required": ["delta_pct"]}, {"required": ["value"]}],
         "properties": {
           "delta_pct": {
             "type": "object",
@@ -57,11 +57,21 @@
               "max": {"type": "number", "description": "must be the largest expected variation, in percentage points written as a plain number: 0.8 means +0.8 percent, computed as (pr - prod) / prod * 100"}
             },
             "description": "must give both ends of the expected percentage variation of the metric"
+          },
+          "value": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["min", "max"],
+            "properties": {
+              "min": {"type": "number", "description": "must be the smallest value the metric can have in the diff's window, for a model production does not have"},
+              "max": {"type": "number", "description": "must be the largest value the metric can have in the diff's window, for a model production does not have"}
+            },
+            "description": "must give both ends of the value itself, in the diff's window, when the model does not exist in production and there is no percentage to predict; write it around the number in external_validation"
           }
         },
-        "description": "must be an object with a delta_pct interval"
+        "description": "must be an object with exactly one interval: delta_pct when the model exists in production, value when it does not"
       },
-      "description": "must hold one interval for every metric in the spec; write {} when the spec declares none"
+      "description": "must hold one interval for every metric in the spec, by delta_pct or by value; write {} when the spec declares none"
     }
   },
   "if": {"properties": {"type": {"const": "refactoring"}}, "required": ["type"]},
@@ -85,6 +95,8 @@
       },
       "metrics": {
         "additionalProperties": {
+          "not": {"required": ["value"]},
+          "description": "must be pre-registered by delta_pct in a refactoring: a model production does not have cannot be refactored",
           "properties": {
             "delta_pct": {
               "properties": {

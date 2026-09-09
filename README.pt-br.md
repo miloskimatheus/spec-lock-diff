@@ -410,6 +410,13 @@ pre_registration:
     # Para cada métrica da spec, o intervalo percentual esperado de variação.
     # Exemplo: gross_revenue deve aumentar entre 0% e 0.8%.
     # Se a variação real for -1% ou +2%, o PR é bloqueado.
+    #
+    # Um modelo que não existe em produção não tem percentual a prever.
+    # Declare o próprio valor, dentro da janela do diff, escrito em torno do
+    # número da external_validation:
+    #   gross_revenue: {value: {min: 14000000, max: 14400000}}
+    # Uma métrica declara um dos dois, nunca ambos. row_delta passa a ser a
+    # própria contagem de linhas, e altered_columns fica vazio.
 ```
 
 **Quando é obrigatório:** Para todo modelo cujo código o PR altera. A etapa C não pode começar sem ele, e a etapa E não tem contra o que comparar sem ele — um modelo que chega ao diff sem pré-registro não é um modelo que reprova na comparação, é um modelo que ninguém comparou. Apagar a previsão não pode sair mais barato do que errar nela.
@@ -512,6 +519,7 @@ Usando Recce ou `dbt-audit-helper` em modo resumo (nunca em modo que mostre linh
 
 - O diff é calculado sobre uma **janela fechada de `event_time`**, idêntica nos dois lados (produção e versão nova). Isso é essencial: se a produção tem dados até ontem e a versão nova tem dados até hoje, as linhas de "hoje" apareceriam como diferenças falsas.
 - O diff publica: contagem de linhas, PKs removidas, colunas com valores alterados, e o valor de cada métrica definida na spec.
+- Para um modelo que a produção não tem, não há delta a publicar: o diff publica o próprio valor de cada métrica, na janela, e o compara com o intervalo de valor que o pré-registro declarou (etapa B).
 
 **Passo 3 — Comparação com o pré-registro**
 
@@ -519,6 +527,7 @@ Cada número do diff é comparado automaticamente com os intervalos declarados n
 
 - Um número está fora do intervalo declarado (ex: delta de linhas é 15.000, mas o pré-registro disse `max: 12000`).
 - Uma coluna apresenta diferença mas não está na lista `altered_columns` do pré-registro.
+- Uma métrica pré-registrada por valor cai fora do intervalo dela — ou um modelo que a produção não tem foi pré-registrado por percentual, quando não há número de produção do qual tirar um percentual.
 - O type é `refactoring` mas algum delta não é zero.
 
 **Passo 4 — Reconciliação (apenas modelos críticos)**
