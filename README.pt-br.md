@@ -32,7 +32,7 @@ Este framework define quatro papéis, cada um assume um papel por PR.
 
 | Papel          | Quem é                   | O que faz                                                                                     |
 | -------------- | ------------------------ | --------------------------------------------------------------------------------------------- |
-| **Plataforma** | Time infra/plataforma    | Configura os 5 controles do Setup (seção 2) uma única vez. Faz a manutenção mensal (seção 5). |
+| **Plataforma** | Time infra/plataforma    | Configura os 5 controles do Setup (seção 2) uma única vez. Faz a manutenção semanal (seção 4). |
 | **Autor**      | Um humano da equipe      | Escreve a spec do modelo. Aciona o agente. Lê o diff. É o responsável pelo PR.                |
 | **Parceiro**   | Outro humano (≠ Autor)   | Aprova PRs de modelos críticos.                                                               |
 | **Agente**     | A IA (LLM + ferramentas) | Escreve código, testes e o pré-registro numérico.                                             |
@@ -471,7 +471,7 @@ O Autor (e o Parceiro, se o modelo for crítico) lê exatamente três coisas.
 
 ## 4. Depois do merge
 
-Depois que o PR é mergeado, processos automáticos garantem que o modelo continua correto em produção.
+Depois que o PR é mergeado, dois processos automáticos garantem que o modelo continua correto em produção.
 
 | O que                                                                | Quando roda | Por que                                                                                            |
 | -------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------- |

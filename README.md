@@ -32,7 +32,7 @@ This framework defines four roles. Each person takes on one role per PR.
 
 | Role         | Who they are             | What they do                                                                                |
 | ------------ | ------------------------ | ------------------------------------------------------------------------------------------- |
-| **Platform** | Infra/platform team      | Configures the 5 Setup controls (section 2) one time. Does monthly maintenance (section 5). |
+| **Platform** | Infra/platform team      | Configures the 5 Setup controls (section 2) one time. Does the weekly maintenance (section 4). |
 | **Author**   | A human on the team      | Writes the model spec. Triggers the agent. Reads the diff. Is responsible for the PR.       |
 | **Partner**  | Another human (≠ Author) | Approves PRs of critical models.                                                            |
 | **Agent**    | The AI (LLM + tools)     | Writes code, tests, and the numerical pre-registration.                                     |
@@ -471,7 +471,7 @@ The Author (and the Partner, if the model is critical) reads exactly three thing
 
 ## 4. After the merge
 
-Once the PR is merged, automatic processes keep the model correct in production.
+Once the PR is merged, two automatic processes keep the model correct in production.
 
 | What                                                                       | When it runs | Why                                                                                     |
 | -------------------------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------------- |
