@@ -260,9 +260,60 @@ def read_project(project_dir):
     return Project(root, models, units)
 
 
+# --- check: the spec of every model (README §3 Stage A, Rule 1) ---
+
+def _sorted_models(project):
+    """Models by name, so the output never depends on the order the files were read."""
+    return [project.models[name] for name in sorted(project.models)]
+
+def _strings(value):
+    """A yml list of strings, or None when it is something the schema rule already blocked."""
+    return value if isinstance(value, list) and all(isinstance(v, str) for v in value) else None
+
+def check_spec_present(project):
+    """README §3 Stage A — "PR cannot advance without a completed spec"; Rule 1: no spec, stop and ask."""
+    return [block(m.file, m.name, "model has no meta.spec (README §3 Stage A)", "S1")
+            for m in _sorted_models(project) if m.is_marts and m.spec is None]
+
+def check_spec_schema(project):
+    """README §3 Stage A — the six mandatory fields and their format, as schemas/spec.schema.json."""
+    return [block(m.file, m.name, message, "S2") for m in _sorted_models(project)
+            if m.spec is not None
+            for message in schema_errors(m.spec, "spec", "spec")]
+
+def check_spec_consistency(project):
+    """README §3 Stage A — the spec names columns of this model and a query that exists."""
+    out = []
+    for model in _sorted_models(project):
+        spec = model.spec if isinstance(model.spec, dict) else {}
+        keys = _strings(spec.get("primary_key"))
+        if keys and not model.columns:
+            out.append(block(model.file, model.name,
+                             "cannot verify primary_key: model declares no columns", "S3"))
+        elif keys:
+            out += [block(model.file, model.name, "spec.primary_key names %s, which the "
+                          "model does not declare as a column" % column, "S3")
+                    for column in keys if column not in model.columns]
+        listed = _strings(spec.get("sensitive_columns"))
+        if listed is not None:
+            for column in sorted(set(listed) - set(model.sensitive)):
+                why = ("the model does not declare that column" if column not in model.columns
+                       else "that column is not marked meta.sensitive: true")
+                out.append(block(model.file, model.name, "spec.sensitive_columns names %s, "
+                                 "but %s" % (column, why), "S3"))
+            out += [block(model.file, model.name, "column %s is marked meta.sensitive: true "
+                          "but is not in spec.sensitive_columns" % column, "S3")
+                    for column in sorted(set(model.sensitive) - set(listed))]
+        query = spec.get("reconciliation_query")
+        if spec.get("tier") == "critical" and isinstance(query, str) \
+                and not (project.dir / query).is_file():
+            out.append(block(model.file, model.name, "spec.reconciliation_query points at %s, "
+                             "which does not exist" % query, "S3"))
+    return out
+
 # --- Rule registries. A rule is one function: context in, findings out. ---
 
-CHECK_RULES = []
+CHECK_RULES = [check_spec_present, check_spec_schema, check_spec_consistency]
 GATE_RULES = []
 COMPARE_RULES = []
 
