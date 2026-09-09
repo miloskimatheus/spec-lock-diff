@@ -311,9 +311,57 @@ def check_spec_consistency(project):
                              "which does not exist" % query, "S3"))
     return out
 
+# --- check: the pre-registration of every model (README §3 Stage B, Rule 6) ---
+
+def _interval(value):
+    """(min, max) when both ends are numbers, else None: the schema rule already blocked it."""
+    if isinstance(value, dict) and isinstance(value.get("min"), (int, float)) \
+            and isinstance(value.get("max"), (int, float)):
+        return value["min"], value["max"]
+    return None
+
+def check_prereg_schema(project):
+    """README §3 Stage B — the pre-registration format, as schemas/pre_registration.schema.json."""
+    return [block(m.file, m.name, message, "P1") for m in _sorted_models(project)
+            if m.prereg is not None
+            for message in schema_errors(m.prereg, "pre_registration", "pre_registration")]
+
+def check_prereg_consistency(project):
+    """README §3 Stage B — Rule 6: the intervals are closed, and the metrics are the spec's."""
+    out = []
+    for model in _sorted_models(project):
+        prereg = model.prereg if isinstance(model.prereg, dict) else None
+        if prereg is None:
+            continue
+        if not isinstance(model.spec, dict):
+            out.append(block(model.file, model.name, "pre-registration without a spec: the "
+                             "spec is what the diff compares against", "P2"))
+            continue
+        declared = prereg.get("metrics") if isinstance(prereg.get("metrics"), dict) else {}
+        wanted = model.spec.get("metrics") if isinstance(model.spec.get("metrics"), dict) else {}
+        intervals = [("row_delta", _interval(prereg.get("row_delta")))]
+        intervals += [("metrics.%s.delta_pct" % name, _interval(body.get("delta_pct")))
+                      for name, body in sorted(declared.items()) if isinstance(body, dict)]
+        for name, ends in intervals:
+            if ends and ends[0] > ends[1]:
+                out.append(block(model.file, model.name, "pre_registration.%s has min %s, "
+                                 "which is above max %s" % (name, ends[0], ends[1]), "P2"))
+        out += [block(model.file, model.name, "pre_registration.metrics declares %s, which "
+                      "spec.metrics does not define" % name, "P2")
+                for name in sorted(set(declared) - set(wanted))]
+        out += [block(model.file, model.name, "spec.metrics defines %s, which "
+                      "pre_registration.metrics declares no interval for" % name, "P2")
+                for name in sorted(set(wanted) - set(declared))]
+        out += [block(model.file, model.name, "pre_registration.altered_columns names %s, "
+                      "which the model does not declare as a column" % column, "P2")
+                for column in _strings(prereg.get("altered_columns")) or []
+                if column not in model.columns]
+    return out
+
 # --- Rule registries. A rule is one function: context in, findings out. ---
 
-CHECK_RULES = [check_spec_present, check_spec_schema, check_spec_consistency]
+CHECK_RULES = [check_spec_present, check_spec_schema, check_spec_consistency,
+               check_prereg_schema, check_prereg_consistency]
 GATE_RULES = []
 COMPARE_RULES = []
 
