@@ -471,7 +471,7 @@ O Autor (e o Parceiro, se o modelo for crítico) lê exatamente três coisas.
 
 ## 4. Depois do merge
 
-Depois que o PR é mergeado, processos automáticos garantem que o modelo continua correto em produção.
+Depois que o PR é mergeado, dois processos automáticos garantem que o modelo continua correto em produção.
 
 | O que                                                                | Quando roda | Por que                                                                                            |
 | -------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------- |

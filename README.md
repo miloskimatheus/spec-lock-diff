@@ -471,7 +471,7 @@ The Author (and the Partner, if the model is critical) reads exactly three thing
 
 ## 4. After the merge
 
-Once the PR is merged, automatic processes keep the model correct in production.
+Once the PR is merged, two automatic processes keep the model correct in production.
 
 | What                                                                       | When it runs | Why                                                                                     |
 | -------------------------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------------- |
