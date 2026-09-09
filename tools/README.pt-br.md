@@ -685,14 +685,25 @@ ponto desta lista.
 - **As duas línguas.** `tools/README.md` e `tools/README.pt-br.md` são o mesmo
   documento. Se você muda a substância de um, mude o outro, ou diga no PR que
   não conseguiu.
-- **Um arquivo.** Toda a lógica mora no `slp.py`. O meta-teste **M8** limita o
-  arquivo, e o que ele limita são as linhas que precisam ser *entendidas* —
-  código, sem linhas em branco, comentários e docstrings — em 750, mais o
-  arquivo inteiro em 1000. Antes ele contava toda linha, o que punha a prosa do
-  lado errado da conta: o jeito mais barato de ganhar espaço era apagar a
-  explicação que torna o arquivo legível. A promessa que o limite protege é que
-  uma pessoa consegue ler o arquivo inteiro de uma sentada. Se deixar de valer,
-  a resposta é menos regras ou outra estrutura, não um número maior.
+- **Um arquivo.** Toda a lógica mora no `slp.py`, e o meta-teste **M8** o limita
+  em três lugares: a **maquinaria compartilhada** de que toda regra depende,
+  **cada regra** isolada, e o arquivo inteiro como travessão largo. O que ele
+  conta são as linhas que precisam ser *entendidas* — código, sem linhas em
+  branco, comentários e docstrings — porque, sob um limite que conta prosa, o
+  jeito mais barato de ganhar espaço é apagar a explicação que torna o arquivo
+  legível.
+
+  Antes era um número só, e esse número deixou de medir a promessa para a qual
+  foi escrito. Ninguém lê vinte e quatro regras de uma vez; lê-se a maquinaria
+  uma vez e depois uma regra por vez. Sob um limite único, cada regra competia
+  com todas as outras, então ele tinha virado em silêncio um limite de
+  *quantidade de regras* vestido de limite de legibilidade — e, na primeira vez
+  em que a correção precisou de espaço, a única saída honesta que ele oferecia
+  era apagar um portão. Separado, a pressão fica onde deve: maquinaria
+  compartilhada é o que todo mundo paga, e uma regra longa demais para ser lida
+  sozinha são duas regras, com dois ids e dois fixtures. Os números são medidos
+  de novo a cada release; um deles só sobe quando o pull request diz o que foi
+  comprado com ele.
 
 Veja o [CONTRIBUTING.md](../CONTRIBUTING.md) e os templates de issue em
 `.github/ISSUE_TEMPLATE/`.

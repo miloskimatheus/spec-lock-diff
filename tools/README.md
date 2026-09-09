@@ -679,14 +679,23 @@ point of this list.
 - **Both languages.** `tools/README.md` and `tools/README.pt-br.md` are the same
   document. If you change the substance of one, change the other, or say in the
   PR that you could not.
-- **One file.** All the logic lives in `slp.py`. Meta-test **M8** caps it, and
-  what it caps is the lines that have to be *understood* — code, with blanks,
-  comments and docstrings taken out — at 750, plus the file as a whole at 1000.
-  It used to count every line, which put the prose on the wrong side of the
-  ledger: the cheapest way to buy room was to delete the explanation that makes
-  the file readable. The promise the cap protects is that one person can read
-  the whole thing in one sitting. If it stops holding, the answer is fewer
-  rules or a different structure, not a bigger number.
+- **One file.** All the logic lives in `slp.py`, and meta-test **M8** caps it
+  in three places: the **shared machinery** every rule depends on, **any one
+  rule** on its own, and the file as a whole as a loose backstop. What it counts
+  is the lines that have to be *understood* — code, with blanks, comments and
+  docstrings taken out — because under a cap that counts prose, the cheapest way
+  to buy room is to delete the explanation that makes the file readable.
+
+  It used to be one global number, and that number stopped measuring the promise
+  it was written for. A reader does not read twenty-four rules at once; they read
+  the machinery once and then one rule at a time. Under a single cap every rule
+  competed with every other rule, so it had quietly become a rule-count limit
+  wearing a legibility limit's clothes — and the first time correctness needed
+  room, the only honest move it offered was to delete a gate. Split, the pressure
+  sits where it belongs: shared machinery is what everyone pays for, and a rule
+  too long to read on its own is two rules with two ids and two fixtures. The
+  numbers are re-measured at each release; one goes up only when the pull request
+  says what was bought with it.
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md) and the issue templates in
 `.github/ISSUE_TEMPLATE/`.

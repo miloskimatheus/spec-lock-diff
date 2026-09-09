@@ -11,6 +11,16 @@ its sql inside `models/marts/`, and every rule that asks "is this a marts
 model?" was really asking "is this yml under marts?". Each entry below has a
 fixture that fails against 0.2.0.
 
+### Changed behaviour
+
+- **M8 is three caps, not one.** The shared machinery, any one rule on its own,
+  and the file as a whole. One global number had stopped measuring the promise
+  it was written for — a reader reads the machinery once and then one rule at a
+  time — and had quietly become a rule-count limit: every rule competed with
+  every other rule and with the prose explaining them, so the first fix that
+  needed room was offered "delete a gate" as the honest answer. The numbers are
+  re-measured at each release.
+
 ### Rules that were not doing what they said
 
 | Rule | What was wrong |
