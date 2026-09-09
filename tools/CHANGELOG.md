@@ -43,6 +43,7 @@ Three commands in one file, no model, no network, no warehouse.
 | `C4` | a pre-registered metric that was not measured, one outside its interval, one that cannot be evaluated because production is 0, and one measured but never pre-registered |
 | `C5` | a `refactoring` that moved any number |
 | `C6` | a critical model with no reconciliation numbers, numbers with no tolerance to read them against, and a difference above the tolerance |
+| `C7` | a model that carries a pre-registration and whose `diff.json` was never handed to `compare`. Stage E compares every pre-registered model or it has not run |
 
 ### Also in this release
 

@@ -237,6 +237,12 @@ colunas alteradas, cada métrica e — para modelos críticos — a reconciliaç
 contra a tolerância. Ele não produz o diff e não roda a query de reconciliação:
 essas duas coisas tocam o warehouse, e estas ferramentas não tocam.
 
+Depois faz uma coisa que os arquivos não têm como pedir: procura no projeto os
+modelos que têm pré-registro e cujos números nunca apareceram, e bloqueia nesses
+(`C7`). Passe todos os diffs que o build produziu numa chamada só —
+`compare diff/*.json`, não uma chamada por arquivo — porque uma regra sobre o
+que *falta* só enxerga o que lhe foi entregue.
+
 **Quando roda.** Etapa E, uma vez por PR, depois do build completo.
 
 **Como usar.**
@@ -544,6 +550,7 @@ informa — o README pede que a contagem esteja visível, não que ela pare o PR
 | §3 Etapa E passo 3 — cada métrica contra o intervalo declarado para ela | `C4` | `compare/C4_metric_outside` | `compare/C1_inside` |
 | §3 Etapa E passo 3 — "o tipo é refactoring mas algum delta não é zero" | `C5` | `compare/C5_refactoring_nonzero` | `compare/C1_inside` |
 | §3 Etapa E passo 4 — "se a diferença for maior que a tolerância, o PR é bloqueado" | `C6` | `compare/C6_over` | `compare/C6_ok_within` |
+| §3 Etapa E passo 3 — todo modelo pré-registrado é comparado, não só aqueles cujos números apareceram | `C7` | `compare/C7_prereg_without_diff` | `compare/C1_inside` |
 
 ---
 

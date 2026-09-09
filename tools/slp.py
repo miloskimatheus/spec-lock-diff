@@ -42,7 +42,7 @@ CFG_KEYS = ("enabled", "error_if", "fail_calc", "limit", "severity",
 # id and the fixtures one folder per id; meta-test M2 keeps the three in step.
 RULE_IDS = ("S1", "S2", "S3", "S4", "P1", "P2", "T1",
             "G1", "G2", "G3", "G4", "G5", "G6", "G7", "I1",
-            "C0", "C1", "C2", "C3", "C4", "C5", "C6")
+            "C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7")
 
 
 class SlpError(Exception):
@@ -766,6 +766,19 @@ def compare_reconciliation(ctx):
     return [block(ctx.file, ctx.name, "reconciliation: %s, a difference of %.4g percent, and "
                   "the spec allows %s" % (said, drift, allowed), "C6")]
 
+# What compare has to say about the run as a whole rather than about one file.
+Run = NamedTuple("Run", [("project", object), ("measured", set), ("files", int)])
+
+def compare_coverage(ctx):
+    """README §3 Stage E step 3 — "Each diff number is automatically compared with the intervals declared in the pre-registration": every pre-registered model, not only the ones whose numbers turned up."""
+    return [block(ctx.project.models[name].file, name, "this model has a pre-registration "
+                  "and no diff.json among the %s read; a number that never arrived was "
+                  "never compared with anything, and a gate that did not look is not a "
+                  "gate that passed" % _count(ctx.files, "file"), "C7")
+            for name in sorted(ctx.project.models)
+            if isinstance(ctx.project.models[name].prereg, dict) and name not in ctx.measured]
+
+
 # --- Rule registries. A rule is one function: context in, findings out. ---
 
 CHECK_RULES = [check_spec_present, check_model_declared, check_spec_schema,
@@ -777,6 +790,10 @@ GATE_RULES = [gate_test_removed, gate_test_filter, gate_test_severity,
 COMPARE_RULES = [compare_contract, compare_rows, compare_removed_pks,
                  compare_columns, compare_metrics, compare_refactoring,
                  compare_reconciliation]
+# Rules about the whole run. They see every file at once, so they cannot live in
+# the loop above; everything else about them - docstring, rule id, fixtures - is
+# the same, and the meta-tests hold them to it.
+COMPARE_RUN_RULES = [compare_coverage]
 
 def apply_rules(rules, context):
     """Run every rule in order and collect what they found."""
@@ -817,7 +834,7 @@ def cmd_gate(args):
 def cmd_compare(args):
     """compare: hold every diff.json against the pre-registration of its model."""
     project = read_project(args.project_dir, args.marts_path)
-    out = []
+    out, measured = [], set()
     for path in args.diffs:
         data = load_json(path)
         data = data if isinstance(data, dict) else {}
@@ -825,6 +842,8 @@ def cmd_compare(args):
         ctx = Diff(str(path), name, data, project, project.models.get(name), False)
         blocked = any(f.severity == "BLOCK" for f in compare_contract(ctx))
         out += apply_rules(COMPARE_RULES, ctx._replace(ok=not blocked))
+        measured.add(name)
+    out += apply_rules(COMPARE_RUN_RULES, Run(project, measured, len(args.diffs)))
     return report(out, "compare", _count(len(args.diffs), "file"))
 
 def build_parser():

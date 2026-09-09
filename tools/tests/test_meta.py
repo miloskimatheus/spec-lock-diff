@@ -14,7 +14,8 @@ from conftest import FIXTURES, TOOLS, expectation, run_slp
 
 SOURCE = (TOOLS / "slp.py").read_text(encoding="utf-8")
 TREE = ast.parse(SOURCE)
-RULES = slp.CHECK_RULES + slp.GATE_RULES + slp.COMPARE_RULES
+RULES = (slp.CHECK_RULES + slp.GATE_RULES + slp.COMPARE_RULES
+         + slp.COMPARE_RUN_RULES)
 COVERAGE = re.findall(r"^\|[^|]+\|\s*`([A-Z]\d)`\s*\|\s*`([^`]+)`\s*\|\s*`([^`]+)`\s*\|",
                       (TOOLS / "README.md").read_text(encoding="utf-8"), re.M)
 

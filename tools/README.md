@@ -234,6 +234,12 @@ altered columns, every metric, and — for critical models — the reconciliatio
 against its tolerance. It does not produce the diff and does not run the
 reconciliation query: those touch the warehouse, and these tools do not.
 
+Then it does one thing the files cannot ask it to do: it looks at the project
+for models that carry a pre-registration and whose numbers never turned up, and
+blocks on those (`C7`). Hand it every diff your build produced, in one call —
+`compare diff/*.json`, not one call per file — because a rule about what is
+*missing* can only see what it was given.
+
 **When it runs.** Stage E, once per pull request, after the full build.
 
 **How to use it.**
@@ -538,6 +544,7 @@ README asks for the count to be visible, not for it to stop the PR.
 | §3 Stage E step 3 — each metric against its declared interval | `C4` | `compare/C4_metric_outside` | `compare/C1_inside` |
 | §3 Stage E step 3 — "the type is refactoring but some delta is not zero" | `C5` | `compare/C5_refactoring_nonzero` | `compare/C1_inside` |
 | §3 Stage E step 4 — "if the difference is greater than the tolerance, the PR is blocked" | `C6` | `compare/C6_over` | `compare/C6_ok_within` |
+| §3 Stage E step 3 — every pre-registered model is compared, not only the ones whose numbers turned up | `C7` | `compare/C7_prereg_without_diff` | `compare/C1_inside` |
 
 ---
 
