@@ -512,11 +512,22 @@ def gate_test_removed(ctx):
         out.append(block(file, model, "unit test '%s' was removed" % name, "G1"))
     return out
 
+def gate_test_filter(ctx):
+    """README §2 Control 5B — "WHERE or exclusion clause added to a test": a way to make a test pass without fixing the problem."""
+    out = []
+    before, after = _by3(ctx.before), _by3(ctx.after)
+    for key in sorted(set(before) & set(after)):
+        old, new = before[key][1].get("where"), after[key][1].get("where")
+        if new is not None and old != new:
+            out.append(block(_file(ctx, key[0]), key[0], "test '%s' on %s now skips rows with "
+                             "where: %s" % (key[2], _named(key[0], key[1]), new), "G2"))
+    return out
+
 # --- Rule registries. A rule is one function: context in, findings out. ---
 
 CHECK_RULES = [check_spec_present, check_spec_schema, check_spec_consistency,
                check_prereg_schema, check_prereg_consistency, check_pk_test]
-GATE_RULES = [gate_test_removed]
+GATE_RULES = [gate_test_removed, gate_test_filter]
 COMPARE_RULES = []
 
 def apply_rules(rules, context):
