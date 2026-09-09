@@ -170,8 +170,11 @@ removing things — reads the files as they are at that commit and as they are a
 `head`, and compares two inventories. A data test is identified by its model,
 its column, its name and its arguments, so moving a test to another file or
 renaming `tests:` to `data_tests:` changes nothing, while shrinking the values
-of an `accepted_values` changes everything. For the two rules that need
-history, it walks the commits with `--first-parent`, oldest first.
+of an `accepted_values` changes everything. A column that carries two tests of
+the same name — two `relationships`, several `accepted_values` — has each of
+them compared separately, config and all, and the finding names which one it
+means. For the two rules that need history, it walks the commits with
+`--first-parent`, oldest first.
 
 **When it runs.** Stage C, before the agent commits (`--base main`). Stage D, in
 CI, on every push, with the base and head of the pull request.

@@ -1,0 +1,15 @@
+version: 2
+
+models:
+  - name: fct_orders
+    columns:
+      # Two tests of the same name on the same column: normal dbt, and the
+      # shape the gate used to collapse into one.
+      - name: customer_id
+        data_tests:
+          - relationships:
+              to: ref('dim_accounts')
+              field: account_id
+          - relationships:
+              to: ref('dim_customers')
+              field: customer_id

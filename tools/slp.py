@@ -506,11 +506,24 @@ def inventory(root, commit, full=True, marts=MARTS):
 # --- gate rules: what this branch did to the tests (README §2 Control 5B) ---
 
 def _by3(inv):
-    """Data tests grouped by (model, column, test name), whatever their arguments."""
+    """Data tests grouped by (model, column, test name), each keeping its own config.
+
+    A column often carries two tests of the same name - two `relationships`, two
+    `accepted_values`, several `dbt_utils.expression_is_true` - and each of them
+    is declared with a config of its own. Grouping them under one config would
+    keep whichever sorted first and drop the rest, so every other one could be
+    given a `where`, a `severity: warn` or an `enabled: false` unseen.
+    """
     out = {}
     for (model, column, name, args), cfg in sorted(inv["tests"].items()):
-        out.setdefault((model, column, name), (set(), cfg))[0].add(args)
+        out.setdefault((model, column, name), {})[args] = cfg
     return out
+
+def _which(group, args):
+    """Which of several same-named tests on the same column this one is."""
+    if len(group) < 2:
+        return ""
+    return " (%s)" % ", ".join("%s=%s" % pair for pair in sorted(json.loads(args).items()))
 
 def _on(cfg):
     """A test that is switched off asserts nothing."""
@@ -536,13 +549,17 @@ def gate_test_removed(ctx):
     for key in sorted(before):
         model, column, name = key
         said, file = "test '%s' on %s " % (name, _named(model, column)), _file(ctx, model)
-        if key not in after:
+        old, new = before[key], after.get(key, {})
+        gone = sorted(set(old) - set(new))
+        if not new:
             out.append(block(file, model, said + "exists on main but not in this PR", "G1"))
-        elif before[key][0] - after[key][0]:
-            out.append(block(file, model, said + "changed its arguments; if that is intended, a "
-                             "human changes it before the agent starts, or in a separate PR", "G1"))
-        elif _on(before[key][1]) and not _on(after[key][1]):
-            out.append(block(file, model, said + "was disabled", "G1"))
+        elif gone:
+            out.append(block(file, model, said + "changed its arguments%s; if that is intended, "
+                             "a human changes it before the agent starts, or in a separate PR"
+                             % _which(old, gone[0]), "G1"))
+        else:
+            out += [block(file, model, said + "was disabled" + _which(old, args), "G1")
+                    for args in sorted(old) if _on(old[args]) and not _on(new[args])]
     for path in _changed(ctx, "files", set(ctx.before["files"])):
         out.append(block(path, "", "singular or generic test %s was removed or changed" % path, "G1"))
     for name in sorted(set(ctx.before["units"]) - set(ctx.after["units"])):
@@ -555,10 +572,12 @@ def gate_test_filter(ctx):
     out = []
     before, after = _by3(ctx.before), _by3(ctx.after)
     for key in sorted(set(before) & set(after)):
-        old, new = before[key][1].get("where"), after[key][1].get("where")
-        if new is not None and old != new:
-            out.append(block(_file(ctx, key[0]), key[0], "test '%s' on %s now skips rows with "
-                             "where: %s" % (key[2], _named(key[0], key[1]), new), "G2"))
+        for args in sorted(set(before[key]) & set(after[key])):
+            old, new = before[key][args].get("where"), after[key][args].get("where")
+            if new is not None and old != new:
+                out.append(block(_file(ctx, key[0]), key[0], "test '%s' on %s%s now skips rows "
+                                 "with where: %s" % (key[2], _named(key[0], key[1]),
+                                                     _which(after[key], args), new), "G2"))
     return out
 
 def _sev(cfg):
@@ -570,17 +589,19 @@ def gate_test_severity(ctx):
     out = []
     before, after = _by3(ctx.before), _by3(ctx.after)
     for key in sorted(after):
-        old = before[key][1] if key in before else None
-        new = after[key][1]
-        said = "test '%s' on %s " % (key[2], _named(key[0], key[1]))
-        file = _file(ctx, key[0])
-        if _sev(new) == "warn" and (old is None or _sev(old) != "warn"):
-            out.append(block(file, key[0], said + ("is new and only warns" if old is None else
-                             "was downgraded from error to warn") + ", so it cannot block", "G3"))
-        for name in ("error_if", "warn_if", "fail_calc"):
-            if name in new and (old is None or old.get(name) != new[name]):
-                out.append(block(file, key[0], said + "sets %s, which changes what counts as "
-                                 "failing" % name, "G3"))
+        for args in sorted(after[key]):
+            old, new = before.get(key, {}).get(args), after[key][args]
+            said = "test '%s' on %s%s " % (key[2], _named(key[0], key[1]),
+                                           _which(after[key], args))
+            file = _file(ctx, key[0])
+            if _sev(new) == "warn" and (old is None or _sev(old) != "warn"):
+                out.append(block(file, key[0], said + ("is new and only warns" if old is None
+                                 else "was downgraded from error to warn")
+                                 + ", so it cannot block", "G3"))
+            for name in ("error_if", "warn_if", "fail_calc"):
+                if name in new and (old is None or old.get(name) != new[name]):
+                    out.append(block(file, key[0], said + "sets %s, which changes what counts "
+                                     "as failing" % name, "G3"))
     return out
 
 def gate_unit_test_changed(ctx):

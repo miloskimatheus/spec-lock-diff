@@ -172,9 +172,11 @@ removendo coisas —, lê os arquivos como eles estão naquele commit e como est
 no `head`, e compara dois inventários. Um data test é identificado pelo modelo,
 pela coluna, pelo nome e pelos argumentos, então mover um teste para outro
 arquivo ou renomear `tests:` para `data_tests:` não muda nada, enquanto encolher
-os valores de um `accepted_values` muda tudo. Para as duas regras que precisam
-de histórico, ele caminha pelos commits com `--first-parent`, do mais antigo
-para o mais novo.
+os valores de um `accepted_values` muda tudo. Uma coluna que carrega dois testes
+de mesmo nome — dois `relationships`, vários `accepted_values` — tem cada um
+comparado em separado, config e tudo, e o finding diz de qual deles está
+falando. Para as duas regras que precisam de histórico, ele caminha pelos
+commits com `--first-parent`, do mais antigo para o mais novo.
 
 **Quando roda.** Etapa C, antes de o agente commitar (`--base main`). Etapa D,
 no CI, a cada push, com o base e o head do PR.
