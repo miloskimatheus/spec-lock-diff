@@ -168,7 +168,10 @@ opposite."
 the tip of `main`, so a branch that moved on does not look like your branch
 removing things — reads the files as they are at that commit and as they are at
 `head`, and compares two inventories. A data test is identified by its model,
-its column, its name and its arguments, so moving a test to another file or
+its column, its name and its arguments — and a unit test by its model and its
+name, because dbt only makes those unique inside a model and two marts may each
+have one called `cancelled_orders_are_excluded`. So moving a test to another
+file or
 renaming `tests:` to `data_tests:` changes nothing, while shrinking the values
 of an `accepted_values` changes everything. A column that carries two tests of
 the same name — two `relationships`, several `accepted_values` — has each of

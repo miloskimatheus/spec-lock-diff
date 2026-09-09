@@ -1,0 +1,14 @@
+version: 2
+
+models:
+  - name: fct_b
+
+unit_tests:
+  - name: cancelled_orders_are_excluded
+    model: fct_b
+    given:
+      - input: ref('stg_b')
+        rows:
+          - {status: cancelled, amount: 99}
+    expect:
+      rows: []

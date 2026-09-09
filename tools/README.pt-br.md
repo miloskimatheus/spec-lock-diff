@@ -170,7 +170,9 @@ Nunca o contrário."
 a ponta da `main`, para que uma branch que andou não pareça a sua branch
 removendo coisas —, lê os arquivos como eles estão naquele commit e como estão
 no `head`, e compara dois inventários. Um data test é identificado pelo modelo,
-pela coluna, pelo nome e pelos argumentos, então mover um teste para outro
+pela coluna, pelo nome e pelos argumentos — e um unit test pelo modelo e pelo
+nome, porque o dbt só os torna únicos dentro de um modelo e dois marts podem ter
+cada um o seu `cancelled_orders_are_excluded`. Então mover um teste para outro
 arquivo ou renomear `tests:` para `data_tests:` não muda nada, enquanto encolher
 os valores de um `accepted_values` muda tudo. Uma coluna que carrega dois testes
 de mesmo nome — dois `relationships`, vários `accepted_values` — tem cada um

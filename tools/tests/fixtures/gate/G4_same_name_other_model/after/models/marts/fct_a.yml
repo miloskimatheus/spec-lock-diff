@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: fct_a
+
+unit_tests:
+  # dbt makes a unit test unique inside its model, so this name and the one in
+  # fct_b.yml are both legal and neither is a duplicate.
+  - name: cancelled_orders_are_excluded
+    model: fct_a
+    given:
+      - input: ref('stg_a')
+        rows:
+          - {status: cancelled, amount: 10}
+    expect:
+      rows:
+          - {status: cancelled, amount: 10}

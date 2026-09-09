@@ -488,7 +488,10 @@ def inventory(root, commit, full=True, marts=MARTS):
                     inv["tests"][(model.name, column, name, args)] = cfg
             for unit in units:
                 body = dict((k, v) for k, v in unit.body.items() if k != "description")
-                inv["units"][unit.name] = (unit.file, unit.model, _canon(body))
+                # By model and name, never by name alone: dbt makes a unit test
+                # unique inside its model, so two models may each hold one called
+                # `cancelled_orders_are_excluded` and neither is a duplicate.
+                inv["units"][(unit.model, unit.name)] = (unit.file, unit.model, _canon(body))
         elif not full:
             continue
         elif path.startswith(tuple(_tops(marts))) and path.endswith(".sql"):
@@ -562,9 +565,9 @@ def gate_test_removed(ctx):
                     for args in sorted(old) if _on(old[args]) and not _on(new[args])]
     for path in _changed(ctx, "files", set(ctx.before["files"])):
         out.append(block(path, "", "singular or generic test %s was removed or changed" % path, "G1"))
-    for name in sorted(set(ctx.before["units"]) - set(ctx.after["units"])):
-        file, model, _ = ctx.before["units"][name]
-        out.append(block(file, model, "unit test '%s' was removed" % name, "G1"))
+    for key in sorted(set(ctx.before["units"]) - set(ctx.after["units"])):
+        file, model, _ = ctx.before["units"][key]
+        out.append(block(file, model, "unit test '%s' was removed" % key[1], "G1"))
     return out
 
 def gate_test_filter(ctx):
@@ -607,12 +610,12 @@ def gate_test_severity(ctx):
 def gate_unit_test_changed(ctx):
     """README §2 Control 5B — "expect value changed in an existing test": if the agent changes the expected result, any result becomes correct."""
     out = []
-    for name in sorted(set(ctx.before["units"]) & set(ctx.after["units"])):
-        file, model, body = ctx.after["units"][name]
-        if ctx.before["units"][name][2] != body:
+    for key in sorted(set(ctx.before["units"]) & set(ctx.after["units"])):
+        file, model, body = ctx.after["units"][key]
+        if ctx.before["units"][key][2] != body:
             out.append(block(file, model, "unit test '%s' was changed; the rows it is "
                              "given and the rows it expects are the question and the answer, "
-                             "and this PR wrote both" % name, "G4"))
+                             "and this PR wrote both" % key[1], "G4"))
     return out
 
 def gate_recon_with_model(ctx):

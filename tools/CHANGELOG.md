@@ -23,7 +23,7 @@ Three commands in one file, no model, no network, no warehouse.
 
 | Rule | What it blocks |
 | --- | --- |
-| `G1` | a data test removed, its arguments changed or disabled; a file under `tests/` deleted or rewritten; a unit test removed |
+| `G1` | a data test removed, its arguments changed or disabled; a file under `tests/` deleted or rewritten; a unit test removed. Unit tests are held by model *and* name, so one model's cannot shadow another's |
 | `G2` | a `where` added to or changed on an existing test, written on the test or in its `config` |
 | `G3` | an existing test downgraded to `severity: warn`, an `error_if` / `warn_if` / `fail_calc` added or changed, or a new test created that cannot block |
 | `G4` | any part of an existing unit test's body: `given`, `expect`, `overrides`, the model. Only `description` may change |
