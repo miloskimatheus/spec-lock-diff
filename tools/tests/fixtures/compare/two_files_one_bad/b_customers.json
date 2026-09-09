@@ -1,0 +1,13 @@
+{
+  "model": "dim_customers",
+  "row_delta": 99999,
+  "removed_pks": 0,
+  "altered_columns": [
+    "gross_revenue"
+  ],
+  "metrics": {
+    "gross_revenue": {
+      "delta_pct": 0.1
+    }
+  }
+}

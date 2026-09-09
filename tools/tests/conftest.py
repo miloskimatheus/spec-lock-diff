@@ -122,15 +122,19 @@ def expectation(folder):
     """What a fixture folder promises: the exit code and the rule ids to look for."""
     name = folder.name
     rule = name.split("_")[0] if re.match(r"^[A-Z]\d_", name) else ""
-    passes = "_ok_" in name or name.endswith("_ok")
-    want = {"exit": 0 if passes else 1, "count": None,
-            "rules": [] if passes or not rule else [rule],
-            "absent": [rule] if passes and rule else []}
+    want = {"exit": 0 if "_ok_" in name or name.endswith("_ok") else 1, "count": None}
     readme = folder / "README.txt"
+    said = {}
     for line in readme.read_text(encoding="utf-8").splitlines() if readme.exists() else []:
         words = line.split()
         if len(words) >= 3 and words[0] == "expect":
-            want[words[1]] = int(words[2]) if words[1] in ("exit", "count") else words[2:]
+            said[words[1]] = int(words[2]) if words[1] in ("exit", "count") else words[2:]
+    want.update(said)
+    if "rules" not in said:  # a case that blocks prints its rule; one that passes does not
+        want["rules"] = [rule] if rule and want["exit"] == 1 else []
+    if "absent" not in said:
+        want["absent"] = [rule] if rule and want["exit"] == 0 else []
+    want["absent"] = [r for r in want["absent"] if r not in want["rules"]]
     return want
 
 

@@ -608,6 +608,108 @@ def gate_prereg_counter(ctx):
                             "it was first written" % _count(edits, "time"), "I1"))
     return out
 
+# --- compare: the diff against the pre-registration (README §3 Stage E) ---
+
+# One measured model: the file that carries the numbers, the model they claim to
+# be about, and whether the pair is sound enough for C1 to C6 to say anything.
+Diff = NamedTuple("Diff", [("file", str), ("name", str), ("data", dict),
+                           ("project", object), ("model", object), ("ok", bool)])
+
+def compare_contract(ctx):
+    """README §3 Stage E step 3 — "Each diff number is automatically compared with the intervals declared in the pre-registration": both sides have to be readable first."""
+    out = [block(ctx.file, ctx.name, message, "C0")
+           for message in schema_errors(ctx.data, "diff", "diff")]
+    if ctx.model is None:
+        out.append(block(ctx.file, ctx.name, "models/ declares no model named %s in this "
+                         "project" % (ctx.name or "?"), "C0"))
+    elif not isinstance(ctx.model.prereg, dict):
+        out.append(block(ctx.file, ctx.name, "the model has no meta.pre_registration; a number "
+                         "nobody committed to in advance is not evidence", "C0"))
+    else:
+        one = Project(ctx.project.dir, {ctx.name: ctx.model}, [])
+        out += [f._replace(file=ctx.file, rule_id="C0")
+                for f in apply_rules([check_prereg_schema, check_prereg_consistency], one)]
+    window = ctx.data.get("window")
+    if isinstance(window, dict) and not out:
+        out.append(info(ctx.file, ctx.name, "measured over %s from %s to %s"
+                        % (window.get("column"), window.get("start"), window.get("end")), "C0"))
+    return out
+
+def compare_rows(ctx):
+    """README §3 Stage E step 3 — "A number is outside the declared interval (e.g., row delta is 15,000, but the pre-registration said max: 12000)"."""
+    if not ctx.ok:
+        return []
+    low, high = _interval(ctx.model.prereg["row_delta"])
+    value = ctx.data["row_delta"]
+    if low <= value <= high:
+        return []
+    return [block(ctx.file, ctx.name, "row_delta is %s, pre-registration allows %s..%s"
+                  % (value, low, high), "C1")]
+
+def compare_removed_pks(ctx):
+    """README §3 Stage E step 3 — the rows that exist in production and not in the new version are a number the pre-registration has to allow."""
+    if not ctx.ok:
+        return []
+    most, value = ctx.model.prereg["removed_pks"]["max"], ctx.data["removed_pks"]
+    if value <= most:
+        return []
+    return [block(ctx.file, ctx.name, "removed_pks is %s, pre-registration allows at most %s"
+                  % (value, most), "C2")]
+
+def compare_columns(ctx):
+    """README §3 Stage E step 3 — "A column shows a difference but is not in the pre-registration's altered_columns list"."""
+    if not ctx.ok:
+        return []
+    declared = set(ctx.model.prereg["altered_columns"])
+    measured = set(ctx.data["altered_columns"])
+    out = [block(ctx.file, ctx.name, "column %s changed and is not in "
+                 "pre_registration.altered_columns" % column, "C3")
+           for column in sorted(measured - declared)]
+    out += [info(ctx.file, ctx.name, "column %s was pre-registered as altered and did not "
+                 "change" % column, "C3") for column in sorted(declared - measured)]
+    return out
+
+def compare_metrics(ctx):
+    """README §3 Stage E step 3 — each metric of the spec is compared with the percentage interval the pre-registration declared for it."""
+    if not ctx.ok:
+        return []
+    out = []
+    declared, measured = ctx.model.prereg["metrics"], ctx.data["metrics"]
+    for name in sorted(declared):
+        low, high = _interval(declared[name]["delta_pct"])
+        if name not in measured:
+            out.append(block(ctx.file, ctx.name, "metric %s was pre-registered and the diff "
+                             "does not measure it" % name, "C4"))
+            continue
+        value = measured[name]["delta_pct"]
+        if value is None:
+            out.append(block(ctx.file, ctx.name, "metric %s cannot be evaluated: the "
+                             "production value is 0" % name, "C4"))
+        elif not low <= value <= high:
+            out.append(block(ctx.file, ctx.name, "metric %s moved %s percent, pre-registration "
+                             "allows %s..%s" % (name, value, low, high), "C4"))
+    out += [block(ctx.file, ctx.name, "metric %s moved %s percent and was not pre-registered"
+                  % (name, measured[name]["delta_pct"], ), "C4")
+            for name in sorted(set(measured) - set(declared))
+            if measured[name]["delta_pct"] != 0]
+    return out
+
+def compare_refactoring(ctx):
+    """README §3 Stage E step 3 — "The type is refactoring but some delta is not zero"."""
+    if not ctx.ok or ctx.model.prereg.get("type") != "refactoring":
+        return []
+    moved = ["row_delta %s" % ctx.data["row_delta"] if ctx.data["row_delta"] else "",
+             "removed_pks %s" % ctx.data["removed_pks"] if ctx.data["removed_pks"] else "",
+             "altered columns %s" % ", ".join(sorted(ctx.data["altered_columns"]))
+             if ctx.data["altered_columns"] else ""]
+    moved += ["metric %s %s percent" % (name, body["delta_pct"])
+              for name, body in sorted(ctx.data["metrics"].items()) if body["delta_pct"]]
+    moved = [m for m in moved if m]
+    if not moved:
+        return []
+    return [block(ctx.file, ctx.name, "pre-registered as a refactoring, which may not change "
+                  "any number, and the diff moved: %s" % "; ".join(moved), "C5")]
+
 # --- Rule registries. A rule is one function: context in, findings out. ---
 
 CHECK_RULES = [check_spec_present, check_spec_schema, check_spec_consistency,
@@ -615,7 +717,8 @@ CHECK_RULES = [check_spec_present, check_spec_schema, check_spec_consistency,
 GATE_RULES = [gate_test_removed, gate_test_filter, gate_test_severity,
               gate_unit_test_changed, gate_recon_with_model, gate_packages,
               gate_spec_changed, gate_prereg_counter]
-COMPARE_RULES = []
+COMPARE_RULES = [compare_contract, compare_rows, compare_removed_pks,
+                 compare_columns, compare_metrics, compare_refactoring]
 
 def apply_rules(rules, context):
     """Run every rule in order and collect what they found."""
@@ -645,6 +748,19 @@ def cmd_gate(args):
     return report(apply_rules(GATE_RULES, Gate(root, before, after, walk)), "gate",
                   "no changes" if before == after else _count(len(commits), "commit"))
 
+def cmd_compare(args):
+    """compare: hold every diff.json against the pre-registration of its model."""
+    project = read_project(args.project_dir)
+    out = []
+    for path in args.diffs:
+        data = load_json(path)
+        data = data if isinstance(data, dict) else {}
+        name = data.get("model") if isinstance(data.get("model"), str) else ""
+        ctx = Diff(str(path), name, data, project, project.models.get(name), False)
+        blocked = any(f.severity == "BLOCK" for f in compare_contract(ctx))
+        out += apply_rules(COMPARE_RULES, ctx._replace(ok=not blocked))
+    return report(out, "compare", _count(len(args.diffs), "file"))
+
 def build_parser():
     """The command line of Section 2 of the backlog, and nothing else."""
     parser = argparse.ArgumentParser(prog="slp", description=__doc__.splitlines()[0])
@@ -668,7 +784,8 @@ def main(argv=None):
         parser.print_usage(sys.stderr)
         return 2
     try:
-        return {"check": cmd_check, "gate": cmd_gate}[args.command](args)
+        return {"check": cmd_check, "gate": cmd_gate,
+            "compare": cmd_compare}[args.command](args)
     except SlpError as exc:
         sys.stderr.write("ERROR %s\n" % exc)
         return 2
