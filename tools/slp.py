@@ -545,11 +545,23 @@ def gate_test_severity(ctx):
                                  "failing" % name, "G3"))
     return out
 
+def gate_unit_test_changed(ctx):
+    """README §2 Control 5B — "expect value changed in an existing test": if the agent changes the expected result, any result becomes correct."""
+    out = []
+    for name in sorted(set(ctx.before["units"]) & set(ctx.after["units"])):
+        file, model, body = ctx.after["units"][name]
+        if ctx.before["units"][name][2] != body:
+            out.append(block(file, model, "unit test '%s' was changed; the rows it is "
+                             "given and the rows it expects are the question and the answer, "
+                             "and this PR wrote both" % name, "G4"))
+    return out
+
 # --- Rule registries. A rule is one function: context in, findings out. ---
 
 CHECK_RULES = [check_spec_present, check_spec_schema, check_spec_consistency,
                check_prereg_schema, check_prereg_consistency, check_pk_test]
-GATE_RULES = [gate_test_removed, gate_test_filter, gate_test_severity]
+GATE_RULES = [gate_test_removed, gate_test_filter, gate_test_severity,
+              gate_unit_test_changed]
 COMPARE_RULES = []
 
 def apply_rules(rules, context):

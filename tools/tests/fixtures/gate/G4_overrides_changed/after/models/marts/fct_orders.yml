@@ -1,0 +1,22 @@
+version: 2
+
+models:
+  - name: fct_orders
+    columns:
+      - name: order_id
+
+unit_tests:
+  - name: cancelled_orders_are_excluded
+    model: fct_orders
+    description: "a cancelled order is not a row"
+    given:
+      - input: ref('stg_orders')
+        rows:
+          - {order_id: 1, status: cancelled}
+          - {order_id: 2, status: shipped}
+    expect:
+      rows:
+        - {order_id: 2}
+    overrides:
+      vars:
+        cutoff_date: "2019-01-01"
