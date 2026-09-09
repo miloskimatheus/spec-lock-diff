@@ -15,3 +15,7 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+
+# Tools
+.pytest_cache/
+tools/tools-backlog.md

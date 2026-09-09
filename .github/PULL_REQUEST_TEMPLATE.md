@@ -31,6 +31,18 @@
 <!-- Which permission, CI gate, schema, or branch protection makes the rule real?
      If the answer is "the agent is told not to", the rule is not finished yet. -->
 
+## If this changes `tools/`
+
+**Which README sentence does this enforce?**
+
+<!-- Rule R1: a tool may only enforce something the framework README says.
+     No sentence, no rule — open a *Framework improvement* issue first. -->
+
+**Which fixture proves it blocks, and which proves it passes?**
+
+<!-- Every rule needs one fixture that blocks and one that passes.
+     Meta-test M2 fails if a rule id has no fixture and no coverage-table row. -->
+
 ## Checklist
 
 - [ ] I read [CONTRIBUTING.md](CONTRIBUTING.md)
