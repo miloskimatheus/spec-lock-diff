@@ -1,0 +1,140 @@
+# Spec-Lock-Diff - example CI. Copy to .github/workflows/ci.yml.
+#
+# Copy it, then work through the lines marked for you.
+#
+# The job names below, `ci` and `diff`, are what you list as required checks in
+# branch protection. Renaming a job means changing that list too, or the gate
+# stops gating.
+#
+# .github/ is a protected path (Control 5A), so only humans edit this file.
+# That is deliberate: an agent that can edit the CI controls the rules.
+
+name: ci
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+# One run per pull request. A new push cancels the run it replaced.
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Runs on every push to the branch. README section 3, Stage D: must finish in
+  # about fifteen minutes, and any failure blocks.
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The gate walks the commits of the pull request, so it needs them all.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # YOU: replace dbt-postgres with the adapter of your warehouse, for example
+      # dbt-snowflake or dbt-bigquery. dbt brings PyYAML and jsonschema, which are
+      # the only libraries tools/slp.py uses.
+      - run: pip install dbt-core dbt-postgres
+
+      # Stage A and Rule 2: every marts model has a complete spec, a valid
+      # pre-registration when it has one, and a uniqueness test on its primary key.
+      - name: slp check
+        run: python tools/slp.py check
+
+      # Control 5B: nothing on this branch weakened a test, a unit test, a
+      # reconciliation, a package pin or a spec. The output goes to the job
+      # summary so the Author reads it without opening the logs (Stage B asks for
+      # the pre-registration change counter to be visible in review).
+      - name: slp gate
+        shell: bash  # bash -eo pipefail, so tee cannot swallow a failure
+        run: |
+          python tools/slp.py gate \
+            --base ${{ github.event.pull_request.base.sha }} \
+            --head ${{ github.event.pull_request.head.sha }} \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # YOU: authenticate to the warehouse as the agent's own identity, the one
+      # Control 1 asks you to create - not a human's credentials and not an admin.
+      # This is usually one action from your cloud provider, or one secret.
+      - name: warehouse auth
+        run: |
+          echo "this step still has to authenticate to the warehouse as the agent identity" >&2
+          exit 1
+
+      # YOU: download the manifest.json of your production run into
+      # ./prod-artifacts. This is what --defer and state:modified compare against;
+      # most teams publish it from the production job as an artifact or from cloud
+      # storage. README section 3, Stage D.
+      - name: production artifacts
+        run: |
+          echo "this step still has to download the production manifest into ./prod-artifacts" >&2
+          exit 1
+
+      # Stage D: build only what changed, on a sample window, with unit tests, the
+      # primary key test and contracts.
+      - name: dbt build with sample
+        run: |
+          dbt build --select state:modified+ --defer --state ./prod-artifacts \
+            --sample "30 days"
+
+  # Runs once the pull request is ready for review. README section 3, Stage E.
+  diff:
+    needs: ci
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install dbt-core dbt-postgres  # YOU: your adapter, as above
+
+      - name: warehouse auth
+        run: |
+          echo "this step still has to authenticate to the warehouse as the agent identity" >&2
+          exit 1
+
+      - name: production artifacts
+        run: |
+          echo "this step still has to download the production manifest into ./prod-artifacts" >&2
+          exit 1
+
+      # YOU: build with full data into a schema of this pull request's own, named
+      # ci_pr_${{ github.event.pull_request.number }}_full, and select by tier:
+      # state:modified for standard models, state:modified+ for critical ones, so
+      # the downstream chain is rebuilt and the diff sees the whole effect.
+      # README section 3, Stage E step 1.
+      - name: dbt build with full data
+        run: |
+          echo "this step still has to build with full data into ci_pr_<n>_full" >&2
+          exit 1
+
+      # YOU: produce one diff/<model>.json per pre-registered model, in the shape
+      # of tools/schemas/diff.schema.json. Recce, dbt-audit-helper in summary mode,
+      # or your own SQL: the tools do not care which, as long as the numbers come
+      # from a closed event_time window identical on both sides. The README's
+      # tools section shows an example query. README section 3, Stage E step 2.
+      - name: produce the diff
+        run: |
+          echo "this step still has to produce one diff/<model>.json per pre-registered model" >&2
+          exit 1
+
+      # Stage E step 3 and 4: every number against the interval that was declared
+      # before the code was written, and the reconciliation against its tolerance.
+      - name: slp compare
+        shell: bash  # bash -eo pipefail, so tee cannot swallow a failure
+        run: |
+          python tools/slp.py compare diff/*.json | tee -a "$GITHUB_STEP_SUMMARY"

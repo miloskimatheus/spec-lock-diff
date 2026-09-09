@@ -67,3 +67,33 @@ def test_agents_md_says_it_is_not_a_control():
     for command in ("python tools/slp.py check", "python tools/slp.py gate --base",
                     "dbt compile", "dbt test --select test_type:unit", "dbt build"):
         assert command in template
+
+
+def test_ci_yml_wires_the_three_commands_into_two_jobs():
+    """The job names are what branch protection lists; the commands are the gates."""
+    workflow = yaml.safe_load((TEMPLATES / "ci.yml").read_text(encoding="utf-8"))
+    assert sorted(workflow["jobs"]) == ["ci", "diff"]
+    assert workflow[True]["pull_request"]["types"] == [
+        "opened", "synchronize", "reopened", "ready_for_review"]
+    assert workflow["concurrency"]["cancel-in-progress"] is True
+    assert workflow["jobs"]["ci"]["timeout-minutes"] == 15  # Stage D: about 15 minutes
+    assert workflow["jobs"]["diff"]["needs"] == "ci"
+    steps = {"ci": "", "diff": ""}
+    for job in steps:
+        steps[job] = "\n".join(str(step.get("run", "")) for step in workflow["jobs"][job]["steps"])
+    assert "python tools/slp.py check" in steps["ci"]
+    assert "python tools/slp.py gate" in steps["ci"]
+    assert "python tools/slp.py compare" in steps["diff"]
+    # The gate walks the commits of the pull request, so a shallow checkout breaks it.
+    for job in ("ci", "diff"):
+        checkout = workflow["jobs"][job]["steps"][0]
+        assert checkout["uses"].startswith("actions/checkout")
+        assert checkout["with"]["fetch-depth"] == 0
+
+
+def test_ci_yml_pipes_the_gate_into_the_job_summary_without_losing_its_exit_code():
+    text = (TEMPLATES / "ci.yml").read_text(encoding="utf-8")
+    for line in text.splitlines():
+        if "tee -a" in line:
+            assert "GITHUB_STEP_SUMMARY" in line
+    assert text.count("shell: bash") == 2  # bash -eo pipefail on both piped steps
