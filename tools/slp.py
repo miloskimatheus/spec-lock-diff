@@ -556,12 +556,24 @@ def gate_unit_test_changed(ctx):
                              "and this PR wrote both" % name, "G4"))
     return out
 
+def gate_recon_with_model(ctx):
+    """README §2 Control 5B — "analyses/reconciliation_* changed in the same PR as the model": like a student writing the exam and the answer key."""
+    out = []
+    moved = set(_changed(ctx, "recons"))
+    for model in sorted(ctx.after["specs"]):
+        spec = ctx.after["specs"][model]
+        query = spec.get("reconciliation_query") if isinstance(spec, dict) else None
+        if query in moved and ctx.before["models"].get(model) != ctx.after["models"].get(model):
+            out.append(block(query, model, "%s changed in the same PR as the model it checks; "
+                             "a human changes the reconciliation, in its own PR" % query, "G5"))
+    return out
+
 # --- Rule registries. A rule is one function: context in, findings out. ---
 
 CHECK_RULES = [check_spec_present, check_spec_schema, check_spec_consistency,
                check_prereg_schema, check_prereg_consistency, check_pk_test]
 GATE_RULES = [gate_test_removed, gate_test_filter, gate_test_severity,
-              gate_unit_test_changed]
+              gate_unit_test_changed, gate_recon_with_model]
 COMPARE_RULES = []
 
 def apply_rules(rules, context):
