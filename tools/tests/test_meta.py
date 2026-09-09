@@ -131,6 +131,25 @@ def test_m7_the_order_of_the_arguments_changes_nothing():
     assert run_slp(["compare"] + names, case) == run_slp(["compare"] + names[::-1], case)
 
 
+def test_r10_the_two_readmes_are_the_same_document():
+    """R10: two languages, one document. What is code in it is not translated."""
+    english = (TOOLS / "README.md").read_text(encoding="utf-8").splitlines()
+    portuguese = (TOOLS / "README.pt-br.md").read_text(encoding="utf-8").splitlines()
+
+    def numbering(lines, prefix):
+        return [line.split(".")[0] for line in lines if re.match(prefix, line)]
+
+    # Same sections, in the same order, and a table of contents that matches them.
+    assert numbering(english, r"^## \d") == numbering(portuguese, r"^## \d")
+    assert numbering(english, r"^\d+\. \[") == numbering(portuguese, r"^\d+\. \[")
+    # The tool's own output is not translated: a CI log reads the same either way.
+    printed = lambda lines: [l for l in lines if re.match(r"^(BLOCK|INFO|slp |\$ python)", l)]
+    assert printed(english) == printed(portuguese)
+    # And both coverage tables cover the same rules, in the same order.
+    rows = lambda lines: re.findall(r"^\|[^|]+\|\s*`([A-Z]\d)`\s*\|", "\n".join(lines), re.M)
+    assert rows(english) == rows(portuguese) == list(slp.RULE_IDS)
+
+
 def test_m8_the_one_file_is_still_one_sitting():
     """R6. The backlog that planned these tools said 600 lines, before the rules were
     counted: twenty-one of them, with readable messages and fail-closed guards, came

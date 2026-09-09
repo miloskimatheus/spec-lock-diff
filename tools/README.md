@@ -1,5 +1,7 @@
 # `tools/` — the deterministic gates of Spec-Lock-Diff
 
+**English** · [Português (pt-BR)](README.pt-br.md)
+
 > **Work in progress.** These tools are the first, minimal, reference
 > implementation of Spec-Lock-Diff. They are deliberately small. They will
 > change. Adapt them to your warehouse, your CI and your team — that is
