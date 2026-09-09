@@ -710,6 +710,35 @@ def compare_refactoring(ctx):
     return [block(ctx.file, ctx.name, "pre-registered as a refactoring, which may not change "
                   "any number, and the diff moved: %s" % "; ".join(moved), "C5")]
 
+def compare_reconciliation(ctx):
+    """README §3 Stage E step 4 — "If the difference is greater than the tolerance, the PR is blocked"."""
+    if not ctx.ok:
+        return []
+    spec = ctx.model.spec if isinstance(ctx.model.spec, dict) else {}
+    numbers = ctx.data.get("reconciliation")
+    if numbers is None:
+        if spec.get("tier") != "critical":
+            return []
+        return [block(ctx.file, ctx.name, "critical model without reconciliation numbers; the "
+                      "query in the spec runs on full data and its two numbers belong in the "
+                      "diff", "C6")]
+    allowed = spec.get("reconciliation_tolerance")
+    if not (isinstance(allowed, str) and re.match(r"^[0-9]+(\.[0-9]+)?%$", allowed)):
+        return [block(ctx.file, ctx.name, "reconciliation numbers given, and the spec declares "
+                      "no reconciliation_tolerance to read them against", "C6")]
+    measured, outside = numbers["model_value"], numbers["external_value"]
+    said = "the model says %s and the source of truth says %s" % (measured, outside)
+    if outside == 0:
+        if measured == 0:
+            return []
+        return [block(ctx.file, ctx.name, "reconciliation: %s; no percentage makes that "
+                      "difference small" % said, "C6")]
+    drift = abs(measured - outside) / abs(outside) * 100
+    if drift <= float(allowed[:-1]):
+        return []
+    return [block(ctx.file, ctx.name, "reconciliation: %s, a difference of %.4g percent, and "
+                  "the spec allows %s" % (said, drift, allowed), "C6")]
+
 # --- Rule registries. A rule is one function: context in, findings out. ---
 
 CHECK_RULES = [check_spec_present, check_spec_schema, check_spec_consistency,
@@ -718,7 +747,8 @@ GATE_RULES = [gate_test_removed, gate_test_filter, gate_test_severity,
               gate_unit_test_changed, gate_recon_with_model, gate_packages,
               gate_spec_changed, gate_prereg_counter]
 COMPARE_RULES = [compare_contract, compare_rows, compare_removed_pks,
-                 compare_columns, compare_metrics, compare_refactoring]
+                 compare_columns, compare_metrics, compare_refactoring,
+                 compare_reconciliation]
 
 def apply_rules(rules, context):
     """Run every rule in order and collect what they found."""

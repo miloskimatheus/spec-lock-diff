@@ -1,0 +1,11 @@
+{
+  "model": "fct_invoices",
+  "row_delta": 12,
+  "removed_pks": 0,
+  "altered_columns": [],
+  "metrics": {},
+  "reconciliation": {
+    "model_value": 950000.0,
+    "external_value": 1000000.0
+  }
+}

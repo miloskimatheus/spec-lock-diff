@@ -1,0 +1,7 @@
+{
+  "model": "fct_invoices",
+  "row_delta": 12,
+  "removed_pks": 0,
+  "altered_columns": [],
+  "metrics": {}
+}
