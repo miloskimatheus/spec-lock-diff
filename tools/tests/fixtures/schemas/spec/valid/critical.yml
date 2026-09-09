@@ -1,0 +1,12 @@
+# A critical model: the six base fields plus the three the tier requires.
+grain: "one row per invoice"
+primary_key: [invoice_id]
+tier: critical
+metrics:
+  invoiced_amount: "sum of invoice_total after discounts"
+known_edges:
+  - "cancelled invoice → row excluded"
+sensitive_columns: []
+reconciliation_query: analyses/reconciliation_fct_invoices.sql
+reconciliation_tolerance: "0.05%"
+external_validation: "invoiced_amount 2025-11 = 1,000,000.00 in the closing spreadsheet"

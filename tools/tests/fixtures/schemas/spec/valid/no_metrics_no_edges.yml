@@ -1,0 +1,8 @@
+# A model that calculates no metric and has no known edge still declares both,
+# empty: the Author says "none", instead of saying nothing.
+grain: "one row per product"
+primary_key: [product_id]
+tier: standard
+metrics: {}
+known_edges: []
+sensitive_columns: []

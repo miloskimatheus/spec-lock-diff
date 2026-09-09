@@ -31,6 +31,7 @@ import subprocess
 import sys
 
 TOOLS = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(TOOLS))  # so a test can import slp and read one schema
 SLP = TOOLS / "slp.py"
 FIXTURES = pathlib.Path(__file__).resolve().parent / "fixtures"
 

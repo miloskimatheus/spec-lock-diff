@@ -1,0 +1,9 @@
+# A standard model: the six base fields and nothing more.
+grain: "one row per customer"
+primary_key: [customer_id]
+tier: standard
+metrics:
+  order_count: "how many orders the customer has placed"
+known_edges:
+  - "customer with no order → row kept, order_count 0"
+sensitive_columns: [customer_email]

@@ -1,0 +1,7 @@
+# expect: required
+grain: "one row per invoice"
+primary_key: [invoice_id]
+tier: critical
+metrics: {}
+known_edges: []
+sensitive_columns: []

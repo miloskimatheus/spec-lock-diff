@@ -1,0 +1,7 @@
+# expect: enum
+grain: "one row per order"
+primary_key: [order_id]
+tier: crítical
+metrics: {}
+known_edges: []
+sensitive_columns: []
