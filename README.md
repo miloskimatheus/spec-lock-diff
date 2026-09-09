@@ -331,7 +331,7 @@ meta:
 
     # --- 3 additional fields, mandatory ONLY for tier: critical ---
 
-    reconciliation_query: analyses/recon_fct_orders.sql
+    reconciliation_query: analyses/reconciliation_fct_orders.sql
     # Path to a SQL query that compares the model result with an
     # external source of truth (another system, closing spreadsheet, etc.).
     # This query runs in stage E with full data.

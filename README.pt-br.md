@@ -237,7 +237,7 @@ Quando o agente precisa entender a estrutura de um dado, ele consulta `docs/perf
 | `dbt_project.yml`                            | Configuração global do projeto.                                                                                               |
 | `macros/`                                    | Macros são reutilizadas por vários modelos. Uma mudança afeta tudo.                                                           |
 | `tests/`                                     | Testes genéricos.                                                                                                             |
-| `analyses/recon_*`                           | Queries de reconciliação. Se o agente mudar a reconciliação no mesmo PR do modelo, ele controla o que está sendo verificado.  |
+| `analyses/reconciliation_*`                  | Queries de reconciliação. Se o agente mudar a reconciliação no mesmo PR do modelo, ele controla o que está sendo verificado.  |
 | `models/semantic/`                           | Definições de métricas. Uma métrica errada propaga erro para todos os consumidores.                                           |
 | `docs/perfil/`                               | Perfis estatísticos. Se o agente mudar o perfil, ele muda sua própria referência.                                             |
 | Modelos incrementais (listar explicitamente) | Modelos incrementais são mais complexos e frágeis.                                                                            |
@@ -253,7 +253,7 @@ Um script que roda em CI sobre os commits feitos pelo bot. É o único script cu
 | `WHERE` ou cláusula de exclusão adicionada a um teste | Uma forma de fazer um teste passar sem corrigir o problema: filtrar os casos que falham.                                                          |
 | `severity` rebaixada (ex: `error` → `warn`)           | Transformar um erro em aviso faz o CI passar, mas o problema continua.                                                                            |
 | Valor `expect` alterado em um teste existente         | Se o agente muda o resultado esperado, qualquer resultado vira "correto".                                                                        |
-| `analyses/recon_*` alterado no mesmo PR do modelo     | O agente não pode mudar o modelo E a reconciliação que verifica o modelo no mesmo PR. Seria como um aluno escrevendo a prova e o gabarito.        |
+| `analyses/reconciliation_*` alterado no mesmo PR do modelo     | O agente não pode mudar o modelo E a reconciliação que verifica o modelo no mesmo PR. Seria como um aluno escrevendo a prova e o gabarito.        |
 | Pin de pacote alterado                                | Mudar versões de dependências pode introduzir comportamentos diferentes.                                                                         |
 
 **Opcional (camada extra de proteção):** Se o agente suportar hooks antes de executar ferramentas (ex: `PreToolUse` no Claude Code), configure um hook que recusa a escrita em paths protegidos na hora — antes mesmo do commit.
@@ -302,20 +302,20 @@ meta:
     # As colunas que juntas identificam uma linha de forma única.
     # O agente vai gerar um teste de unicidade para esta combinação.
 
-    tier: critico  # Valores possíveis: "critico" ou "padrao"
-    # "critico" = modelo que alimenta decisões de negócio, relatórios financeiros
+    tier: critical  # Valores possíveis: "critical" ou "standard"
+    # "critical" = modelo que alimenta decisões de negócio, relatórios financeiros
     #             ou dashboards executivos. Exige 3 campos extras (abaixo)
     #             e aprovação de um Parceiro.
-    # "padrao" = todo o resto.
+    # "standard" = todo o resto.
 
-    metricas:
+    metrics:
       gross_revenue: "soma de order_total antes de descontos e impostos"
     # Cada métrica que o modelo calcula, com definição em linguagem natural.
     # O agente vai usar essas definições para escrever o SQL.
     # O diff (etapa E) vai comparar os valores dessas métricas entre
     # produção e a versão nova.
 
-    bordas_conhecidas:
+    known_edges:
       - "status='cancelled' → linha excluída"
       - "valor em centavos → dividir por 100"
       - "timestamp em UTC → converter para America/Sao_Paulo"
@@ -325,22 +325,22 @@ meta:
     # Exemplo bom: "status='cancelled' → linha excluída"
     # Exemplo ruim: "usar WHERE status != 'cancelled'"
 
-    colunas_sensiveis: [customer_email]
+    sensitive_columns: [customer_email]
     # Lista de colunas que contêm dados pessoais.
     # O masking do Controle 2 será aplicado a estas colunas.
 
-    # --- 3 campos adicionais, obrigatórios SOMENTE para tier: critico ---
+    # --- 3 campos adicionais, obrigatórios SOMENTE para tier: critical ---
 
-    query_de_reconciliacao: analyses/recon_fct_orders.sql
+    reconciliation_query: analyses/reconciliation_fct_orders.sql
     # Path de uma query SQL que compara o resultado do modelo com uma
     # fonte de verdade externa (outro sistema, planilha de fechamento etc.).
     # Esta query roda na etapa E com dado completo.
 
-    tolerancia_reconciliacao: "0.1%"
+    reconciliation_tolerance: "0.1%"
     # A diferença máxima aceitável entre o modelo e a fonte de verdade.
     # Se a diferença for maior que isso, o PR é bloqueado.
 
-    validacao_externa: "gross_revenue 2025-12 = R$ 14.203.118,40 no fechamento contábil"
+    external_validation: "gross_revenue 2025-12 = R$ 14.203.118,40 no fechamento contábil"
     # Um número concreto de fora do warehouse que serve como âncora.
     # Isso existe porque a spec também pode errar.
     # Se a spec está errada, todos os testes vão passar (eles testam a spec),
@@ -352,13 +352,13 @@ meta:
 
 1. O agente pode rascunhar uma versão inicial da spec a partir do perfil estatístico (Controle 4). Mas os 6 campos devem ser lidos e aprovados pelo humano **antes** de qualquer linha de código ser escrita.
 
-2. A spec também pode estar errada. Um erro na spec é invisível para todos os gates automatizados (porque os testes verificam a spec, não a realidade). É exatamente por isso que o campo `validacao_externa` existe: ele ancora o modelo em um número que vem de fora do warehouse.
+2. A spec também pode estar errada. Um erro na spec é invisível para todos os gates automatizados (porque os testes verificam a spec, não a realidade). É exatamente por isso que o campo `external_validation` existe: ele ancora o modelo em um número que vem de fora do warehouse.
 
 ---
 
 ### Etapa B: Pré-registro (Agente)
 
-**O que é:** Antes de escrever qualquer código, o agente declara quais mudanças numéricas ele _espera_ que aconteçam. Isso é feito em um bloco `pre_registro` no `.yml` do modelo.
+**O que é:** Antes de escrever qualquer código, o agente declara quais mudanças numéricas ele _espera_ que aconteçam. Isso é feito em um bloco `pre_registration` no `.yml` do modelo.
 
 **Por que existe:** Sem pré-registro, o agente vê os números do diff e depois inventa uma justificativa. O pré-registro inverte essa ordem: o agente se compromete com intervalos _antes_ de ver os resultados. Se os números caírem fora do intervalo, o PR é bloqueado automaticamente — o agente não consegue "ajustar" sua previsão depois.
 
@@ -375,36 +375,36 @@ meta:
 **Formato do pré-registro:**
 
 ```yaml
-pre_registro:
-  tipo: mudanca_de_dado
+pre_registration:
+  type: data_change
   # Valores possíveis:
-  #   "mudanca_de_dado" — a mudança deve alterar resultados numéricos.
-  #   "refatoracao" — a mudança NÃO deve alterar nenhum resultado.
-  #                   Se tipo é "refatoracao", todo delta DEVE ser 0.
+  #   "data_change" — a mudança deve alterar resultados numéricos.
+  #   "refactoring" — a mudança NÃO deve alterar nenhum resultado.
+  #                   Se o type é "refactoring", todo delta DEVE ser 0.
   #                   Qualquer diferença numérica bloqueia o PR.
 
-  motivo: "incluir status='partially_shipped', antes excluído indevidamente"
+  reason: "incluir status='partially_shipped', antes excluído indevidamente"
   # Explicação em uma frase do porquê os números vão mudar.
   # O Autor vai ler isso no review e avaliar se o intervalo faz sentido
   # dado o motivo declarado.
 
-  delta_linhas: {min: 0, max: 12000}
+  row_delta: {min: 0, max: 12000}
   # Quantas linhas a mais (ou a menos) o modelo terá em relação à produção.
   # REGRA: todo intervalo precisa ter min E max. Intervalo aberto
   # (ex: {min: 0} sem max) é inválido e é rejeitado pelo CI.
 
-  pks_removidas: {max: 0}
+  removed_pks: {max: 0}
   # Quantas chaves primárias (linhas identificadas pela PK da spec)
   # existem em produção mas não existem na versão nova.
   # max: 0 significa "nenhuma linha deve desaparecer".
 
-  colunas_alteradas: [gross_revenue, order_count]
+  altered_columns: [gross_revenue, order_count]
   # Lista exata das colunas cujos valores vão mudar.
   # Se no diff uma coluna que NÃO está nesta lista apresentar diferença,
   # o PR é bloqueado. Isso impede mudanças acidentais em colunas
   # que o agente não pretendia alterar.
 
-  metricas:
+  metrics:
     gross_revenue: {delta_pct: {min: 0.0, max: 0.8}}
     # Para cada métrica da spec, o intervalo percentual esperado de variação.
     # Exemplo: gross_revenue deve aumentar entre 0% e 0.8%.
@@ -513,12 +513,12 @@ Usando Recce ou `dbt-audit-helper` em modo resumo (nunca em modo que mostre linh
 Cada número do diff é comparado automaticamente com os intervalos declarados no pré-registro (etapa B). O PR é **bloqueado** se qualquer uma destas condições for verdadeira:
 
 - Um número está fora do intervalo declarado (ex: delta de linhas é 15.000, mas o pré-registro disse `max: 12000`).
-- Uma coluna apresenta diferença mas não está na lista `colunas_alteradas` do pré-registro.
-- O tipo é `refatoracao` mas algum delta não é zero.
+- Uma coluna apresenta diferença mas não está na lista `altered_columns` do pré-registro.
+- O type é `refactoring` mas algum delta não é zero.
 
 **Passo 4 — Reconciliação (apenas modelos críticos)**
 
-Para modelos com `tier: critico`, a query de reconciliação (`query_de_reconciliacao`) roda em dado completo e compara o resultado com a tolerância declarada (`tolerancia_reconciliacao`). Se a diferença for maior que a tolerância, o PR é **bloqueado**.
+Para modelos com `tier: critical`, a query de reconciliação (`reconciliation_query`) roda em dado completo e compara o resultado com a tolerância declarada (`reconciliation_tolerance`). Se a diferença for maior que a tolerância, o PR é **bloqueado**.
 
 > [!CAUTION]
 > Este é o único gate capaz de detectar o caso em que a IA presumiu errado o significado de uma coluna. Se o agente acha que `order_total` é bruto mas na verdade é líquido, os unit tests passam (eles testam o que a spec diz), mas a reconciliação contra o sistema contábil falha.
@@ -530,7 +530,7 @@ O Autor (e o Parceiro, se o modelo for crítico) lê exatamente três coisas.
 | # | Pergunta                                                                              | O que estou procurando                                                                                                                                    |
 | - | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1 | O grain da spec é o grain desejado?                                                   | Verificar se a definição de "uma linha" faz sentido para o negócio.                                                                                        |
-| 2 | O pré-registro é estreito o bastante para poder falhar? O motivo justifica o intervalo? | Um pré-registro que diz `delta_linhas: {min: -999999, max: 999999}` é inútil — ele nunca falha. O intervalo deve ser apertado o suficiente para pegar erros reais. |
+| 2 | O pré-registro é estreito o bastante para poder falhar? O motivo justifica o intervalo? | Um pré-registro que diz `row_delta: {min: -999999, max: 999999}` é inútil — ele nunca falha. O intervalo deve ser apertado o suficiente para pegar erros reais. |
 | 3 | Os `expect` dos unit tests dizem o mesmo que as bordas da spec?                        | Verificar se o agente traduziu as bordas da spec corretamente nos testes.                                                                                  |
 
 **Regras de aprovação:**
