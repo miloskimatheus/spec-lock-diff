@@ -358,10 +358,42 @@ def check_prereg_consistency(project):
                 if column not in model.columns]
     return out
 
+# --- check: the uniqueness test the primary key must have (README §2 Rule 2) ---
+
+def _blocks(cfg):
+    """A test only counts when it can fail the build: enabled, and severity error."""
+    return (cfg.get("enabled", True) is True
+            and str(cfg.get("severity", "error")).lower() == "error")
+
+def check_pk_test(project):
+    """README §2 Rule 2 — "The agent creates a uniqueness test on the spec's primary_key"."""
+    # The forms of uniqueness test this rule accepts. To accept another one, add
+    # its name here and add a passing fixture under tests/fixtures/check/.
+    ACCEPTED_PK_TESTS = ("unique", "unique_combination_of_columns",
+                         "dbt_utils.unique_combination_of_columns")
+    out = []
+    for model in _sorted_models(project):
+        spec = model.spec if isinstance(model.spec, dict) else {}
+        keys = _strings(spec.get("primary_key")) if model.is_marts else None
+        if not keys:
+            continue
+        covered = False
+        for column, name, args, cfg in model.tests:
+            if name not in ACCEPTED_PK_TESTS or not _blocks(cfg):
+                continue
+            combination = json.loads(args).get("combination_of_columns")
+            covered = covered or ([column] == keys if name == "unique"
+                                  else set(_strings(combination) or []) == set(keys))
+        if not covered:
+            out.append(block(model.file, model.name, "no uniqueness test on primary key "
+                             "[%s]; accepted forms: %s"
+                             % (", ".join(keys), ", ".join(ACCEPTED_PK_TESTS)), "T1"))
+    return out
+
 # --- Rule registries. A rule is one function: context in, findings out. ---
 
 CHECK_RULES = [check_spec_present, check_spec_schema, check_spec_consistency,
-               check_prereg_schema, check_prereg_consistency]
+               check_prereg_schema, check_prereg_consistency, check_pk_test]
 GATE_RULES = []
 COMPARE_RULES = []
 

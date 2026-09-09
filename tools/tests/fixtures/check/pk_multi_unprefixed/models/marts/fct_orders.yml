@@ -1,0 +1,18 @@
+version: 2
+
+models:
+  - name: fct_orders
+    meta:
+      spec:
+        grain: "one row per order per day"
+        primary_key: [order_id, date_day]
+        tier: standard
+        metrics: {}
+        known_edges: []
+        sensitive_columns: []
+    tests:
+      - unique_combination_of_columns:
+          combination_of_columns: [date_day, order_id]
+    columns:
+      - name: order_id
+      - name: date_day
