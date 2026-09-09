@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 942 208" width="942" height="208" role="img" aria-label="Um humano escreve a spec, o agente roda dentro de um cercado construído pela Plataforma, um humano lê o diff" font-family='"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace'>
+<title>Um humano escreve a spec, o agente roda dentro de um cercado construído pela Plataforma, um humano lê o diff</title>
+
+<rect x="317" y="14" width="308" height="180" fill="none" stroke="#e6edf3" stroke-width="2" opacity=".8"/>
+<text x="471" y="40" text-anchor="middle" font-size="10" letter-spacing="2" fill="#e6edf3" opacity=".55">PLATAFORMA</text>
+<text x="471" y="60" text-anchor="middle" font-size="10.5" fill="#e6edf3" opacity=".72">prepara e protege o ecossistema</text>
+<text x="471" y="76" text-anchor="middle" font-size="10.5" fill="#e6edf3" opacity=".72">antes de soltar o agente dentro dele</text>
+
+<rect x="347" y="94" width="248" height="84" fill="none" stroke="#DE93EC" stroke-width="1.8" stroke-dasharray="5 3"/>
+<text x="471" y="132" text-anchor="middle" font-size="19" font-weight="600" letter-spacing="1.4" fill="#DE93EC">AGENTE</text>
+<text x="471" y="158" text-anchor="middle" font-size="10.5" fill="#DE93EC" opacity=".85">pré-registro · código · testes</text>
+
+<g fill="none" stroke="#6FB6F5" stroke-width="2">
+<rect x="1" y="76" width="256" height="84"/><rect x="685" y="76" width="256" height="84"/>
+<path d="M257 118h44M641 118h44"/><path d="M293 113l8 5-8 5M677 113l8 5-8 5"/></g>
+
+<text x="129" y="108" text-anchor="middle" font-size="19" font-weight="600" letter-spacing="1.4" fill="#6FB6F5">HUMANO</text>
+<text x="129" y="131" text-anchor="middle" font-size="13" fill="#6FB6F5">Autor</text>
+<text x="129" y="150" text-anchor="middle" font-size="10.5" fill="#6FB6F5" opacity=".8">escreve a spec</text>
+<text x="813" y="108" text-anchor="middle" font-size="19" font-weight="600" letter-spacing="1.4" fill="#6FB6F5">HUMANO</text>
+<text x="813" y="131" text-anchor="middle" font-size="13" fill="#6FB6F5">Autor ou Parceiro</text>
+<text x="813" y="150" text-anchor="middle" font-size="10.5" fill="#6FB6F5" opacity=".8">lê o diff</text>
+</svg>

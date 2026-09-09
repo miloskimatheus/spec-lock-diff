@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 120" width="660" height="120" role="img" aria-label="Spec · Lock · Diff" font-family='"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace'>
+<title>Spec · Lock · Diff</title>
+
+<g stroke="#1f2328" fill="none" stroke-width="1.4" opacity=".85"><path d="M0 22h660M0 98h660"/></g>
+<g stroke="#1f2328" fill="none" stroke-width="1" stroke-dasharray="2 3" opacity=".42"><path d="M179 22v76M330 22v76M482 22v76"/></g>
+<g stroke="#1f2328" fill="none" stroke-width="1.4" opacity=".85">
+<path d="M173 16v12M185 16v12M324 16v12M336 16v12M476 16v12M488 16v12"/>
+<path d="M173 92v12M185 92v12M324 92v12M336 92v12M476 92v12M488 92v12"/></g>
+<text x="330" y="70" text-anchor="middle" font-size="36" font-weight="600" letter-spacing="-.5" fill="#1f2328">SPEC · LOCK · DIFF</text>
+</svg>

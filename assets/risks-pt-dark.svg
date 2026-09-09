@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 942 162" width="942" height="162" role="img" aria-label="Três riscos: resultados errados que parecem certos, vazamento de dados sensíveis, custos financeiros inesperados" font-family='"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace'>
+<title>Três riscos: resultados errados que parecem certos, vazamento de dados sensíveis, custos financeiros inesperados</title>
+<rect x="1" y="1" width="294" height="160" fill="none" stroke="#E58174" stroke-width="1.6"/>
+<text x="26" y="44" font-size="16" font-weight="600" fill="#E58174">i.</text>
+<g transform="translate(233 25)" stroke="#E58174" stroke-width="2.2" fill="none"><path d="M2 20l7 7 15-17" stroke-linecap="round" stroke-linejoin="round"/><path d="M0 33h30" stroke-dasharray="3 3"/></g>
+<text x="26" y="106" font-size="21" font-weight="600" fill="#e6edf3">resultados errados</text>
+<text x="26" y="136" font-size="21" font-weight="600" fill="#e6edf3">que parecem certos</text>
+<rect x="323" y="1" width="294" height="160" fill="none" stroke="#E58174" stroke-width="1.6"/>
+<text x="348" y="44" font-size="16" font-weight="600" fill="#E58174">ii.</text>
+<g transform="translate(555 25)" stroke="#E58174" stroke-width="2.2" fill="none"><path d="M1 15s6-10 14-10 14 10 14 10-6 10-14 10S1 15 1 15z"/><circle cx="15" cy="15" r="4" fill="none"/><path d="M3 30L27 2" stroke-linecap="round"/></g>
+<text x="348" y="106" font-size="21" font-weight="600" fill="#e6edf3">vazamento de</text>
+<text x="348" y="136" font-size="21" font-weight="600" fill="#e6edf3">dados sensíveis</text>
+<rect x="645" y="1" width="294" height="160" fill="none" stroke="#E58174" stroke-width="1.6"/>
+<text x="670" y="44" font-size="16" font-weight="600" fill="#E58174">iii.</text>
+<g transform="translate(877 25)" stroke="#E58174" stroke-width="2.2" fill="none"><path d="M1 30L10 18l7 7L29 2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 2h7v7" stroke-linecap="round" stroke-linejoin="round"/></g>
+<text x="670" y="106" font-size="21" font-weight="600" fill="#e6edf3">custos financeiros</text>
+<text x="670" y="136" font-size="21" font-weight="600" fill="#e6edf3">inesperados</text>
+</svg>

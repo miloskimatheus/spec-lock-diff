@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 942 162" width="942" height="162" role="img" aria-label="Three risks: wrong results that look right, leakage of sensitive data, unexpected financial costs" font-family='"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace'>
+<title>Three risks: wrong results that look right, leakage of sensitive data, unexpected financial costs</title>
+<rect x="1" y="1" width="294" height="160" fill="none" stroke="#A3231A" stroke-width="1.6"/>
+<text x="26" y="44" font-size="16" font-weight="600" fill="#A3231A">i.</text>
+<g transform="translate(233 25)" stroke="#A3231A" stroke-width="2.2" fill="none"><path d="M2 20l7 7 15-17" stroke-linecap="round" stroke-linejoin="round"/><path d="M0 33h30" stroke-dasharray="3 3"/></g>
+<text x="26" y="106" font-size="21" font-weight="600" fill="#1f2328">wrong results</text>
+<text x="26" y="136" font-size="21" font-weight="600" fill="#1f2328">that look right</text>
+<rect x="323" y="1" width="294" height="160" fill="none" stroke="#A3231A" stroke-width="1.6"/>
+<text x="348" y="44" font-size="16" font-weight="600" fill="#A3231A">ii.</text>
+<g transform="translate(555 25)" stroke="#A3231A" stroke-width="2.2" fill="none"><path d="M1 15s6-10 14-10 14 10 14 10-6 10-14 10S1 15 1 15z"/><circle cx="15" cy="15" r="4" fill="none"/><path d="M3 30L27 2" stroke-linecap="round"/></g>
+<text x="348" y="106" font-size="21" font-weight="600" fill="#1f2328">leakage of</text>
+<text x="348" y="136" font-size="21" font-weight="600" fill="#1f2328">sensitive data</text>
+<rect x="645" y="1" width="294" height="160" fill="none" stroke="#A3231A" stroke-width="1.6"/>
+<text x="670" y="44" font-size="16" font-weight="600" fill="#A3231A">iii.</text>
+<g transform="translate(877 25)" stroke="#A3231A" stroke-width="2.2" fill="none"><path d="M1 30L10 18l7 7L29 2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 2h7v7" stroke-linecap="round" stroke-linejoin="round"/></g>
+<text x="670" y="106" font-size="21" font-weight="600" fill="#1f2328">unexpected</text>
+<text x="670" y="136" font-size="21" font-weight="600" fill="#1f2328">financial costs</text>
+</svg>

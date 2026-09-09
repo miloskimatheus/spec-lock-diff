@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 942 196" width="942" height="196" role="img" aria-label="O agente declarou um delta de linhas entre 0 e 12000 antes de escrever código; o diff mediu 15000, fora da faixa, então o PR é bloqueado" font-family='"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace'>
+<title>O agente declarou um delta de linhas entre 0 e 12000 antes de escrever código; o diff mediu 15000, fora da faixa, então o PR é bloqueado</title>
+
+<text x="1" y="14" font-size="10" letter-spacing="1.6" fill="#1f2328" opacity=".55">DECLARADO NA ETAPA B, ANTES DE QUALQUER CÓDIGO</text>
+<text x="1" y="34" font-size="12" font-weight="600" fill="#1f2328">row_delta: {min: 0, max: 12000}</text>
+<rect x="201" y="72" width="380" height="30" fill="#0F6B4F" opacity=".13"/>
+<g fill="none" stroke="#0F6B4F" stroke-width="1.8"><path d="M201 64v46M581 64v46"/></g>
+<path d="M61 87h820" fill="none" stroke="#1f2328" stroke-width="1" opacity=".28"/>
+<text x="391" y="60" text-anchor="middle" font-size="10" letter-spacing="1.4" fill="#0F6B4F">INTERVALO DECLARADO — PASSARIA</text>
+<path d="M691 62v50" fill="none" stroke="#A3231A" stroke-width="2.6"/>
+<circle cx="691" cy="87" r="5" fill="#A3231A"/>
+<text x="691" y="54" text-anchor="middle" font-size="11.5" font-weight="600" fill="#A3231A">medido pelo diff: 15000</text>
+<g font-size="10.5" text-anchor="middle" fill="#1f2328" opacity=".6">
+<text x="201" y="126">min 0</text><text x="581" y="126">max 12000</text></g>
+<rect x="629" y="146" width="124" height="30" fill="none" stroke="#A3231A" stroke-width="1.6"/>
+<text x="691" y="166" text-anchor="middle" font-size="12.5" font-weight="600" letter-spacing="1.4" fill="#A3231A">PR BLOQUEADO</text>
+<text x="1" y="166" font-size="10.5" fill="#1f2328" opacity=".6">O número caiu fora do intervalo com que</text>
+<text x="1" y="181" font-size="10.5" fill="#1f2328" opacity=".6">o agente se comprometeu — o merge para.</text>
+</svg>
