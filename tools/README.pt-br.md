@@ -143,6 +143,22 @@ As duas saídas são copiadas de `tests/fixtures/check/spec_ok` e
 `--project-dir`. As mensagens saem em inglês: elas são lidas em log de CI, onde
 o inglês é a língua franca, e o mesmo texto aparece em qualquer time.
 
+**O que conta como teste.** A `T1` só aceita um teste de unicidade que possa
+reprovar o build. Um teste `enabled: false`, ou `severity: warn`, ou estreitado
+por `where`, `error_if`, `warn_if`, `fail_calc` ou `limit` roda e reporta
+aprovação faça o dado o que fizer — um `unique` com `where: "1 = 0"` não olha
+linha nenhuma. O framework torna esse teste obrigatório; um teste obrigatório
+que não pode reprovar é um quadradinho marcado, então o `check` diz qual desses
+casos encontrou:
+
+```
+BLOCK	models/marts/fct_orders.yml	fct_orders	the uniqueness test on primary key [order_id] cannot fail the build: it sets where	[T1]
+```
+
+Isso é `T1` e não uma regra do `gate` de propósito: o `gate` compara um teste
+com a versão anterior dele mesmo, e um teste escrito assim num modelo novo não
+tem versão anterior para ser mais fraco que ela.
+
 **Como mudar.** Para exigir um campo novo na spec, adicione ao
 `schemas/spec.schema.json` com uma `description` escrita como exigência — essa
 description é a frase que a ferramenta imprime — e adicione uma fixture válida e

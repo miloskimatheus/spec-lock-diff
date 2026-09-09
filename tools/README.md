@@ -142,6 +142,21 @@ Both are copied from `tests/fixtures/check/spec_ok` and
 `tests/fixtures/check/pk_single_missing`; you can run them yourself with
 `--project-dir`.
 
+**What counts as a test.** `T1` only accepts a uniqueness test that can fail
+the build. A test that is `enabled: false`, or `severity: warn`, or narrowed by
+`where`, `error_if`, `warn_if`, `fail_calc` or `limit`, runs and reports a pass
+whatever the data does — `unique` with `where: "1 = 0"` looks at no rows at
+all. The framework makes this one test mandatory; a mandatory test that cannot
+fail is a box ticked, so `check` says which of those it found:
+
+```
+BLOCK	models/marts/fct_orders.yml	fct_orders	the uniqueness test on primary key [order_id] cannot fail the build: it sets where	[T1]
+```
+
+That is `T1` and not a `gate` rule on purpose: `gate` compares a test against
+its earlier self, and a test written this way on a new model has no earlier
+self to be weaker than.
+
 **How to change it.** To require a new spec field, add it to
 `schemas/spec.schema.json` with a `description` written as a requirement — that
 description is the sentence the tool prints — and add one valid and one invalid

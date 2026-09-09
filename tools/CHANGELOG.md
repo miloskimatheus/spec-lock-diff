@@ -17,7 +17,7 @@ Three commands in one file, no model, no network, no warehouse.
 | `S4` | a `.sql` file in a marts path that no yml declares as a model: it has no spec to check, and every other rule passes it in silence |
 | `P1` | a pre-registration that does not match `schemas/pre_registration.schema.json`, including the open interval the README calls invalid |
 | `P2` | a min above its max, a metric the spec never defined, a spec metric with no interval, an altered column the model does not declare, a pre-registration on a model with no spec |
-| `T1` | no uniqueness test on the spec's primary key, or one that cannot fail the build |
+| `T1` | no uniqueness test on the spec's primary key, or one that cannot fail the build: disabled, `severity: warn`, or narrowed by `where`, `error_if`, `warn_if`, `fail_calc` or `limit` |
 
 ### `gate` — the lock (README §2 Control 5B, §1 Principle 1)
 

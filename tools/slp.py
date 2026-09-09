@@ -260,13 +260,10 @@ def read_doc(doc, rel, marts=MARTS):
         units.append(UnitTest(name, entry.get("model") or "", rel, entry))
     return models, units
 
-def _dirs(marts):
-    """The marts paths as prefixes a relative path can be tested against."""
-    return tuple(p.strip("/") + "/" for p in marts)
-
-def _tops(marts):
-    """The directories that hold the marts paths: where the yml files are looked for."""
-    return sorted(set(p.split("/")[0] for p in _dirs(marts)))
+def _dirs(marts, top=False):
+    """The marts paths as prefixes, or the directories that hold them - where yml is read from."""
+    paths = tuple(p.strip("/") + "/" for p in marts)
+    return tuple(sorted(set(p.split("/")[0] + "/" for p in paths))) if top else paths
 
 def read_project(project_dir, marts=MARTS):
     """Read the model yml into models and unit tests. No git, no dbt, no warehouse."""
@@ -279,7 +276,7 @@ def read_project(project_dir, marts=MARTS):
     for path in sorted(p for top in _dirs(marts) for p in (root / top).rglob("*.sql")
                        if p.is_file()):
         files[path.stem] = path.relative_to(root).as_posix()
-    for path in sorted(p for top in _tops(marts) for p in (root / top).rglob("*")
+    for path in sorted(p for top in _dirs(marts, True) for p in (root / top).rglob("*")
                        if p.suffix in (".yml", ".yaml") and p.is_file()):
         rel = path.relative_to(root).as_posix()
         found, unit_tests = read_doc(load_yaml(path), rel, marts)
@@ -399,10 +396,23 @@ def check_prereg_consistency(project):
 
 # --- check: the uniqueness test the primary key must have (README §2 Rule 2) ---
 
+# Config keys that stop a test from failing even while it is enabled and severe:
+# a filter that removes the rows it would have caught, or a threshold it never
+# reaches. dbt runs the test either way and reports a pass.
+MUTE_KEYS = ("where", "error_if", "warn_if", "fail_calc", "limit")
+
+def _muted(cfg):
+    """Why a test cannot fail the build, in one clause, or "" when it can."""
+    if cfg.get("enabled", True) is not True:
+        return "it is disabled"
+    if str(cfg.get("severity", "error")).lower() != "error":
+        return "its severity is %s" % cfg.get("severity")
+    narrowed = [key for key in MUTE_KEYS if key in cfg]
+    return "it sets %s" % ", ".join(narrowed) if narrowed else ""
+
 def _blocks(cfg):
-    """A test only counts when it can fail the build: enabled, and severity error."""
-    return (cfg.get("enabled", True) is True
-            and str(cfg.get("severity", "error")).lower() == "error")
+    """A test only counts when it can fail the build."""
+    return not _muted(cfg)
 
 def check_pk_test(project):
     """README §2 Rule 2 — "The agent creates a uniqueness test on the spec's primary_key"."""
@@ -416,17 +426,22 @@ def check_pk_test(project):
         keys = _strings(spec.get("primary_key")) if model.is_marts else None
         if not keys:
             continue
-        covered = False
+        covered, muted = False, ""
         for column, name, args, cfg in model.tests:
-            if name not in ACCEPTED_PK_TESTS or not _blocks(cfg):
+            if name not in ACCEPTED_PK_TESTS:
                 continue
             combination = json.loads(args).get("combination_of_columns")
-            covered = covered or ([column] == keys if name == "unique"
-                                  else set(_strings(combination) or []) == set(keys))
-        if not covered:
-            out.append(block(model.file, model.name, "no uniqueness test on primary key "
-                             "[%s]; accepted forms: %s"
-                             % (", ".join(keys), ", ".join(ACCEPTED_PK_TESTS)), "T1"))
+            if not ([column] == keys if name == "unique"
+                    else set(_strings(combination) or []) == set(keys)):
+                continue
+            covered, muted = covered or _blocks(cfg), muted or _muted(cfg)
+        if covered:
+            continue
+        out.append(block(model.file, model.name,
+                         "the uniqueness test on primary key [%s] cannot fail the build: %s"
+                         % (", ".join(keys), muted) if muted else
+                         "no uniqueness test on primary key [%s]; accepted forms: %s"
+                         % (", ".join(keys), ", ".join(ACCEPTED_PK_TESTS)), "T1"))
     return out
 
 # --- gate: the two states it compares, as git sees them (README §2 Control 5B) ---
@@ -472,10 +487,10 @@ def inventory(root, commit, full=True, marts=MARTS):
     inv = {"tests": {}, "files": {}, "units": {}, "specs": {}, "preregs": {},
            "models": {}, "recons": {}, "packages": {}, "where": {}}
     listing = git(root, "ls-tree", "-r", "-z", "--name-only", commit, "--",
-                  *(_tops(marts) + ["tests", "analyses"] + list(PKG_FILES)))
+                  *(_dirs(marts, True) + ("tests", "analyses") + PKG_FILES))
     sql = {}
     for path in sorted(p for p in listing.split("\0") if p):
-        if path.startswith(tuple(_tops(marts))) and path.endswith((".yml", ".yaml")):
+        if path.startswith(_dirs(marts, True)) and path.endswith((".yml", ".yaml")):
             text = git(root, "show", "%s:%s" % (commit, path))
             models, units = read_doc(parse_yaml(text, "%s at %s" % (path, commit[:8])),
                                      path, marts)
@@ -494,7 +509,7 @@ def inventory(root, commit, full=True, marts=MARTS):
                 inv["units"][(unit.model, unit.name)] = (unit.file, unit.model, _canon(body))
         elif not full:
             continue
-        elif path.startswith(tuple(_tops(marts))) and path.endswith(".sql"):
+        elif path.startswith(_dirs(marts, True)) and path.endswith(".sql"):
             sql[path.rsplit("/", 1)[-1][:-4]] = _sha(git(root, "show", "%s:%s" % (commit, path)))
         elif path.startswith("tests/"):
             inv["files"][path] = _sha(git(root, "show", "%s:%s" % (commit, path)))
@@ -777,11 +792,11 @@ def _drift(numbers):
     outside = numbers["external_value"]
     return None if outside == 0 else abs(numbers["model_value"] - outside) / abs(outside) * 100
 
-def _band(low, high):
-    """How wide an interval is - the number Stage E asks the reviewer to judge."""
-    width = high - low
-    return " (a band %s wide)" % ("%g" % width if isinstance(width, float) else width) \
-        if width else " (a band that pins it to one value)"
+def _band(interval):
+    """The band declared for a number and how wide it is: what Stage E asks the reviewer to judge."""
+    low, high = _interval(interval)
+    return "declared %s..%s (a band %s)" % (low, high, "%g wide" % (high - low)
+                                            if high != low else "that pins it to one value")
 
 def compare_reconciliation(ctx):
     """README §3 Stage E step 4 — "If the difference is greater than the tolerance, the PR is blocked"."""
@@ -799,11 +814,11 @@ def compare_reconciliation(ctx):
     if not (isinstance(allowed, str) and re.match(r"^[0-9]+(\.[0-9]+)?%$", allowed)):
         return [block(ctx.file, ctx.name, "reconciliation numbers given, and the spec declares "
                       "no reconciliation_tolerance to read them against", "C6")]
-    measured, outside = numbers["model_value"], numbers["external_value"]
-    said = "the model says %s and the source of truth says %s" % (measured, outside)
     drift = _drift(numbers)
-    if drift is None:
-        if measured == 0:
+    said = "the model says %s and the source of truth says %s" \
+        % (numbers["model_value"], numbers["external_value"])
+    if drift is None:  # nothing to take a percentage of; only an exact match passes
+        if numbers["model_value"] == 0:
             return []
         return [block(ctx.file, ctx.name, "reconciliation: %s; no percentage makes that "
                       "difference small" % said, "C6")]
@@ -819,23 +834,21 @@ def compare_summary(ctx):
     pre, data, out = ctx.model.prereg, ctx.data, []
     say = lambda text: out.append(info(ctx.file, ctx.name, text, "I2"))
     say("declared as a %s, because: %s" % (pre["type"], pre["reason"]))
-    low, high = _interval(pre["row_delta"])
-    say("row_delta %s, declared %s..%s%s" % (data["row_delta"], low, high, _band(low, high)))
+    say("row_delta %s, %s" % (data["row_delta"], _band(pre["row_delta"])))
     say("removed_pks %s, declared at most %s" % (data["removed_pks"], pre["removed_pks"]["max"]))
     for name in sorted(pre["metrics"]):
-        low, high = _interval(pre["metrics"][name]["delta_pct"])
-        say("metric %s moved %s percent, declared %s..%s%s"
+        say("metric %s moved %s percent, %s"
             % (name, (data["metrics"].get(name) or {}).get("delta_pct"),
-               low, high, _band(low, high)))
+               _band(pre["metrics"][name]["delta_pct"])))
     say("altered columns measured [%s], declared [%s]"
         % (", ".join(sorted(data["altered_columns"])), ", ".join(sorted(pre["altered_columns"]))))
     numbers = data.get("reconciliation")
     if numbers is not None:
         drift = _drift(numbers)
-        say("reconciliation: model %s against source of truth %s, a difference of %s, and "
-            "the spec allows %s" % (numbers["model_value"], numbers["external_value"],
-                                    "no percentage" if drift is None else "%.4g percent" % drift,
-                                    (ctx.model.spec or {}).get("reconciliation_tolerance")))
+        say("reconciliation: model %s against source of truth %s, a difference of %s, and the "
+            "spec allows %s" % (numbers["model_value"], numbers["external_value"],
+                                "no percentage" if drift is None else "%.4g percent" % drift,
+                                (ctx.model.spec or {}).get("reconciliation_tolerance")))
     if not isinstance(data.get("window"), dict):
         say("this diff declares no window; README §3 Stage E step 2 asks for a closed "
             "event_time window identical on both sides, and nothing here can check that")
@@ -878,18 +891,19 @@ def apply_rules(rules, context):
 
 # --- Command line ---
 
-def _checked(project, marts):
-    """What check actually held to the framework: the marts models, of all it read."""
-    inside = sum(1 for m in project.models.values() if m.is_marts)
-    return "%s in %s, of %s read" % (_count(inside, "model") or "no model",
-                                     ", ".join(_dirs(marts)),
-                                     _count(len(project.models), "model") or "none")
-
 def cmd_check(args):
-    """check: read the project, run the check rules, print what they found."""
+    """check: read the project, run the check rules, print what they found.
+
+    The note says how many models were held to the framework and how many were
+    read at all. Only the first is coverage, and a count of everything reads
+    like one.
+    """
     project = read_project(args.project_dir, args.marts_path)
-    return report(apply_rules(CHECK_RULES, project), "check",
-                  _checked(project, args.marts_path))
+    inside = sum(1 for m in project.models.values() if m.is_marts)
+    return report(apply_rules(CHECK_RULES, project), "check", "%s in %s, of %s read"
+                  % (_count(inside, "model") or "no model",
+                     ", ".join(_dirs(args.marts_path)),
+                     _count(len(project.models), "model") or "none"))
 
 def cmd_gate(args):
     """gate: compare the merge-base with head, and walk the commits between them."""
