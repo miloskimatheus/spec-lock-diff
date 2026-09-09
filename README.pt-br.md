@@ -195,7 +195,7 @@ Timeout por query:
 Crie um job semanal que:
 
 1. Roda com a role `agent_ci`.
-2. Para cada modelo dbt, gera um arquivo em `docs/perfil/<nome_do_modelo>.yml`.
+2. Para cada modelo dbt, gera um arquivo em `docs/profile/<nome_do_modelo>.yml`.
 3. Cada arquivo contém, por coluna:
     - Contagem total de linhas.
     - Percentual de nulos.
@@ -204,7 +204,7 @@ Crie um job semanal que:
 4. O perfil **não contém**: valores mínimos, valores máximos, amostras de dados, exemplos de linhas.
 
 ```yaml
-# docs/perfil/fct_orders.yml — regerado semanalmente, lido pelo agente
+# docs/profile/fct_orders.yml — regerado semanalmente, lido pelo agente
 order_id:       {linhas: 1284003, nulos: 0.0%, distintos: 1284003}
 customer_id:    {linhas: 1284003, nulos: 0.0%, distintos: 84120}
 status:         {linhas: 1284003, nulos: 0.0%, distintos: 6,
@@ -213,7 +213,7 @@ customer_email: {linhas: 1284003, nulos: 1.2%, distintos: 83904}
 # sem mínimos, sem máximos, sem amostras, sem exemplos de linhas
 ```
 
-Quando o agente precisa entender a estrutura de um dado, ele consulta `docs/perfil/`. Ele nunca roda queries exploratórias no warehouse.
+Quando o agente precisa entender a estrutura de um dado, ele consulta `docs/profile/`. Ele nunca roda queries exploratórias no warehouse.
 
 ---
 
@@ -239,7 +239,7 @@ Quando o agente precisa entender a estrutura de um dado, ele consulta `docs/perf
 | `tests/`                                     | Testes genéricos.                                                                                                             |
 | `analyses/reconciliation_*`                  | Queries de reconciliação. Se o agente mudar a reconciliação no mesmo PR do modelo, ele controla o que está sendo verificado.  |
 | `models/semantic/`                           | Definições de métricas. Uma métrica errada propaga erro para todos os consumidores.                                           |
-| `docs/perfil/`                               | Perfis estatísticos. Se o agente mudar o perfil, ele muda sua própria referência.                                             |
+| `docs/profile/`                              | Perfis estatísticos. Se o agente mudar o perfil, ele muda sua própria referência.                                             |
 | Modelos incrementais (listar explicitamente) | Modelos incrementais são mais complexos e frágeis.                                                                            |
 | Diretórios de modelos críticos               | O dono do CODEOWNERS deve ser o data owner do domínio.                                                                        |
 
