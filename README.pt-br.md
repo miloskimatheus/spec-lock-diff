@@ -255,6 +255,7 @@ Um script que roda em CI sobre os commits feitos pelo bot. É o único script cu
 | Valor `expect` alterado em um teste existente         | Se o agente muda o resultado esperado, qualquer resultado vira "correto".                                                                        |
 | `analyses/reconciliation_*` alterado no mesmo PR do modelo     | O agente não pode mudar o modelo E a reconciliação que verifica o modelo no mesmo PR. Seria como um aluno escrevendo a prova e o gabarito.        |
 | Pin de pacote alterado                                | Mudar versões de dependências pode introduzir comportamentos diferentes.                                                                         |
+| Teste **adicionado** que não pode falhar               | Um teste que já nasce `enabled: false`, `severity: warn`, ou com um limiar que ele nunca alcança aparece no diff como trabalho feito e reporta aprovação faça o dado o que fizer. Um teste novo não pode ser *enfraquecido* — ele não tem um eu anterior —, então a regra sobre testes existentes nunca o vê. Um filtro (`where`) num teste novo é reportado, não bloqueado: pode ser recorte legítimo, e quais linhas ele remove é leitura de humano. |
 
 **Opcional (camada extra de proteção):** Se o agente suportar hooks antes de executar ferramentas (ex: `PreToolUse` no Claude Code), configure um hook que recusa a escrita em paths protegidos na hora — antes mesmo do commit.
 

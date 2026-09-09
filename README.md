@@ -255,6 +255,7 @@ A script that runs in CI on the commits made by the bot. It is the only custom s
 | `expect` value changed in an existing test                      | If the agent changes the expected result, any result becomes "correct".                                                                                          |
 | `analyses/reconciliation_*` changed in the same PR as the model | The agent cannot change the model AND the reconciliation that verifies the model in the same PR. It would be like a student writing the exam and the answer key. |
 | Package pin changed                                             | Changing dependency versions can introduce different behaviors.                                                                                                  |
+| A test **added** that cannot fail                                | A test born `enabled: false`, `severity: warn`, or with a threshold it never reaches appears in the diff as work done and reports a pass whatever the data does. A new test cannot be *weakened* — it has no earlier self — so the rule about existing tests never sees it. A filter (`where`) on a new test is reported rather than blocked: it may be scoping, and which rows it removes is a human's reading. |
 
 **Optional (extra layer of protection):** If the agent supports hooks before executing tools (e.g., `PreToolUse` in Claude Code), configure a hook that refuses writing to protected paths on the spot — even before the commit.
 

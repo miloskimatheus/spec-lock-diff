@@ -41,11 +41,11 @@ CFG_KEYS = ("enabled", "error_if", "fail_calc", "limit", "severity",
 # Every rule id these tools can print. The README coverage table has one row per
 # id and the fixtures one folder per id; meta-test M2 keeps the three in step.
 RULE_IDS = ("S1", "S2", "S3", "S4", "P1", "P2", "T1",
-            "G1", "G2", "G3", "G4", "G5", "G6", "G7", "I1",
+            "G1", "G2", "G3", "G4", "G5", "G6", "G7", "I1", "I3",
             "C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "I2")
 # Rules that only ever inform. The README asks for what they say to be visible,
 # not for it to stop the pull request, so they never raise the exit code.
-INFO_RULES = ("I1", "I2")
+INFO_RULES = ("I1", "I2", "I3")
 
 
 class SlpError(Exception):
@@ -402,17 +402,21 @@ def check_prereg_consistency(project):
 # --- check: the uniqueness test the primary key must have (README §2 Rule 2) ---
 
 # Config keys that stop a test from failing even while it is enabled and severe:
-# a filter that removes the rows it would have caught, or a threshold it never
-# reaches. dbt runs the test either way and reports a pass.
-MUTE_KEYS = ("where", "error_if", "warn_if", "fail_calc", "limit")
+# a threshold it never reaches, or rows it never looks at. dbt runs the test
+# either way and reports a pass. DEAD_KEYS are the ones that can only ever mute;
+# a `where` is the one that might instead be honest scoping, so it is held apart
+# - T1 refuses it on the one test the framework makes mandatory, and I3 shows it
+# to the human on every test a branch adds.
+DEAD_KEYS = ("error_if", "warn_if", "fail_calc", "limit")
+MUTE_KEYS = ("where",) + DEAD_KEYS
 
-def _muted(cfg):
+def _muted(cfg, keys=MUTE_KEYS):
     """Why a test cannot fail the build, in one clause, or "" when it can."""
     if cfg.get("enabled", True) is not True:
         return "it is disabled"
     if str(cfg.get("severity", "error")).lower() != "error":
         return "its severity is %s" % cfg.get("severity")
-    narrowed = [key for key in MUTE_KEYS if key in cfg]
+    narrowed = [key for key in keys if key in cfg]
     return "it sets %s" % ", ".join(narrowed) if narrowed else ""
 
 def _blocks(cfg):
@@ -633,7 +637,7 @@ def _sev(cfg):
     return str(cfg.get("severity", "error")).lower()
 
 def gate_test_severity(ctx):
-    """README §2 Control 5B — "severity downgraded (e.g., error → warn)": turning an error into a warning makes CI pass, but the problem remains."""
+    """README §2 Control 5B — "severity downgraded (e.g., error → warn)" and "a test added that cannot fail": a test that reports a pass whatever the data does is not a test, whether this branch made it that way or wrote it that way."""
     out = []
     before, after = _by3(ctx.before), _by3(ctx.after)
     for key in sorted(after):
@@ -645,14 +649,32 @@ def gate_test_severity(ctx):
             # Every declaration this branch did not inherit unchanged, held
             # against the bag of declarations it could have come from.
             for new in [cfg for cfg in after[key][args] if cfg not in was]:
+                if not was:  # born this way, and every reason it cannot fail counts
+                    why = _muted(new, DEAD_KEYS)
+                    if why:
+                        out.append(block(file, key[0], said + "is new and cannot fail the "
+                                         "build: %s" % why, "G3"))
+                    continue
                 if _sev(new) == "warn" and not any(_sev(cfg) == "warn" for cfg in was):
-                    out.append(block(file, key[0], said + ("is new and only warns" if not was
-                                     else "was downgraded from error to warn")
-                                     + ", so it cannot block", "G3"))
-                for name in ("error_if", "warn_if", "fail_calc"):
+                    out.append(block(file, key[0], said + "was downgraded from error to warn, "
+                                     "so it cannot block", "G3"))
+                for name in DEAD_KEYS:
                     if name in new and not any(cfg.get(name) == new[name] for cfg in was):
                         out.append(block(file, key[0], said + "sets %s, which changes what "
                                          "counts as failing" % name, "G3"))
+    return out
+
+def gate_test_narrowed(ctx):
+    """README §2 Control 5B — "WHERE or exclusion clause added to a test": a test this branch adds has no earlier self to be weaker than, and still asserts nothing about the rows its filter removes. Whether those are rows that cannot fail or rows that would have is a reading, so this one is shown and not blocked."""
+    out = []
+    before, after = _by3(ctx.before), _by3(ctx.after)
+    for key in sorted(after):
+        for args in sorted(after[key]):
+            if before.get(key, {}).get(args):
+                continue
+            out += [info(_file(ctx, key[0]), key[0], "test '%s' on %s is new and skips rows "
+                         "with where: %s" % (key[2], _named(key[0], key[1]), cfg["where"]), "I3")
+                    for cfg in after[key][args] if cfg.get("where") is not None]
     return out
 
 def gate_unit_test_changed(ctx):
@@ -907,8 +929,8 @@ CHECK_RULES = [check_spec_present, check_model_declared, check_spec_schema,
                check_spec_consistency,
                check_prereg_schema, check_prereg_consistency, check_pk_test]
 GATE_RULES = [gate_test_removed, gate_test_filter, gate_test_severity,
-              gate_unit_test_changed, gate_recon_with_model, gate_packages,
-              gate_spec_changed, gate_prereg_counter]
+              gate_test_narrowed, gate_unit_test_changed, gate_recon_with_model,
+              gate_packages, gate_spec_changed, gate_prereg_counter]
 COMPARE_RULES = [compare_contract, compare_rows, compare_removed_pks,
                  compare_columns, compare_metrics, compare_refactoring,
                  compare_reconciliation, compare_summary]

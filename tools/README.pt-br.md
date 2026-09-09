@@ -237,6 +237,19 @@ inteiro — a caminhada precisa dos commits:
       --head ${{ github.event.pull_request.head.sha }}
 ```
 
+**O que um teste adicionado pela branch pode ser.** A `G2` e a `G3` comparam um
+teste com o eu anterior dele, e um teste escrito nesta branch não tem nenhum —
+então o caminho por fora das duas sempre foi adicionar o teste no mesmo PR. A
+`G3` cobra de um teste novo a mesma linha que de um antigo: `enabled: false`,
+uma `severity` que não é `error`, um `error_if`, um `warn_if`, um `fail_calc` ou
+um `limit` bloqueiam, porque nenhum deles tem leitura em que o teste possa
+falhar. O `where` é o que pode ter: pode ser recorte honesto — uma coluna só
+preenchida depois de uma data de backfill — ou podem ser exatamente as linhas
+que teriam falhado. Nenhuma máquina distingue as duas coisas, então a `I3`
+imprime e quem faz a terceira leitura da Etapa E decide. É o mesmo predicado que
+a `T1` usa, e a `T1` recusa um `where` de saída, porque está julgando o único
+teste que o framework torna obrigatório e não um que o agente escolheu somar.
+
 **Escopo do gate.** O gate julga o PR inteiro, não "os commits do agente". Não
 existe identidade de bot para configurar, e autor de commit é texto que
 qualquer um escreve. O que decorre disso: num PR de agente ninguém enfraquece um
@@ -562,11 +575,12 @@ uma ordem de leitura para elas. A da `I2` é a ordem em que a Etapa E pede que
 os números sejam lidos. Os mesmos arquivos na entrada dão as mesmas linhas na
 saída, na mesma ordem, em qualquer máquina.
 
-Duas regras só informam e nunca mudam o exit code: a `I1`, o contador de
-alterações do pré-registro, e a `I2`, os números em si. O meta-teste **M2**
-confere essa promessa contra o código-fonte, para que uma regra não ganhe um
-`BLOCK` em silêncio. O que elas dizem existe para ser *lido*, e é por isso que
-o `templates/ci.yml` joga os dois comandos no resumo do job.
+Três regras só informam e nunca mudam o exit code: a `I1`, o contador de
+alterações do pré-registro; a `I2`, os números em si; e a `I3`, um filtro num
+teste que esta branch adiciona. O meta-teste **M2** confere essa promessa contra
+o código-fonte, para que uma regra não ganhe um `BLOCK` em silêncio. O que elas
+dizem existe para ser *lido*, e é por isso que o `templates/ci.yml` joga os dois
+comandos no resumo do job.
 
 **Como ler uma rodada.** Três perguntas, nesta ordem.
 
@@ -611,11 +625,12 @@ ferramenta não adivinha qual você quis dizer.
 Uma linha por regra: a frase do README que ela impõe, a fixture em que a regra
 dispara e a fixture em que ela fica calada. O meta-teste **M2** falha se uma
 regra não tem linha aqui, ou se uma linha aponta para uma fixture que não existe
-ou que não faz o que a linha diz. Toda regra bloqueia, menos as duas em
-`INFO_RULES` — a `I1`, contador de alterações do pré-registro, e a `I2`, os
-números em si —, que só informam. O README pede que o que elas dizem esteja
-*visível*, não que pare o PR, e o **M2** confere isso contra o código-fonte,
-para que nenhuma das duas ganhe um `BLOCK` em silêncio.
+ou que não faz o que a linha diz. Toda regra bloqueia, menos as três em
+`INFO_RULES` — a `I1`, contador de alterações do pré-registro; a `I2`, os
+números em si; e a `I3`, um filtro num teste que esta branch adiciona —, que só
+informam. O README pede que o que elas dizem esteja *visível*, não que pare o
+PR, e o **M2** confere isso contra o código-fonte, para que nenhuma das três
+ganhe um `BLOCK` em silêncio.
 
 | README | Regra | Fixture em que dispara | Fixture em que fica calada |
 | --- | --- | --- | --- |
@@ -634,6 +649,7 @@ para que nenhuma das duas ganhe um `BLOCK` em silêncio.
 | §2 Controle 5B — "Pin de pacote alterado" | `G6` | `gate/G6_version_bumped` | `gate/G6_ok_untouched` |
 | §1 Princípio 1, §3 Etapa A — a spec é decidida antes do código | `G7` | `gate/G7_existing_spec_edited` | `gate/G7_ok_new_spec_untouched` |
 | §3 Etapa B — "um contador de alterações é incrementado no PR" | `I1` | `gate/I1_two_edits` | `gate/I1_ok_written_once` |
+| §2 Controle 5B — "`WHERE` ou cláusula de exclusão adicionada a um teste", para um teste que esta branch adiciona | `I3` | `gate/I3_new_test_with_where` | `gate/I3_ok_new_test_plain` |
 | §3 Etapa E passo 3 — o diff e o pré-registro precisam ser legíveis | `C0` | `compare/C0_no_prereg` | `compare/C1_inside` |
 | §3 Etapa E passo 3 — "um número está fora do intervalo declarado" | `C1` | `compare/C1_row_delta_above_max` | `compare/C1_inside` |
 | §3 Etapa E passo 3 — linhas que existem em produção e não na versão nova | `C2` | `compare/C2_removed_pks_over` | `compare/C1_inside` |

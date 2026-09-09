@@ -235,6 +235,19 @@ needs the commits:
       --head ${{ github.event.pull_request.head.sha }}
 ```
 
+**What a test the branch adds is allowed to be.** `G2` and `G3` compare a test
+against its earlier self, and a test written on this branch has none — so for
+years' worth of dbt projects the way past both was to add the test in the same
+PR. `G3` holds a new test to the same line as an old one: `enabled: false`, a
+`severity` that is not `error`, an `error_if`, a `warn_if`, a `fail_calc` or a
+`limit` blocks, because none of those has a reading under which the test can
+fail. A `where` is the one that might: it can be honest scoping — a column only
+populated after a backfill date — or it can be the rows that would have failed.
+No machine can tell those apart, so `I3` prints it and the human doing Stage E's
+third reading decides. That is the same predicate `T1` uses, and `T1` refuses a
+`where` outright, because it is judging the one test the framework makes
+mandatory rather than one the agent chose to add.
+
 **Gate scope.** The gate judges the whole pull request, not "the agent's
 commits". There is no bot identity to configure, and a commit author is text
 anyone can write. What follows: in an agent PR nobody weakens a test — not the
@@ -558,11 +571,12 @@ because a rule with several things to say usually has a reading order for them.
 `I2`'s is the order Stage E asks you to read the numbers in. The same files in
 give the same lines out, in the same order, on every machine.
 
-Two rules only ever inform and never change the exit code: `I1`, the
-pre-registration change counter, and `I2`, the numbers themselves. Meta-test
-**M2** checks that promise against the source, so a rule cannot quietly grow a
-`BLOCK`. What they say is meant to be *read*, which is why `templates/ci.yml`
-pipes both commands into the job summary.
+Three rules only ever inform and never change the exit code: `I1`, the
+pre-registration change counter; `I2`, the numbers themselves; and `I3`, a
+filter on a test this branch adds. Meta-test **M2** checks that promise against
+the source, so a rule cannot quietly grow a `BLOCK`. What they say is meant to
+be *read*, which is why `templates/ci.yml` pipes both commands into the job
+summary.
 
 **How to read a run.** Three questions, in this order.
 
@@ -606,11 +620,11 @@ you meant.
 One row per rule: the README sentence it enforces, the fixture where the rule
 fires, and the fixture where it stays silent. Meta-test **M2** fails if a rule
 has no row here, or a row names a fixture that does not exist or does not do
-what it says. Every rule blocks except the two in `INFO_RULES` — `I1`, the
-pre-registration change counter, and `I2`, the numbers themselves — which only
-ever inform. The README asks for what they say to be *visible*, not for it to
-stop the PR, and **M2** checks that against the source so neither can quietly
-grow a `BLOCK`.
+what it says. Every rule blocks except the three in `INFO_RULES` — `I1`, the
+pre-registration change counter; `I2`, the numbers themselves; and `I3`, a
+filter on a test this branch adds — which only ever inform. The README asks for
+what they say to be *visible*, not for it to stop the PR, and **M2** checks that
+against the source so none of them can quietly grow a `BLOCK`.
 
 | README | Rule | Fixture where it fires | Fixture where it stays silent |
 | --- | --- | --- | --- |
@@ -629,6 +643,7 @@ grow a `BLOCK`.
 | §2 Control 5B — "Package pin changed" | `G6` | `gate/G6_version_bumped` | `gate/G6_ok_untouched` |
 | §1 Principle 1, §3 Stage A — the spec is decided before the code | `G7` | `gate/G7_existing_spec_edited` | `gate/G7_ok_new_spec_untouched` |
 | §3 Stage B — "a change counter is incremented in the PR" | `I1` | `gate/I1_two_edits` | `gate/I1_ok_written_once` |
+| §2 Control 5B — "WHERE or exclusion clause added to a test", for a test this branch adds | `I3` | `gate/I3_new_test_with_where` | `gate/I3_ok_new_test_plain` |
 | §3 Stage E step 3 — the diff and the pre-registration must both be readable | `C0` | `compare/C0_no_prereg` | `compare/C1_inside` |
 | §3 Stage E step 3 — "a number is outside the declared interval" | `C1` | `compare/C1_row_delta_above_max` | `compare/C1_inside` |
 | §3 Stage E step 3 — rows that exist in production and not in the new version | `C2` | `compare/C2_removed_pks_over` | `compare/C1_inside` |

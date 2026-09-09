@@ -56,12 +56,16 @@ what you think it is.
   you started. If it is wrong, stop and say so; do not correct it.
 - Any test, unit test or reconciliation query that already exists. You may add
   tests. You may not weaken one.
-- The shape of a test you *do* add, if that shape stops it failing. A
-  `severity: warn`, a `where` that removes the rows it would have caught, an
-  `error_if` threshold it never reaches, `enabled: false` — a test that cannot
-  fail is not a test, and `check` and `gate` both say so. The uniqueness test on
-  the primary key is the one the framework makes mandatory; writing it this way
-  is the same as not writing it.
+- The shape of a test you *do* add, if that shape stops it failing.
+  `enabled: false`, a `severity` that is not `error`, an `error_if`, a
+  `warn_if`, a `fail_calc` or a `limit` — a test that cannot fail is not a test,
+  and `gate` blocks a new one written that way (`G3`) exactly as it blocks the
+  weakening of an old one. A `where` on a test you add does not block, because
+  it may be honest scoping; `gate` prints it (`I3`) and a human reads it, so
+  write one only when you can say out loud which rows it removes and why none of
+  them could have failed. The uniqueness test on the primary key is the one the
+  framework makes mandatory: there, a `where` is refused outright (`T1`), and
+  writing it that way is the same as not writing it.
 - A model file with no yml entry. A `.sql` in a marts path that no yml declares
   has no spec, no primary key and no test, and `check` blocks on it (`S4`).
 

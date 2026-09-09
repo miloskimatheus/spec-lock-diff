@@ -11,7 +11,23 @@ its sql inside `models/marts/`, and every rule that asks "is this a marts
 model?" was really asking "is this yml under marts?". Each entry below has a
 fixture that fails against 0.2.0.
 
+### New rules
+
+| Rule | What it blocks |
+| --- | --- |
+| `I3` | nothing. It shows every test this branch **adds** that carries a `where`, because such a test has no earlier self to be weaker than and `G2` therefore never looked at it — and because a filter may be honest scoping or may be the rows that would have failed, which is a reading and not a measurement |
+
 ### Changed behaviour
+
+- **`G3` holds a test the branch adds to the same line as one it edits.** A test
+  born `enabled: false`, `severity: warn`, or with an `error_if`, `warn_if`,
+  `fail_calc` or `limit` now blocks, exactly as a downgrade of an existing test
+  does. `limit` was checked nowhere at all, on new tests or old, while `T1`'s
+  own `MUTE_KEYS` had listed it as a mute since 0.2.0: `limit: 0` added to an
+  existing `accepted_values` returned no rows, reported a pass, and `gate` said
+  `OK`. The two lists are one predicate now — `_muted()` — used by `T1` and by
+  `G3`, with `where` held apart in `DEAD_KEYS` because it is the one key that
+  might be scoping rather than evasion.
 
 - **M8 is three caps, not one.** The shared machinery, any one rule on its own,
   and the file as a whole. One global number had stopped measuring the promise
