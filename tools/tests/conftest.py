@@ -23,6 +23,8 @@ symptom rather than a rule - the README.txt adds machine-readable lines:
     expect count 2       the exact number of findings
 """
 
+import contextlib
+import io
 import os
 import pathlib
 import re
@@ -45,11 +47,30 @@ GIT_ENV = {
 }
 
 
-def run_slp(args, cwd):
-    """Run slp.py with args in cwd. Returns (exit code, stdout, stderr)."""
-    done = subprocess.run([sys.executable, str(SLP)] + list(args), cwd=str(cwd),
-                          capture_output=True, text=True)
-    return done.returncode, done.stdout, done.stderr
+def run_slp(args, cwd, as_subprocess=False):
+    """Run slp with args as if typed in cwd. Returns (exit code, stdout, stderr).
+
+    In process by default: `python slp.py` costs a third of a second to start,
+    and the suite has to stay under ten seconds. `as_subprocess=True` runs the
+    real command line, which is what CI runs; test_cli.py proves the two agree.
+    """
+    if as_subprocess:
+        done = subprocess.run([sys.executable, str(SLP)] + list(args), cwd=str(cwd),
+                              capture_output=True, text=True)
+        return done.returncode, done.stdout, done.stderr
+    import slp
+    out, err = io.StringIO(), io.StringIO()
+    here = os.getcwd()
+    os.chdir(str(cwd))
+    try:
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            try:
+                code = slp.main(list(args))
+            except SystemExit as exc:  # argparse exits on a bad command line
+                code = exc.code if isinstance(exc.code, int) else 2
+    finally:
+        os.chdir(here)
+    return code, out.getvalue(), err.getvalue()
 
 
 def git(repo, *args):

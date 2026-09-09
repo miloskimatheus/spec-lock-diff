@@ -45,3 +45,13 @@ def test_what_cannot_be_read_is_never_a_pass(case, expected):
     code, out, err = run_slp(["check"], CLI / case)
     assert code == 2, out
     assert err.startswith("ERROR ") and expected in err
+
+
+@pytest.mark.parametrize("case,args", [
+    ("valid", ["check"]),
+    ("no_marts", ["check"]),
+    ("valid", ["--version"]),
+])
+def test_the_shipped_command_line_agrees_with_the_one_the_tests_call(case, args):
+    """The suite runs slp in process for speed; CI runs `python tools/slp.py`."""
+    assert run_slp(args, CLI / case) == run_slp(args, CLI / case, as_subprocess=True)
