@@ -143,7 +143,7 @@ próprio diff, e é a única coisa que estas ferramentas não fazem por você: a
 [seção 5](#5-o-contrato-do-diffjson) é o contrato dele, e mostra uma query para
 partir daí.
 
-**Confira que roda, depois rode os testes dele** — uns trezentos e cinquenta,
+**Confira que roda, depois rode os testes dele** — uns trezentos e setenta,
 alguns segundos, sem rede. Se passam, os portões da sua máquina são os portões
 do CI.
 

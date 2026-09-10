@@ -140,7 +140,7 @@ diff itself, and it is the one thing these tools do not do for you:
 [section 5](#5-the-diffjson-contract) is its contract, and shows a query to
 start from.
 
-**Check it runs, then run its own tests** — around three hundred and fifty of
+**Check it runs, then run its own tests** — around three hundred and seventy of
 them, a few seconds, no network. If they pass, the gates on your machine are the
 gates in CI.
 
