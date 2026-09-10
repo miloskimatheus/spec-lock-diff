@@ -702,6 +702,15 @@ you meant.
 | pre-registration | `models[].meta.pre_registration` | `models[].config.meta.pre_registration` |
 | sensitive flag | `columns[].meta.sensitive` | `columns[].config.meta.sensitive` |
 | data tests | `tests:` | `data_tests:` |
+| test arguments | on the test: `- accepted_values: {values: [...]}` | under `arguments:` |
+
+The two spellings of a test's arguments are one test: moving them under
+`arguments:` is not "changed its arguments", and a `config:` beside them is
+read as it always was. Both at once is an error, not a preference — the tool
+does not guess which one dbt will read. `tags`, `meta`, `description`, `name`,
+`store_failures` and the other keys that say neither what a test asserts nor
+whether it can fail are read and never compared, so adding a tag to a test is
+not a finding either.
 
 ---
 

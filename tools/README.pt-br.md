@@ -707,6 +707,15 @@ ferramenta não adivinha qual você quis dizer.
 | pré-registro | `models[].meta.pre_registration` | `models[].config.meta.pre_registration` |
 | marcação de coluna sensível | `columns[].meta.sensitive` | `columns[].config.meta.sensitive` |
 | data tests | `tests:` | `data_tests:` |
+| argumentos do teste | no teste: `- accepted_values: {values: [...]}` | em `arguments:` |
+
+As duas grafias dos argumentos de um teste são um teste só: movê-los para
+`arguments:` não é "changed its arguments", e um `config:` ao lado é lido como
+sempre foi. Os dois ao mesmo tempo é erro, não preferência — a ferramenta não
+adivinha qual deles o dbt vai ler. `tags`, `meta`, `description`, `name`,
+`store_failures` e as outras chaves que não dizem nem o que um teste afirma nem
+se ele pode falhar são lidas e nunca comparadas, então adicionar uma tag a um
+teste também não é achado.
 
 ---
 

@@ -8,3 +8,6 @@ Projects that exercise the entry point itself, not a rule:
   jinja_yml       a schema yml written with jinja, which dbt renders and these
                   tools do not - exit 2, and the message says which of the two
                   problems it is
+  arguments_twice a test that gives its arguments on the test and under
+                  arguments: - exit 2, the tool does not guess which dbt reads
+  where_twice     a where on the test and another under config - exit 2

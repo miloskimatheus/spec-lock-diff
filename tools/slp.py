@@ -38,6 +38,11 @@ MARTS = ("models/marts",)
 # from the test arguments because gate rules read them (G2 where, G3 severity).
 CFG_KEYS = ("enabled", "error_if", "fail_calc", "limit", "severity",
             "store_failures", "warn_if", "where")
+# Keys that say neither what a test asserts nor whether it can fail: a label,
+# a sentence for the docs, where to keep the failing rows. They are read so
+# that adding one is not "changed its arguments", and no rule compares them.
+INERT_KEYS = ("tags", "meta", "description", "name", "store_failures_as",
+              "schema", "database", "alias", "group", "docs")
 
 # Every rule id these tools can print. The README coverage table has one row per
 # id and the fixtures one folder per id; meta-test M2 keeps the three in step.
@@ -228,14 +233,27 @@ def normalize_test(item, where):
         name, body = None, None
     if not isinstance(name, str) or not isinstance(body, dict):
         raise SlpError("cannot read a test in %s: %r" % (where, item))
-    args, cfg = {}, {}
+    # dbt 1.10 moved the arguments under `arguments:`; the older form writes them
+    # on the test. Both are one test, so moving them is not a change, and both
+    # at once is not a preference the tool guesses.
+    args, cfg, nested = {}, {}, body.get("arguments")
+    if nested is not None and not isinstance(nested, dict):
+        raise SlpError("cannot read a test in %s: arguments of %s must be a mapping"
+                       % (where, name))
     for key, value in body.items():
+        if key == "arguments":
+            continue
         pairs = value.items() if key == "config" and isinstance(value, dict) else [(key, value)]
         for name_, value_ in pairs:
-            if name_ in CFG_KEYS:
-                cfg[name_] = value_
-            else:
-                args[("config." if key == "config" else "") + name_] = value_
+            holder = cfg if name_ in CFG_KEYS + INERT_KEYS else args
+            if name_ in holder:
+                raise SlpError("ambiguous: %s of test %s in %s is given twice (on the test "
+                               "and under config)" % (name_, name, where))
+            holder[name_] = value_
+    if nested and args:
+        raise SlpError("ambiguous: test %s in %s gives arguments both on the test and under "
+                       "arguments" % (name, where))
+    args.update(nested or {})
     return name, json.dumps(args, sort_keys=True, default=str), cfg
 
 def read_doc(doc, rel, marts=MARTS):
@@ -461,9 +479,9 @@ def check_pk_test(project):
         for column, name, args, cfg in model.tests:
             if name not in ACCEPTED_PK_TESTS:
                 continue
-            combination = json.loads(args).get("combination_of_columns")
-            if not ([column] == keys if name == "unique"
-                    else set(_strings(combination) or []) == set(keys)):
+            given = json.loads(args)  # a model-level `unique` names its column as an argument
+            if not ([column or given.get("column_name")] == keys if name == "unique"
+                    else set(_strings(given.get("combination_of_columns")) or []) == set(keys)):
                 continue
             covered, muted = covered or _blocks(cfg), muted or _muted(cfg)
         if covered:

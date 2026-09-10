@@ -51,6 +51,19 @@ never seen it.
   write. A metric declares one of the two, never both, and a refactoring may
   not declare `value`: both are schema rules with their own sentence.
 
+- **A test's arguments are read from `arguments:` too.** dbt 1.10 asks for
+  them there and warns about the older spelling, and the tools read only the
+  older one: a `unique_combination_of_columns` written the way dbt now asks
+  read as "no uniqueness test on primary key" (`T1`), and moving a test's
+  arguments under `arguments:` read as "changed its arguments" (`G1`). Both
+  spellings are one test now, both at once is exit 2, and a model-level
+  `unique` that names its column as an argument satisfies `T1`. In the same
+  read, `tags`, `meta`, `description`, `name`, `store_failures` and the other
+  keys that say neither what a test asserts nor whether it can fail stop
+  counting as arguments, so adding a tag to a test is not a `G1`; and a
+  config key given twice — `where` on the test and under `config:` — is exit 2
+  instead of whichever came last.
+
 - **The lock now covers the history the gate reads.** `G7` and `I1` walk the
   commits of the pull request, and 0.3.0 said that a squash defeats them. So
   does `commit --amend`, so does a rebase, and those are what an agent does by

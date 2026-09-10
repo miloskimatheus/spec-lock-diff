@@ -1,0 +1,22 @@
+version: 2
+
+models:
+  - name: fct_orders
+    meta:
+      spec:
+        grain: "one row per order per day"
+        primary_key: [order_id, date_day]
+        tier: standard
+        metrics: {}
+        known_edges: []
+        sensitive_columns: []
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [order_id, date_day]
+    columns:
+      - name: order_id
+      - name: date_day
+      - name: status
+        tests:
+          - accepted_values:
+              values: [shipped, delivered, cancelled]
