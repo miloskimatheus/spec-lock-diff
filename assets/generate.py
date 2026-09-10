@@ -81,6 +81,12 @@ L = {
         "canstop": "THESE TWO CAN STOP THE MERGE",
         "proc_alt": "Stage A is human, stages B C and D run locked inside the platform, stage E returns to a human who only reads the automated diff",
 
+        "cmds_head": "WHICH COMMAND RUNS WHEN",
+        "q_check": "is there a spec, and can its test fail?",
+        "q_gate": "did this branch weaken anything that judges the code?",
+        "q_compare": "do the numbers match what was promised?",
+        "cmds_alt": "check runs at stages A, C and D; gate at stages C and D; compare at stage E",
+
         "prereg_head": "DECLARED IN STAGE B, BEFORE ANY CODE WAS WRITTEN",
         "band_ok": "DECLARED INTERVAL — WOULD PASS",
         "measured": "measured by the diff: 15000",
@@ -149,6 +155,12 @@ L = {
         "bD": ["qualquer falha", "bloqueia"], "bE": ["fora do intervalo,", "ou da tolerância"],
         "canstop": "ESTES DOIS PODEM PARAR O MERGE",
         "proc_alt": "A etapa A é humana, as etapas B C e D rodam trancadas dentro da plataforma, a etapa E volta para um humano que apenas lê o diff automático",
+
+        "cmds_head": "QUAL COMANDO RODA QUANDO",
+        "q_check": "existe spec, e o teste dela pode falhar?",
+        "q_gate": "este branch enfraqueceu algo que julga o código?",
+        "q_compare": "os números batem com o que foi prometido?",
+        "cmds_alt": "check roda nas etapas A, C e D; gate nas etapas C e D; compare na etapa E",
 
         "prereg_head": "DECLARADO NA ETAPA B, ANTES DE QUALQUER CÓDIGO",
         "band_ok": "INTERVALO DECLARADO — PASSARIA",
@@ -374,6 +386,44 @@ def process(t, s):
 <text x="744" y="245" text-anchor="middle" font-size="9.5" letter-spacing="1.2" fill="{b}">{s["canstop"]}</text>''')
 
 
+# ── which command runs at which stage ───────────────────────────────────────
+def commands(t, s):
+    """The three commands over the five stages, on process()'s own x geometry."""
+    i, m = t["ink"], t["muted"]
+    stages = ((1, 146, "A", s["sA"]), (207, 144, "B", s["sB"]), (377, 144, "C", s["sC"]),
+              (547, 144, "D", s["sD"]), (751, 190, "E", s["sE"]))
+    head = "".join(
+        f'<rect x="{x}" y="24" width="{w}" height="52" fill="none" stroke="{i}"'
+        f' stroke-width="1.4" opacity=".5"/>'
+        f'<text x="{x + w // 2}" y="47" text-anchor="middle" font-size="18"'
+        f' font-weight="600" fill="{i}" opacity=".8">{letter}</text>'
+        f'<text x="{x + w // 2}" y="66" text-anchor="middle" font-size="10"'
+        f' fill="{m}">{name}</text>\n'
+        for x, w, letter, name in stages)
+    # A bar per command, over the stages it runs in. check runs at A and again at
+    # C and D, so its bar is two segments and a dotted line saying they are one
+    # command, not two.
+    rows = ((110, t["c1"], "check", s["q_check"], ((1, 146), (377, 314)), (149, 375)),
+            (164, t["c5"], "gate", s["q_gate"], ((377, 314),), None),
+            (218, t["c4"], "compare", s["q_compare"], ((751, 190),), None))
+    body = ""
+    for y, col, name, question, bars, link in rows:
+        body += (f'<text x="1" y="{y}" font-size="13" font-weight="600" fill="{col}">'
+                 f'{name}</text>'
+                 f'<text x="104" y="{y}" font-size="10.5" fill="{m}">{question}</text>')
+        body += "".join(f'<rect x="{x}" y="{y + 8}" width="{w}" height="18" fill="{col}"'
+                        f' fill-opacity=".15" stroke="{col}" stroke-width="1.6"/>'
+                        for x, w in bars)
+        if link:
+            body += (f'<path d="M{link[0]} {y + 17}h{link[1] - link[0]}" fill="none"'
+                     f' stroke="{col}" stroke-width="1.4" stroke-dasharray="3 4"'
+                     f' opacity=".55"/>')
+        body += "\n"
+    return svg(942, 252, s["cmds_alt"], f'''
+<text x="1" y="12" font-size="10" letter-spacing="2" fill="{i}" opacity=".55">{s["cmds_head"]}</text>
+{head}{body}''')
+
+
 # ── pre-registration interval ───────────────────────────────────────────────
 def prereg(t, s):
     i, p, b = t["ink"], t["pas"], t["blk"]
@@ -438,7 +488,7 @@ def heading_icon(n):
 DRAWINGS = {
     "risks": risks, "roles": roles, "manifesto": manifesto, "controls": controls,
     "permissions": permissions, "process": process,
-    "pre-registration": prereg, "diff": diff,
+    "pre-registration": prereg, "diff": diff, "commands": commands,
 }
 
 os.makedirs(OUT, exist_ok=True)
