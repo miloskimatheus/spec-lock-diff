@@ -1,0 +1,66 @@
+# Two ways in, one tool.
+#
+# Vendored - copy tools/ next to your dbt_project.yml - is the high-assurance
+# path: no network, no index, nothing to trust but the file you can read. It is
+# what the README documents first and what the CI templates default to.
+#
+# Installed - `pipx run spec-lock-diff check`, or pip - is the fast path. It puts
+# PyPI in the trust root, which vendoring does not, so the CI templates read the
+# version to install from the branch the pull request targets. A pull request
+# cannot pick the gate that judges it either way.
+#
+# Nothing moves to make this work. `tools/` is mapped to the package name, so
+# slp.py's SCHEMA_DIR - the directory beside the module - is tools/schemas/ when
+# vendored and site-packages/spec_lock_diff/schemas/ when installed, with no
+# branch in the source. That is the whole reason for this layout.
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spec-lock-diff"
+version = "0.5.0"
+description = "Deterministic gates for dbt models written by AI agents: a spec, a pre-registration, and a diff held against it."
+readme = "tools/README.md"
+requires-python = ">=3.9"
+license = {file = "LICENSE"}
+authors = [{name = "Matheus Miloski"}]
+keywords = ["dbt", "analytics-engineering", "data-quality", "ai-agents", "ci"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Quality Assurance",
+]
+
+# The two the import allowlist permits, and no others. A meta-test holds this
+# list to that one, so adding an import is a packaging decision in the same
+# pull request. The jsonschema floor is load-bearing: the schemas are draft
+# 2020-12 and Draft202012Validator arrived in 4.0.
+dependencies = ["pyyaml", "jsonschema>=4"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.urls]
+Homepage = "https://github.com/miloskimatheus/spec-lock-diff"
+Documentation = "https://github.com/miloskimatheus/spec-lock-diff/blob/main/tools/README.md"
+Changelog = "https://github.com/miloskimatheus/spec-lock-diff/blob/main/tools/CHANGELOG.md"
+
+# `slp` first, because argparse prints `usage: slp ...` and every summary line
+# begins `slp check:`. A command named anything else names a command the reader
+# did not type. `spec-lock-diff` is the way out if something else owns `slp`.
+[project.scripts]
+slp = "spec_lock_diff.slp:main"
+spec-lock-diff = "spec_lock_diff.slp:main"
+
+[tool.setuptools]
+packages = ["spec_lock_diff"]
+
+[tool.setuptools.package-dir]
+spec_lock_diff = "tools"
+
+[tool.setuptools.package-data]
+spec_lock_diff = ["schemas/*.json"]

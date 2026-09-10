@@ -1,0 +1,15 @@
+# This file belongs to the example, not to the repository around it: GitHub reads
+# CODEOWNERS only from the root, /docs or /.github of a repository, so this copy
+# owns nothing. It is here because `check` reads it, and rule S5 blocks a critical
+# or incremental model that nobody owns.
+#
+# In your own repository this is .github/CODEOWNERS, and the team names are yours.
+
+# The critical directory. Without this line, fct_invoices fails S5.
+/models/marts/finance/    @example-org/finance-data
+
+# Everything the framework's Control 5A protects.
+/.github/                 @example-org/data-platform
+/AGENTS.md                @example-org/data-platform
+/dbt_project.yml          @example-org/data-platform
+/analyses/                @example-org/data-platform

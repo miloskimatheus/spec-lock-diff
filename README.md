@@ -34,6 +34,15 @@ The framework boils down to three phases:
 
 A working reference implementation of the gates lives in **[`tools/`](tools/README.md)**: three commands in one Python file, no network and no warehouse.
 
+**Want to see it before you read all this?** [`examples/quickstart`](examples/quickstart/README.md) is a dbt project the gates pass on — two marts, their specs, their pre-registrations and their diffs. No dbt, no warehouse and no credentials needed:
+
+```bash
+pip install "pyyaml" "jsonschema>=4"
+python tools/slp.py check --project-dir examples/quickstart
+```
+
+Adoption is a ladder, not a cliff: `check` and `gate` are twenty-one of the thirty rules and need no warehouse at all. [The install section](tools/README.md#1-install) has the five rungs, each green on its own.
+
 ---
 
 ## Table of Contents
@@ -42,6 +51,18 @@ A working reference implementation of the gates lives in **[`tools/`](tools/READ
 1. [Manifesto — 3 principles](#1-manifesto--3-principles)
 2. [Building the lock — 5 mandatory controls](#2-building-the-lock--5-mandatory-controls)
 3. [The development process (routine) — 5 stages](#3-the-development-process-routine--5-stages)
+
+**Seven words this document uses before it defines them**, so you can read straight through:
+
+| Word | In one line | Defined in |
+| --- | --- | --- |
+| **Spec** | What the model must do, written by a human into the model's yml before any code exists. Six mandatory fields. | [Stage A](#3-the-development-process-routine--5-stages) |
+| **Pre-registration** | The agent's numeric prediction — how many rows will move, how far each metric may drift — committed before it writes SQL and before it can see any result. The term is borrowed from clinical trials, and so is the reason. | [Stage B](#3-the-development-process-routine--5-stages) |
+| **Diff** | The measured difference between production and the pull request's build, read as numbers rather than rows. | [Stage E](#3-the-development-process-routine--5-stages) |
+| **Gate** | A deterministic check that blocks a pull request. Never an LLM: the same input gives the same verdict every time. | [Control 5](#2-building-the-lock--5-mandatory-controls) |
+| **Critical model** | One that feeds business decisions, financial reports or executive dashboards. It owes more than a standard model: a second reviewer, a reconciliation, a rebuild of everything downstream. | [Stage A](#3-the-development-process-routine--5-stages) |
+| **Reconciliation** | The model compared against something that is *not* the model — a closing spreadsheet, a source system — inside a tolerance the spec declares. | [Stage E](#3-the-development-process-routine--5-stages) |
+| **Protected path** | A file the agent may not touch, enforced by CODEOWNERS and a gate rule, because editing it would let the agent change the rules that judge it. | [Control 5](#2-building-the-lock--5-mandatory-controls) |
 
 ---
 
@@ -91,7 +112,9 @@ You are not writing rules for the agent to obey — you are building an environm
 **Who executes:** Platform. **When:** One time only, before the first PR with an agent.
 
 > [!IMPORTANT]
-> Don't start building stuff without setting the controls.
+> Don't turn an agent loose on the repository before these five are in place. They are what make everything after them enforceable instead of advisory.
+>
+> They are **not** a prerequisite for running the gates. `check` and `gate` — twenty-one of the thirty rules in [`tools/`](tools/README.md#1-install) — need no warehouse, no identity and no spending cap, and are worth having on a repository no agent has touched yet. Adoption is a ladder; this section is its fourth rung.
 
 <p align="center">
   <picture>

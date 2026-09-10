@@ -3,6 +3,138 @@
 Versions are tagged `tools-v<version>`. The framework README is versioned
 separately; these tools implement it and never lead it.
 
+## 0.5.0 — the ladder
+
+0.4.0 made the gates right. This one makes them reachable. Nothing about what a
+rule blocks changed; what changed is how much you must build before any rule
+runs at all.
+
+### Changed behaviour
+
+- **The CI template is two files, and the first one is green.** `templates/ci.yml`
+  used to carry Stage D and Stage E together, with six steps that exit 1 until
+  you write them — so an adopter's first pull request was red by construction,
+  and stayed red until a warehouse credential, a production manifest and a diff
+  producer were all in place. `check` and `gate` need none of those: twenty-one
+  of the thirty rules and the whole of Control 5B read yml, git and one line of
+  sql. They now live alone in `templates/ci.yml`, which installs Python and two
+  libraries and nothing else. The sample build, the full build and the diff move
+  to `templates/ci-warehouse.yml`, a file you copy when you have a warehouse to
+  point at. A file you have not copied is a check that is *absent*; the
+  alternative — one file with a variable that switches Stage E off — would have
+  been a check that is present and passes without having looked at anything,
+  which is the one thing this framework exists to prevent.
+
+  **If you already copied `ci.yml`, your required-check list is now wrong.** It
+  named `ci` and `diff`. Job `ci` no longer builds anything, and the job that
+  does is `build`, in the new file. Add `build` and `diff` to the list, or Stage
+  D stops gating and nothing says so.
+
+- **The two workflows no longer cancel each other.** A concurrency group is
+  shared by every workflow in a repository, so the old `pr-<number>` group
+  copied into a second file would have cancelled the first on every push — and a
+  cancelled run reports nothing, which branch protection reads as a check still
+  running. Both files now group on `${{ github.workflow }}-pr-<number>`.
+
+- **`AGENT_PR` and the gate stay in one file.** Copied into a workflow with no
+  `env:` block, `env.AGENT_PR != 'true'` reads the empty string as true: the
+  advisory branch runs, `continue-on-error` applies, and the required gate
+  quietly never runs. `ci-warehouse.yml` therefore has no `env:` block and no
+  gate step, and a test asserts that only one template has either.
+
+- **`diff` waits on `build`, not on `ci`.** GitHub has no dependency from one
+  workflow to another. What that trades away is the gate's veto over the hour: a
+  pull request that trips `slp gate` now still pays for the sample build. `diff`
+  opens with a `slp check` of its own so the sixty-minute job is not where an
+  unreadable spec is discovered.
+
+- **The last hand-written step of Stage E is written.** Producing the diff reads
+  the warehouse, so it is not and will not be the tools' job. But the step after
+  it — turning one row of a comparison query into the JSON of
+  `schemas/diff.schema.json` — never needed a warehouse, and README section 5
+  asked the reader to do it by hand: which column belongs in `altered_columns`,
+  which number is a percentage and which is a value, where the `nullif` already
+  put a `null`. Get it wrong and `compare` either refuses the file (`C0`) or, far
+  worse, reads it as nothing having changed.
+
+  `templates/diff_to_json.py` does that translation. Stdlib only, no network,
+  nothing to configure: it reads one row of CSV or JSON and knows the columns by
+  their suffixes — `<metric>_delta_pct`, `<metric>_changed`, `<metric>_value`,
+  the reconciliation pair, the window — so naming them after your metrics is the
+  whole of the setup. An empty percentage stays `null` rather than becoming
+  `0.0`, which is the difference between a number nobody can evaluate and a
+  number that passed. It fails closed on anything it cannot convert.
+
+  Its output is validated against the real schema in the suite, and one test runs
+  a row through it and into `compare`. Recce and `dbt-audit-helper` in summary
+  mode measure the same numbers; section 5 now says how to map them.
+
+- **There is a second way in, and it does not weaken the first.** `pyproject.toml`
+  publishes the tool as `spec-lock-diff`, so `pipx run spec-lock-diff check` works
+  with nothing copied into your repository at all. Vendoring stays the documented
+  default and the high-assurance path: no index, no network, and a gate whose diff
+  your reviewers can read.
+
+  Nothing moved to make it work. `tools/` is mapped to the package name, so
+  `SCHEMA_DIR` — the directory beside the module — is `tools/schemas/` when
+  vendored and `site-packages/spec_lock_diff/schemas/` when installed, and
+  `slp.py` needed no edit and knows nothing about which world it is in.
+
+  Installing does put an index in the trust root, which vendoring does not, and
+  a naive `pip install spec-lock-diff==0.4.0` written into the workflow would
+  have cost the property the `git archive` step exists for: CODEOWNERS would
+  still gate an edit to the pin, but nothing would make a downgrade to a version
+  with fewer rules *inert on the pull request that makes it*. So the workflow
+  reads the version from `.slp-version` **on the branch the pull request
+  targets**, exactly as it reads `tools/` from there — and `.slp-version` is in
+  the CODEOWNERS template, a package pin by another name. Both paths end at the
+  same `$SLP`, so nothing downstream of that step forks.
+
+  `tests/test_packaging.py` holds the wheel to the file: the same version string,
+  the same two dependencies **M3** permits — one list now, so a new import fails
+  the packaging test until it is declared and M3 until it is allowed — the
+  schemas covered by the package data, the console script still named `slp`
+  because every summary line begins with that word, and `tools/` still holding
+  exactly one module.
+
+- **`--marts-path` had one value and two verdicts, and one of them was a green
+  about nothing.** `check` and `compare` go through `read_project`, which refuses
+  a marts path that is not a directory. `gate` reads git, never saw that refusal,
+  and treated a path that is not there as a prefix matching nothing: every marts
+  rule walked an empty set and it printed `OK`. `--marts-path models/martz` is
+  now exit 2 in all three. Separately, a leading `./` survived normalisation — a
+  path to a shell and to pathlib, and nothing at all to git, whose paths never
+  begin with one — so `--marts-path ./models/marts` made `check` read the right
+  folder while `gate` matched no file. Both spellings now name the same
+  directory. This closes the first bullet of README section 8, on the one flag an
+  adopter is most likely to have to change.
+
+- **`tools/slp.py` is executable.** It has carried `#!/usr/bin/env python3` since
+  the first commit and mode 644 with it, so `./tools/slp.py` did not run.
+
+- **There is something to run.** `examples/quickstart` is a dbt project the gates
+  pass on: two marts, one `standard` and one `critical`, with their specs, their
+  pre-registrations, the reconciliation query the critical one owes, and the
+  `diff.json` files a Stage E build would have written. It needs no dbt, no
+  warehouse, no credential and no network, and its README lists five things to
+  break on purpose to watch a named rule fire. `gate` reads git rather than the
+  working tree and cannot be shown in place, so it gets `examples/gate-walkthrough`
+  — two snapshots of one model, and the one deleted test between them.
+
+  Both READMEs print real output, and `tests/test_examples.py` runs every command
+  they print and compares the result character for character. A change to the
+  wording of a summary line now reds a test in `examples/`, which is the point: an
+  example that no longer runs is worse than none, because it is the first thing a
+  reader tries and the last thing anyone remembers to update. **M4** and **M6**
+  were widened to cover the folder, so no address, document number or URL can
+  enter it either.
+
+- **README section 1 is a ladder.** Five rungs, each green on its own: `check`
+  on your machine, `check` and `gate` in CI, the protected paths and branch
+  protection, the warehouse controls, and Stage E. The old section asked for all
+  of it before any of it, and the largest task in the project — producing the
+  diff — was one clause two hundred lines from its own contract.
+
 ## 0.4.0 — the second pull request
 
 0.3.0 fixed what the fixtures' *shape* hid. This one fixes what their *number*
@@ -96,7 +228,7 @@ never seen it.
   does `commit --amend`, so does a rebase, and those are what an agent does by
   habit; Control 1's branch protection was written for `main` only, so nothing
   stopped a force-push to the pull request's branch. README §2 Control 1 asks
-  for force-push to be blocked on every branch — one ruleset — and section 9
+  for force-push to be blocked on every branch — one ruleset — and section 8
   says what `G7`, `I1` and `I4` are worth without it: advisory.
 
 - **`tools/` is in the README's protected-path table**, next to the paths it
@@ -106,7 +238,7 @@ never seen it.
 ### Still not enforced
 
 Found in the same review, each demonstrated against 0.3.0 with a repository
-the harness built, and **not** fixed. Each is a row in README section 9.
+the harness built, and **not** fixed. Each is a row in README section 8.
 
 - Tests on sources, seeds and snapshots are invisible to `gate`: removing one
   prints `OK (no changes)`.
@@ -179,7 +311,7 @@ Each entry below has a fixture that fails against 0.2.0.
   jinja before reading it and these tools use a plain YAML parser, so a
   `{% for %}` that generates model entries takes the whole run down with
   `cannot parse ... found character '%'` — which reads like a typo and is not
-  one. The message names the cause now, and the limitation is in section 9,
+  one. The message names the cause now, and the limitation is in section 8,
   where it should have been all along.
 
 - **`gate` reads one commit in one git process.** It ran `git show` once per
@@ -208,7 +340,7 @@ Each entry below has a fixture that fails against 0.2.0.
 
 ### Still not enforced
 
-Found alongside these and **not** fixed. All are in README section 9 with the
+Found alongside these and **not** fixed. All are in README section 8 with the
 rest.
 
 - **`gate` does not check that `--marts-path` exists.** `check` and `compare`
@@ -222,7 +354,7 @@ rest.
   repository root, and in a `dbt/` subdirectory every read fails: exit 2. Fail
   closed, so no silent pass — but the command simply does not work in a common
   layout, and `--project-dir` cannot save it.
-- **`G7` and `I1` still depend on branch topology**, and section 9 used to
+- **`G7` and `I1` still depend on branch topology**, and section 8 used to
   recommend squashing as the way around it. It is not: a squash erases the
   intermediate commits, so a spec first written on the branch has nothing for
   `G7` to compare against and `I1` reports zero. That advice is withdrawn.
@@ -286,7 +418,7 @@ The seven above are fixed. Three more were found with them and are **not**:
 every test in the project unseen; the `--first-parent` walk lets `G7` and `I1`
 be evaded or undercounted by doing the work on a merged side branch; and a
 deleted `meta.spec` trips no `gate` rule (`check` catches the symptom via
-`S1`). They are listed in README section 9 with the rest.
+`S1`). They are listed in README section 8 with the rest.
 
 ## 0.1.0 — first reference implementation
 

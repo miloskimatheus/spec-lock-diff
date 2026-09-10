@@ -1,0 +1,20 @@
+version: 2
+
+# These two are declared, tested and outside models/marts/, so the framework does
+# not make them carry a spec. They are here to put a second number on the summary
+# line: `check` says how many models it held to the framework and how many it read
+# in all, and only the first is coverage.
+models:
+  - name: stg_orders
+    columns:
+      - name: order_id
+        tests:
+          - unique
+          - not_null
+
+  - name: stg_invoices
+    columns:
+      - name: invoice_id
+        tests:
+          - unique
+          - not_null

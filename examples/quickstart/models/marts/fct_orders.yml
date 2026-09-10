@@ -1,0 +1,41 @@
+version: 2
+
+models:
+  - name: fct_orders
+    meta:
+      # Stage A. The Author writes this before any code exists. Six fields, all
+      # mandatory: what a row is, what makes it unique, whether the model feeds a
+      # decision, what the numbers mean, what the spec already knows is strange,
+      # and which columns nobody may look at row by row.
+      spec:
+        grain: "one row per order"
+        primary_key: [order_id]
+        tier: standard
+        metrics:
+          gross_revenue: "sum of order_total before discounts and taxes"
+        known_edges:
+          - "status='cancelled' -> row excluded"
+        sensitive_columns: [customer_email]
+      # Stage B. The agent writes this before writing sql, and every interval is
+      # closed: an interval with no max never fails, and a gate that never fails
+      # is not a gate. `compare` reads the diff against exactly these numbers.
+      pre_registration:
+        type: data_change
+        reason: "include status='partially_shipped', which was excluded by mistake"
+        row_delta: {min: 0, max: 12000}
+        removed_pks: {max: 0}
+        altered_columns: [gross_revenue]
+        metrics:
+          gross_revenue: {delta_pct: {min: 0.0, max: 0.8}}
+    columns:
+      # T1: a uniqueness test on the primary key that could actually fail. Remove
+      # the `unique`, or give it a `where`, and `check` blocks.
+      - name: order_id
+        tests:
+          - unique
+          - not_null
+      # S3: every name in sensitive_columns is a column, and it is marked here.
+      - name: customer_email
+        meta:
+          sensitive: true
+      - name: gross_revenue

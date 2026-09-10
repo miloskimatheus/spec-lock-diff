@@ -34,6 +34,35 @@ to disagree about an idea than about a diff.
 `main` is protected: it cannot be force-pushed or deleted, and contributor changes
 land through pull requests from a fork. Only the maintainer can merge.
 
+## Working on `tools/`
+
+```bash
+pip install -e ".[dev]"   # or: pip install pyyaml "jsonschema>=4" pytest
+pytest tools/tests -q     # around three hundred and seventy, ten seconds, no network
+```
+
+The suite is most of the review. Before you open a pull request that touches the
+tools, this is what it will ask of you:
+
+| If you… | You also need |
+| --- | --- |
+| add a rule | a function whose docstring opens with the framework sentence it enforces (`README §n`), a rule id, one fixture that blocks and one that passes, a row in the tools README's rule table, and a mention in the changelog — **M1**, **M2** |
+| add an import | it in the allowlist (**M3**) *and* in `pyproject.toml`'s dependencies. One decision in two files, and a test that fails until they agree |
+| change what a command prints | the pinned output in `examples/*/README.md`, compared character for character |
+| change a template | the assertions in `tests/test_templates.py`, which parse the file rather than reading it |
+| change the tools README | the same change in `README.pt-br.md` — **R10** checks section numbering, rule order, and every line the tool itself prints |
+| write more code | room under **M8**, which caps the shared machinery, any one rule, and the file. Raising a number is allowed; the pull request has to say what was bought with it |
+| release | `__version__`, the `## <version>` heading in `CHANGELOG.md`, and the version in `pyproject.toml`, held together by one test |
+
+A fixture folder is the unit of a test. Its name is the assertion —
+`<RULE>_<what_happens>` must block, `<RULE>_ok_<what>` must pass — and a
+`README.txt` beside it can be more precise (`expect exit 0`, `expect rules I1 G1`,
+`expect absent G2`, `expect count 2`). So adding a rule means adding folders, and
+never editing `test_check.py`, `test_gate.py` or `test_compare.py`.
+
+`python assets/generate.py` writes every drawing in the READMEs — both themes,
+both languages. It is deterministic: a run that changes nothing rewrites nothing.
+
 ## Style
 
 - Prose over jargon. The framework is meant to be readable by an analytics engineer

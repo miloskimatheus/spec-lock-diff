@@ -39,6 +39,9 @@ TOOLS = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(TOOLS))  # so a test can import slp and read one schema
 SLP = TOOLS / "slp.py"
 FIXTURES = pathlib.Path(__file__).resolve().parent / "fixtures"
+# The runnable example. Absent from a vendored tools/, which is why the tests
+# that read it skip rather than fail - and why one of them checks the absence.
+EXAMPLES = TOOLS.parent / "examples"
 
 # One author, one email, one date: two runs of the suite build the same repository
 # and therefore produce the same output (R4). The email is synthetic (R9).

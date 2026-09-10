@@ -54,34 +54,93 @@ slp gate: 1 block - BLOCKED
 
 ## 1. Install
 
-**You need** Python 3.9+ and git 2.20+, plus two libraries and nothing else:
+**You need** Python 3.9+ and git 2.20+. Then one of two ways in.
 
-```bash
-pip install "pyyaml" "jsonschema>=4"
-```
+| | How | What it buys, and what it costs |
+| --- | --- | --- |
+| **Vendored** | `pip install "pyyaml" "jsonschema>=4"`, then copy `tools/` next to your `dbt_project.yml` — the folder, not the file, because `slp.py` reads its schemas from the directory beside it. | Nothing in the trust root but a file you can read: no index, no network, and the gate sits in your repository where its diff is reviewable. |
+| **Installed** | `pipx run spec-lock-diff check`, or `pip install spec-lock-diff`. For CI, put the version in a `.slp-version` file at the repository root and the workflow installs exactly that. | One line instead of a folder. It also puts an index in the trust root, which vendoring does not — which is why the workflow reads the pin from the branch the pull request targets, and why `.slp-version` is a protected path. |
 
-If dbt is installed you have both already. The jsonschema floor is not
+The wheel carries the tool and its schemas, not the templates or the tests:
+those live in this repository, at the tag of the version you pinned. Either way
+the command is named `slp`; this document writes `python tools/slp.py`, which is
+the vendored spelling, throughout.
+
+If dbt is installed you have both libraries already. The jsonschema floor is not
 decoration — the schemas are draft 2020-12 and its validator arrived in 4.0; on
 3.x the tools fail to start rather than fall back. If your system has no bare
 `python`, read `python3` for every `python` in this document.
 
-**Copy `tools/` next to your `dbt_project.yml`**, then put the three templates
-in place. Each marks the lines that are yours with `YOU:`.
+Then climb. Each rung below is green on its own and worth something on its own,
+and no rule on a rung you have reached is weaker for the rungs you have not.
+Stop where the value stops.
+
+### Rung 1 — `check`, on your machine
+
+```bash
+python tools/slp.py check
+```
+
+Every model in `models/marts/` has a complete spec, a valid pre-registration if
+it has one at all, and a uniqueness test on its primary key that could actually
+fail. No CI, no warehouse, no git, no dbt. This is the whole of
+[section 2](#2-stage-a-and-c--check), and it is Stage A with a machine reading
+over your shoulder.
+
+One rule here reaches for a file that belongs to rung 3: `S5` asks that a
+critical or incremental model be owned by somebody in CODEOWNERS, and blocks
+while it is not. Write that file early, or start with `tier: standard`.
+
+No project of your own yet? There is one in
+[`examples/quickstart`](../examples/quickstart/README.md) — two marts, one
+standard and one critical, with their specs, their pre-registrations and their
+diffs — and a list of things to break on purpose to watch a rule fire:
+
+```bash
+python tools/slp.py check --project-dir examples/quickstart
+```
+
+### Rung 2 — `check` and `gate` in CI, still with no warehouse
+
+| Copy | To | Then edit |
+| --- | --- | --- |
+| `tools/templates/ci.yml` | `.github/workflows/ci.yml` | Nothing, to begin with. Set the repository variable `AGENT_LOGIN` to the agent's bot user, so the gate is required on the pull requests it opens and advisory on yours. |
+
+Twenty-one of the thirty rules and the whole of Control 5B, for one file and one
+variable. It installs Python and two libraries — no adapter, no credential, and
+not one `exit 1` — so the first run is green. List `ci` as a required check.
+
+### Rung 3 — the paths nobody may quietly edit
 
 | Copy | To | Then edit |
 | --- | --- | --- |
 | `tools/templates/CODEOWNERS` | `.github/CODEOWNERS` | Replace `@your-org/data-platform`; list your incremental models and critical directories. It follows the framework's protected-path table row by row. |
 | `tools/templates/AGENTS.md` | `AGENTS.md` | Keep its protected-path list identical to your CODEOWNERS. Nothing in it is a control — it tells the agent what the machines will do, so it does not spend a pull request finding out. |
-| `tools/templates/ci.yml` | `.github/workflows/ci.yml` | Write your adapter, warehouse auth, production artifacts, full build and diff. **Each of those steps exits 1 until you do** — a template shipped unedited fails closed. |
 
 **Turn on branch protection** for `main`: require pull requests, require review
-from Code Owners, list `ci` and `diff` as required checks (the job names in
-`ci.yml`), and block force-push on every branch — three gate rules read the
-branch's history, and a rewritten history is one they cannot see. Set the
-repository variable `AGENT_LOGIN` to the agent's bot user, so the gate is
-required on the pull requests it opens and advisory on yours.
+from Code Owners, and block force-push on every branch — three gate rules read
+the branch's history, and a rewritten history is one they cannot see.
 
-**Check it runs, then run its own tests** — around three hundred and forty of
+### Rung 4 — the controls that are not code
+
+Controls 1 to 4 of the [framework README](../README.md#2-building-the-lock--5-mandatory-controls):
+the agent's own identity, restricted data access, spending caps, and statistical
+profiles instead of rows. Nothing in `tools/` enforces these and nothing here
+could — they are permissions, monitors and masks, not a script. This is the rung
+that makes the numbers on the next one worth reading.
+
+### Rung 5 — Stage E, the diff
+
+| Copy | To | Then edit |
+| --- | --- | --- |
+| `tools/templates/ci-warehouse.yml` | `.github/workflows/ci-warehouse.yml` | Write your adapter, warehouse auth, production artifacts, the sample build, the full build and the diff. **Six steps exit 1 until you do** — a template shipped unedited fails closed. |
+
+Add `build` and `diff` to the required checks. The largest of those steps is the
+diff itself, and it is the one thing these tools do not do for you:
+[section 5](#5-the-diffjson-contract) is its contract, and shows a query to
+start from.
+
+**Check it runs, then run its own tests** — around three hundred and seventy of
 them, a few seconds, no network. If they pass, the gates on your machine are the
 gates in CI.
 
@@ -235,8 +294,8 @@ Two flags decide whether it can do its job:
   model whose numbers never turned up, and a rule about what is *missing* can
   only see what it was given.
 - **Pass `--base <git ref>`**, the branch the pull request targets, as
-  `templates/ci.yml` does. Then a pre-registration still identical to the
-  merge-base's is `main`'s prediction, not this pull request's: `C7` does not ask
+  `templates/ci-warehouse.yml` does. Then a pre-registration still identical to
+  the merge-base's is `main`'s prediction, not this pull request's: `C7` does not ask
   for its diff, and a diff measured against it is refused (`C0`). Without
   `--base`, every pre-registration in the project counts as this one's —
   stricter, never looser, but a local run can block for a model you never touched.
@@ -335,13 +394,33 @@ select
 from matched
 ```
 
-One row out, one `diff.json` in: `gross_revenue` goes in `altered_columns` when
-`gross_revenue_changed > 0`, and `gross_revenue_delta_pct` — which `nullif`
-already turns into `null` when production is 0 — into
-`metrics.gross_revenue.delta_pct`. For a multi-column key, join on every column.
-For a critical model, add your reconciliation query's two numbers as
-`reconciliation`; one row of `metric, model_value, external_value` is the
-recommended shape, readable by a human and by whatever writes the JSON.
+**One row out, one `diff.json` in.** That translation is
+[`templates/diff_to_json.py`](templates/diff_to_json.py) — stdlib only, no
+network, nothing to configure. It reads one row of CSV or JSON and knows the
+columns by their suffixes, so name them after your metrics and hand it over:
+
+```bash
+python tools/templates/diff_to_json.py --model fct_orders --out diff/fct_orders.json < row.csv
+```
+
+| Column in the row | Where it goes |
+| --- | --- |
+| `row_delta`, `removed_pks` | the two required integers |
+| `<metric>_delta_pct` | `metrics.<metric>.delta_pct`. Empty stays `null` — which is what the `nullif` above already wrote when production was 0 |
+| `<metric>_changed` | above zero, `<metric>` joins `altered_columns` |
+| `<metric>_value` | `metrics.<metric>.value`, for a model production does not have |
+| `reconciliation_model_value`, `reconciliation_external_value` | the `reconciliation` pair a critical model owes |
+| `window_column`, `window_start`, `window_end` | the `window` `compare` prints for the reviewer |
+
+Anything else in the row is ignored, so the query may select more than this
+needs. For a multi-column key, join on every column. Writing the JSON yourself is
+fine too: the table in this section is the whole contract.
+
+**If you already run something.** Recce's row-count and value diffs, and
+`dbt-audit-helper`'s `compare_relations` in summary mode, both measure these
+numbers — name their output columns as above and the same converter finishes the
+job. Summary mode only: Control 4 says the agent sees aggregates and never rows,
+and a diff artifact is read by everyone who opens the pull request.
 
 ---
 
@@ -380,7 +459,7 @@ silent pass is the exact failure this framework exists to prevent.
    and Rule 3 says the code is what changes.
 3. **Then read the `INFO` lines.** They never change the exit code, which is
    exactly why they are easy to skip and worth not skipping. This is why
-   `templates/ci.yml` pipes both commands into the job summary.
+   both workflow templates pipe what they run into the job summary.
 
 **A run that blocks nothing is not a run that found nothing to look at.**
 `slp check: OK (3 models in models/marts/, of 40 models read)` is a coverage
@@ -417,7 +496,7 @@ fixtures the meta-tests hold it to — one where it fires, one where it stays
 silent. **M2** fails if a rule has no row, or a row names a fixture that does not
 do what it says.
 
-Tags: `§1 P`*n* a principle, `§2 C`*n* a control, `§2 R`*n* an agent rule,
+Tags: `§1 P`*n* a principle, `§2 C`*n* a control, `§3 C R`*n* an agent rule,
 `§3 A`–`§3 E` a stage. **Five rules only ever inform** and never change the exit
 code — `I1`, `I2`, `I3`, `I4` and `C5`. The framework asks for what they say to
 be *visible*, not for it to stop the pull request, and **M2** checks that against
@@ -432,9 +511,9 @@ the source so none can quietly grow a `BLOCK`.
 | A spec naming a column or reconciliation query that does not exist — §3 A | `S3` | `check/sensitive_mismatch` | `check/spec_ok` |
 | A `.sql` in a marts path that no yml declares — §3 A | `S4` | `check/sql_without_yml` | `check/spec_ok` |
 | A critical or incremental model CODEOWNERS does not own — §3 E, §2 C5A | `S5` | `check/critical_unowned` | `check/critical_owned` |
-| A pre-registration with an open interval or a missing field — §3 B, §2 R6 | `P1` | `check/prereg_open_interval` | `check/prereg_ok` |
+| A pre-registration with an open interval or a missing field — §3 B, §3 C R6 | `P1` | `check/prereg_open_interval` | `check/prereg_ok` |
 | A `min` above its `max`, or metrics that are not the spec's — §3 B | `P2` | `check/prereg_min_gt_max` | `check/prereg_ok` |
-| No uniqueness test on the spec's `primary_key`, or one that cannot fail — §2 R2 | `T1` | `check/pk_single_missing` | `check/pk_single_unique` |
+| No uniqueness test on the spec's `primary_key`, or one that cannot fail — §3 C R2 | `T1` | `check/pk_single_missing` | `check/pk_single_unique` |
 
 ### `gate`
 
@@ -478,10 +557,11 @@ which is the point of the list; [CHANGELOG.md](CHANGELOG.md) tells each story.
 **Where a pass is not a pass.** Read this group first: these are the ways a green
 can be a green about nothing.
 
-- `gate` never checks that `--marts-path` exists — it reads git, not the project
-  directory, so `--marts-path models/martz` prints `OK`. Nor does it accept
-  `./models/marts`, since git paths never start with `./`: one flag value, two
-  verdicts. Keep the flag in one place and copy it.
+- `--marts-path` still has to say the same thing in three commands and two
+  workflows, and nothing checks that it does. A path that is not there is now
+  exit 2 in all three, and `./models/marts` names the same directory as
+  `models/marts` — but a path that exists and is the wrong one still narrows
+  what is checked without saying so. Keep the flag in one place and copy it.
 - A dbt project that is not at the git repository root makes `gate` exit 2 on
   every read, and `--project-dir` cannot save it.
 - A schema yml written with jinja is unreadable to a plain YAML parser — exit 2
@@ -538,9 +618,11 @@ can be a green about nothing.
 | Path | What it is |
 | --- | --- |
 | `slp.py` | The whole tool: three commands, every rule, one file you can read in one sitting. |
+| `__init__.py` | One docstring, no imports. It exists so `../pyproject.toml` can map this directory to the package name without moving anything. |
 | `schemas/` | What a spec, a pre-registration and a `diff.json` must look like. |
-| `templates/` | CODEOWNERS, AGENTS.md and a CI workflow, ready to copy. |
+| `templates/` | CODEOWNERS, AGENTS.md and the two CI workflows, ready to copy. |
 | `tests/` | The suite, and `tests/fixtures/` — every case as real files, one folder per case with a `README.txt`. |
+| `../examples/` | A project the gates pass on, and a walkthrough of one that they do not. Its READMEs print real output, and `tests/test_examples.py` runs the commands and compares. |
 
 - **One rule per pull request.** A rule is one function, one docstring starting
   with the framework sentence it enforces, one rule id, one fixture that blocks,

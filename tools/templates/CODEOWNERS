@@ -30,6 +30,11 @@
 /package-lock.yml               @your-org/data-platform
 /dependencies.yml               @your-org/data-platform
 
+# The version of these tools the CI installs, if you install rather than vendor.
+# It is the same kind of decision as a package pin, and it is what makes a
+# downgrade of the gate a change somebody approves rather than one line in a diff.
+/.slp-version                   @your-org/data-platform
+
 # Global project configuration.
 /dbt_project.yml                @your-org/data-platform
 

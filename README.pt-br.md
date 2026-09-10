@@ -34,6 +34,15 @@ O framework se resume em três fases:
 
 Uma implementação de referência desses portões vive em **[`tools/`](tools/README.pt-br.md)**: três comandos num arquivo Python, sem rede e sem warehouse.
 
+**Quer ver antes de ler tudo isso?** O [`examples/quickstart`](examples/quickstart/README.md) é um projeto dbt em que os portões passam — dois marts, suas specs, seus pré-registros e seus diffs. Sem dbt, sem warehouse e sem credencial:
+
+```bash
+pip install "pyyaml" "jsonschema>=4"
+python tools/slp.py check --project-dir examples/quickstart
+```
+
+Adotar é uma escada, não um penhasco: o `check` e o `gate` são vinte e uma das trinta regras e não precisam de warehouse nenhum. [A seção de instalação](tools/README.pt-br.md#1-instalação) tem os cinco degraus, cada um verde por si.
+
 ---
 
 ## Índice
@@ -42,6 +51,18 @@ Uma implementação de referência desses portões vive em **[`tools/`](tools/RE
 1. [Manifesto — 3 princípios](#1-manifesto--3-princ%C3%ADpios)
 2. [Construindo a trava — 5 controles obrigatórios](#2-construindo-a-trava--5-controles-obrigat%C3%B3rios)
 3. [O processo de desenvolvimento (rotina) — 5 etapas](#3-o-processo-de-desenvolvimento-rotina--5-etapas)
+
+**Sete palavras que este documento usa antes de definir**, para você poder ler direto:
+
+| Palavra | Em uma linha | Definida em |
+| --- | --- | --- |
+| **Spec** | O que o modelo deve fazer, escrito por um humano no yml do modelo antes de existir qualquer código. Seis campos obrigatórios. | [Etapa A](#3-o-processo-de-desenvolvimento-rotina--5-etapas) |
+| **Pré-registro** | A previsão numérica do agente — quantas linhas vão se mexer, quanto cada métrica pode variar — registrada antes de ele escrever SQL e antes de poder ver qualquer resultado. O termo vem dos ensaios clínicos, e o motivo também. | [Etapa B](#3-o-processo-de-desenvolvimento-rotina--5-etapas) |
+| **Diff** | A diferença medida entre a produção e o build do PR, lida como números, não como linhas. | [Etapa E](#3-o-processo-de-desenvolvimento-rotina--5-etapas) |
+| **Gate** (portão) | Uma verificação determinística que bloqueia o PR. Nunca um LLM: a mesma entrada dá o mesmo veredicto toda vez. | [Controle 5](#2-construindo-a-trava--5-controles-obrigat%C3%B3rios) |
+| **Modelo crítico** | O que alimenta decisões de negócio, relatórios financeiros ou dashboards de diretoria. Deve mais que um modelo padrão: um segundo revisor, uma reconciliação, um rebuild de tudo que vem depois dele. | [Etapa A](#3-o-processo-de-desenvolvimento-rotina--5-etapas) |
+| **Reconciliação** | O modelo comparado com algo que *não* é o modelo — uma planilha de fechamento, um sistema de origem — dentro de uma tolerância que a spec declara. | [Etapa E](#3-o-processo-de-desenvolvimento-rotina--5-etapas) |
+| **Caminho protegido** | Um arquivo em que o agente não pode mexer, garantido por CODEOWNERS e por uma regra do gate, porque editá-lo deixaria o agente mudar as regras que o julgam. | [Controle 5](#2-construindo-a-trava--5-controles-obrigat%C3%B3rios) |
 
 ---
 
@@ -91,7 +112,9 @@ Você não está escrevendo regras para o agente obedecer — está construindo 
 **Quem executa:** Plataforma. **Quando:** Uma única vez, antes do primeiro PR com agente.
 
 > [!IMPORTANT]
-> Não comece a construir nada sem antes configurar os controles.
+> Não solte um agente no repositório antes destes cinco estarem no lugar. São eles que fazem todo o resto valer como controle, e não como recomendação.
+>
+> Eles **não** são pré-requisito para rodar os portões. O `check` e o `gate` — vinte e uma das trinta regras em [`tools/`](tools/README.pt-br.md#1-instalação) — não precisam de warehouse, nem de identidade, nem de teto de gasto, e já valem a pena num repositório em que nenhum agente encostou ainda. Adotar é uma escada; esta seção é o quarto degrau.
 
 <p align="center">
   <picture>

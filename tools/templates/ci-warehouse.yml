@@ -1,0 +1,195 @@
+# Spec-Lock-Diff - the half that touches the warehouse. Copy to
+# .github/workflows/ci-warehouse.yml, after ci.yml is green.
+#
+# ci.yml runs check and gate and needs nothing but Python. This file is the rest:
+# Stage D's build on a sample, and the whole of Stage E - the full build, the
+# diff, and compare holding every number against the interval that was declared
+# before the code was written.
+#
+# Six steps below say what they still have to do and exit 1. That is deliberate:
+# a template shipped unedited fails closed, because every one of them needs a
+# credential or a decision that is yours. Work through the lines each one marks.
+# Until you do, this workflow is red - which is the honest state for a Stage E
+# that cannot yet measure anything.
+#
+# The job names below, `build` and `diff`, are what you add to the required
+# checks in branch protection, alongside `ci` from the other file. Renaming a
+# job means changing that list too. There is no `needs:` from here to `ci`:
+# GitHub has no cross-workflow dependency, so `diff` opens with a slp check of
+# its own - a second or two that stops a broken spec from spending an hour.
+#
+# There is no AGENT_PR block here on purpose. It lives in ci.yml, where the gate
+# is, and a second copy of it would be a second source of truth for the one
+# decision it makes.
+#
+# .github/ is a protected path (Control 5A), so only humans edit this file.
+
+name: ci-warehouse
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+# See ci.yml: the group carries github.workflow because concurrency groups are
+# shared by every workflow in a repository. Without it this file and ci.yml would
+# cancel each other on every push.
+concurrency:
+  group: ${{ github.workflow }}-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Runs on every push to the branch. README section 3, Stage D: must finish in
+  # about fifteen minutes, and any failure blocks.
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # YOU: replace dbt-postgres with the adapter of your warehouse, for example
+      # dbt-snowflake or dbt-bigquery. PyYAML and jsonschema are the only two
+      # libraries tools/slp.py uses; dbt pulls both in today, and they are named
+      # here anyway so a change on dbt's side cannot take the gates down with it.
+      - run: pip install dbt-core dbt-postgres "pyyaml" "jsonschema>=4"
+
+      # YOU: authenticate to the warehouse as the agent's own identity, the one
+      # Control 1 asks you to create - not a human's credentials and not an admin.
+      # This is usually one action from your cloud provider, or one secret.
+      - name: warehouse auth
+        run: |
+          echo "this step still has to authenticate to the warehouse as the agent identity" >&2
+          exit 1
+
+      # YOU: download the manifest.json of your production run into
+      # ./prod-artifacts. This is what --defer and state:modified compare against;
+      # most teams publish it from the production job as an artifact or from cloud
+      # storage. README section 3, Stage D.
+      - name: production artifacts
+        run: |
+          echo "this step still has to download the production manifest into ./prod-artifacts" >&2
+          exit 1
+
+      # Stage D: build only what changed, on a sample window, with unit tests, the
+      # primary key test and contracts.
+      - name: dbt build with sample
+        run: |
+          dbt build --select state:modified+ --defer --state ./prod-artifacts \
+            --sample "30 days"
+
+  # README section 3, Stage E. Runs when the pull request is marked ready for
+  # review, and again on every push after that: a required check belongs to a
+  # commit, so a diff of code that has since changed is worth what a dismissed
+  # approval is worth (Control 1). While the pull request is a draft it does not
+  # run, which is why the agent opens the pull request as a draft and marks it
+  # ready when Stage C is done - one full build per push before that would be
+  # Control 3's cost problem with a green badge on it.
+  diff:
+    needs: build
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install dbt-core dbt-postgres "pyyaml" "jsonschema>=4"  # YOU: your adapter, as above
+
+      # Same reason as in ci.yml: compare runs from the base branch's copy, so a
+      # pull request that edits tools/ is not judged by its own edit.
+      - name: the tools from the base branch
+        run: |
+          base=${{ github.event.pull_request.base.sha }}
+          rm -rf "$RUNNER_TEMP/tools" "$RUNNER_TEMP/base-tools"
+          version=$(git show "$base:.slp-version" 2>/dev/null | tr -d '[:space:]')
+          if [ -n "$version" ]; then
+            # Installed, and pinned by the branch being targeted: a pull request
+            # that edits .slp-version does not change the version that judges it.
+            pip install --quiet "spec-lock-diff==$version"
+            echo "SLP=$(python -c 'import spec_lock_diff.slp as m; print(m.__file__)')" >> "$GITHUB_ENV"
+          elif git cat-file -e "$base:tools/slp.py" 2>/dev/null; then
+            git archive "$base" tools | tar -x -C "$RUNNER_TEMP"
+            mv "$RUNNER_TEMP/tools" "$RUNNER_TEMP/base-tools"
+            echo "SLP=$RUNNER_TEMP/base-tools/slp.py" >> "$GITHUB_ENV"
+          else
+            echo "tools/ is not on the base branch yet; this run judges with the pull request's own copy" >&2
+            cp -r tools "$RUNNER_TEMP/base-tools"
+            echo "SLP=$RUNNER_TEMP/base-tools/slp.py" >> "$GITHUB_ENV"
+          fi
+
+      # The tripwire. ci.yml has already run this, but a required check belongs to
+      # a workflow, and this one cannot say `needs: ci`. Two seconds here is what
+      # stops an unreadable spec from being discovered sixty minutes in.
+      #
+      # YOU: add --marts-path for each directory that holds your marts, the same
+      # values you gave the check and gate steps of ci.yml, and the compare step
+      # at the end of this file.
+      - name: slp check
+        run: python "$SLP" check
+
+      - name: warehouse auth
+        run: |
+          echo "this step still has to authenticate to the warehouse as the agent identity" >&2
+          exit 1
+
+      - name: production artifacts
+        run: |
+          echo "this step still has to download the production manifest into ./prod-artifacts" >&2
+          exit 1
+
+      # YOU: build with full data into a schema of this pull request's own, named
+      # ci_pr_${{ github.event.pull_request.number }}_full, and select by tier:
+      # state:modified for standard models, state:modified+ for critical ones, so
+      # the downstream chain is rebuilt and the diff sees the whole effect.
+      # README section 3, Stage E step 1.
+      - name: dbt build with full data
+        run: |
+          echo "this step still has to build with full data into ci_pr_<n>_full" >&2
+          exit 1
+
+      # YOU: produce one diff/<model>.json per pre-registered model, in the shape
+      # of tools/schemas/diff.schema.json. Recce, dbt-audit-helper in summary mode,
+      # or your own SQL: the tools do not care which, as long as the numbers come
+      # from a closed event_time window identical on both sides. The README's
+      # tools section shows an example query, and templates/diff_to_json.py turns
+      # one row of its result into the file:
+      #   ... your query ... > row.csv
+      #   python diff_to_json.py --model fct_orders --out diff/fct_orders.json < row.csv
+      # README section 3, Stage E step 2.
+      - name: produce the diff
+        run: |
+          echo "this step still has to produce one diff/<model>.json per pre-registered model" >&2
+          exit 1
+
+      # Stage E step 3 and 4: every number against the interval that was declared
+      # before the code was written, and the reconciliation against its tolerance.
+      #
+      # Every diff in ONE call. C7 blocks when a model carries a pre-registration
+      # and no diff.json turned up for it, and it can only see the files it was
+      # given - one call per file would make that rule useless. --base is the
+      # branch the pull request targets: a pre-registration that is still the one
+      # the merge-base had belongs to an earlier change, and compare neither asks
+      # for its diff nor reads numbers against it. The I2 lines are the numbers
+      # themselves, printed pass or fail: they are what the Author reads for
+      # Stage E step 5, so they go in the job summary too.
+      - name: slp compare
+        shell: bash  # bash -eo pipefail, so tee cannot swallow a failure
+        run: |
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          trap 'echo "```" >> "$GITHUB_STEP_SUMMARY"' EXIT
+          python "$SLP" compare \
+            --base ${{ github.event.pull_request.base.sha }} \
+            diff/*.json | tee -a "$GITHUB_STEP_SUMMARY"
