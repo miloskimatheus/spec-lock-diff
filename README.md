@@ -32,6 +32,8 @@ The framework boils down to three phases:
 - **Lock** — Deterministic restrictions. Cost, access, and behavior limits live in the infrastructure (warehouse, CI, permissions), not in text instructions to the agent.
 - **Diff** — After the agent finishes, the human checks and reviews _numbers_ (differences between production and the new version), not code.
 
+A working reference implementation of the gates lives in **[`tools/`](tools/README.md)**: three commands in one Python file, no network and no warehouse.
+
 ---
 
 ## Table of Contents
@@ -251,6 +253,8 @@ When the agent needs to understand the structure of data, it consults `docs/prof
 **Part B — Anti-fraud gate:**
 
 A script that runs in CI on the pull requests the bot opens — the opener of a pull request is an identity the platform authenticates, unlike the author of a commit, which is text — and judges every commit in them, whoever wrote it. On a pull request a human opens it runs and is advisory: CODEOWNERS (Part A) judges those. It is the only custom script that the framework requires. It analyzes the diffs and **blocks the PR** if it finds any of these situations:
+
+The reference implementation of this gate is [`tools/slp.py`](tools/README.md): `slp gate`, next to `slp check` for Stage A and `slp compare` for Stage E.
 
 | Detected situation                                              | Why it blocks                                                                                                                                                   |
 | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
