@@ -1289,6 +1289,13 @@ def build_parser():
 
 def main(argv=None):
     """Parse, run, and turn anything unexpected into exit code 2."""
+    # A console that cannot encode a character - an ASCII locale in a bare
+    # container, a model name in a script the code page lacks - must not turn a
+    # verdict into "unexpected UnicodeEncodeError", exit 2. The character is
+    # written escaped instead, and the exit code stays the verdict's.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="backslashreplace")
     parser = build_parser()
     args = parser.parse_args(argv)
     if getattr(args, "marts_path", None) is None:

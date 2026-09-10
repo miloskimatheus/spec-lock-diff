@@ -674,7 +674,11 @@ lido como "nada mudou".
 ## 7. Formato de saída e códigos de saída
 
 Uma linha por achado, separada por tabulação, e depois uma linha de resumo. Tudo
-no stdout; erros que param a ferramenta vão para o stderr.
+no stdout; erros que param a ferramenta vão para o stderr. Num console que não
+consegue codificar um caractere — um locale ASCII num container pelado, um nome
+de modelo num alfabeto que a code page não tem — o caractere é escrito escapado,
+`\xa7` para `§`, e o código de saída continua sendo o do veredicto; antes virava
+exit 2 sem nada impresso.
 
 ```
 BLOCK	models/marts/orders.yml	fct_orders	test 'unique' on fct_orders.order_id exists on main but not in this PR	[G1]

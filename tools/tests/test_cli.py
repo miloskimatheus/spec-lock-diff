@@ -4,11 +4,31 @@ Every case here is about the machinery all three commands share, so it keeps
 working no matter which rules are registered.
 """
 
+import os
+import subprocess
+import sys
+
 import pytest
 
-from conftest import FIXTURES, run_slp
+from conftest import FIXTURES, SLP, run_slp
 
 CLI = FIXTURES / "cli"
+
+
+def test_a_console_that_cannot_encode_the_output_still_gets_the_verdict():
+    """R3: an ASCII locale turned a block into exit 2, "unexpected UnicodeEncodeError".
+
+    The S1 message carries a section sign, and a model name may carry anything.
+    On a console that cannot encode it the character is written escaped and the
+    exit code stays the verdict's.
+    """
+    env = dict(os.environ, PYTHONIOENCODING="ascii", LC_ALL="C")
+    done = subprocess.run([sys.executable, str(SLP), "check"],
+                          cwd=str(FIXTURES / "check" / "marts_no_spec"), env=env,
+                          capture_output=True)
+    assert done.returncode == 1, done.stderr
+    assert b"model has no meta.spec (README \\xa73 Stage A)" in done.stdout, done.stdout
+    assert b"UnicodeEncodeError" not in done.stderr
 
 
 def test_version_is_printed():

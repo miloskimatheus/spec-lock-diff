@@ -83,6 +83,14 @@ never seen it.
   ready when Stage C is done. README §2 Control 5B says whose pull requests the
   gate is required on, and §3 Stage E says when the diff runs.
 
+- **A console that cannot encode the output still gets the verdict.** The
+  `S1` message carries a section sign, and a model name may carry anything;
+  on an ASCII locale — a bare container, `PYTHONIOENCODING=ascii`, a code page
+  without the character — the print raised, the catch-all turned it into
+  `ERROR unexpected UnicodeEncodeError`, and a block became exit 2 with no
+  finding printed. The character is written escaped now, `\xa7` for `§`, and
+  the exit code stays the verdict's.
+
 - **The lock now covers the history the gate reads.** `G7` and `I1` walk the
   commits of the pull request, and 0.3.0 said that a squash defeats them. So
   does `commit --amend`, so does a rebase, and those are what an agent does by

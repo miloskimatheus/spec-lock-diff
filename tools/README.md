@@ -672,7 +672,10 @@ rejects keys it does not know, which is what stops a typo from being read as
 ## 7. Output format and exit codes
 
 One line per finding, tab-separated, then one summary line. Everything on
-stdout; errors that stop the tool go to stderr.
+stdout; errors that stop the tool go to stderr. On a console that cannot encode
+a character — an ASCII locale in a bare container, a model name in a script the
+code page lacks — the character is written escaped, `\xa7` for `§`, and the
+exit code stays the verdict's; it used to become exit 2 with nothing printed.
 
 ```
 BLOCK	models/marts/orders.yml	fct_orders	test 'unique' on fct_orders.order_id exists on main but not in this PR	[G1]
