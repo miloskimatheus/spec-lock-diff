@@ -4,11 +4,15 @@ A template that drifts from the README is worse than no template: it looks
 like the framework and enforces something else.
 """
 
+import importlib.util
+import json
 import re
 
+import jsonschema
 import pytest
 import yaml
 
+import slp
 from conftest import TOOLS
 
 README = (TOOLS.parent / "README.md").read_text(encoding="utf-8")
@@ -319,3 +323,109 @@ def test_the_tools_come_from_the_base_branch_everywhere_they_run():
             assert names.index("the tools from the base branch") < min(commands), where
             copies.append(run)
     assert len(copies) == 2 and len(set(copies)) == 1
+
+
+def _converter():
+    """templates/diff_to_json.py as a module. It is a template, so it is not importable."""
+    path = TEMPLATES / "diff_to_json.py"
+    spec = importlib.util.spec_from_file_location("diff_to_json", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+ONE_ROW = ("row_delta,removed_pks,gross_revenue_changed,gross_revenue_delta_pct,"
+           "window_column,window_start,window_end\n"
+           "8400,0,17,0.42,order_date,2025-01-01,2025-02-01\n")
+
+
+def _built(text, model="fct_orders"):
+    import io
+    convert = _converter()
+    return convert.build(convert.read_row(io.StringIO(text)), model)
+
+
+def test_the_converter_writes_what_the_schema_demands():
+    """The last hand-written step between a query and `compare`, held to the contract.
+
+    README section 5 used to ask the reader to translate one result row into this
+    JSON themselves - which column goes in altered_columns, which number is a
+    percentage, where the nullif already put a null. Getting it wrong is a diff
+    `compare` refuses (`C0`) or, worse, one it reads as nothing having changed.
+    """
+    diff = _built(ONE_ROW)
+    jsonschema.Draft202012Validator(
+        json.loads((TOOLS / "schemas" / "diff.schema.json").read_text(encoding="utf-8"))
+    ).validate(diff)
+    assert diff["altered_columns"] == ["gross_revenue"]
+    assert diff["metrics"] == {"gross_revenue": {"delta_pct": 0.42}}
+    assert diff["window"]["column"] == "order_date"
+
+
+def test_a_metric_that_did_not_move_is_not_an_altered_column():
+    """`<metric>_changed` is a count, and only a count above zero is a difference."""
+    diff = _built(ONE_ROW.replace(",17,", ",0,"))
+    assert diff["altered_columns"] == []
+    assert diff["metrics"]["gross_revenue"]["delta_pct"] == 0.42
+
+
+def test_a_percentage_of_zero_stays_null():
+    """When production is 0 the percentage does not exist, and nullif writes nothing.
+
+    An empty cell must not become 0.0: that is a number nobody can evaluate being
+    read as a number that passed. `compare` blocks on the null, which is the point.
+    """
+    diff = _built(ONE_ROW.replace(",0.42,", ",,"))
+    assert diff["metrics"]["gross_revenue"] == {"delta_pct": None}
+
+
+def test_a_model_production_does_not_have_carries_its_value():
+    """No production side, so no percentage; the interval is on the value instead."""
+    diff = _built("row_delta,removed_pks,gross_revenue_value\n14203118,0,14203118.40\n")
+    assert diff["metrics"]["gross_revenue"] == {"delta_pct": None, "value": 14203118.40}
+
+
+def test_json_and_csv_are_read_the_same_way():
+    """Whatever your warehouse client writes, the row is the row."""
+    as_json = json.dumps({"row_delta": 8400, "removed_pks": 0,
+                          "gross_revenue_changed": 17, "gross_revenue_delta_pct": 0.42,
+                          "window_column": "order_date", "window_start": "2025-01-01",
+                          "window_end": "2025-02-01"})
+    assert _built(as_json) == _built(ONE_ROW)
+
+
+def test_a_critical_models_two_numbers_travel_together():
+    diff = _built("row_delta,removed_pks,reconciliation_model_value,"
+                  "reconciliation_external_value\n312,0,1000000.0,1000200.0\n",
+                  "fct_invoices")
+    assert diff["reconciliation"] == {"model_value": 1000000.0, "external_value": 1000200.0}
+
+
+@pytest.mark.parametrize("row", [
+    "",
+    "row_delta\n8400\n",                                   # no removed_pks
+    "row_delta,removed_pks\n8400,-1\n",                    # keys cannot un-remove
+    "row_delta,removed_pks\nplenty,0\n",                   # not a number
+    "row_delta,removed_pks\n8400,0\n8401,0\n",            # two rows, one model
+])
+def test_what_it_cannot_convert_it_refuses(row):
+    """Fail closed, as slp does: a diff nobody could write is not an empty diff."""
+    with pytest.raises(SystemExit):
+        _built(row)
+
+
+def test_the_converter_output_is_a_diff_compare_accepts(tmp_path):
+    """End to end: the row a query returns, through the converter, into the gate."""
+    project = tmp_path / "project"
+    (project / "models" / "marts").mkdir(parents=True)
+    (project / "models" / "marts" / "fct_orders.sql").write_text("select 1", encoding="utf-8")
+    (project / "models" / "marts" / "fct_orders.yml").write_text(
+        (TOOLS / "tests" / "fixtures" / "check" / "prereg_ok"
+         / "models" / "marts" / "fct_orders.yml").read_text(encoding="utf-8"), encoding="utf-8")
+    diff = tmp_path / "fct_orders.json"
+    diff.write_text(json.dumps(_built(ONE_ROW)), encoding="utf-8")
+    from conftest import run_slp
+    code, out, err = run_slp(["compare", "--project-dir", str(project), str(diff)], tmp_path)
+    assert code == 0, out + err
+    assert "row_delta 8400, declared 0..12000" in out
+

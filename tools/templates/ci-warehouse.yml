@@ -164,7 +164,10 @@ jobs:
       # of tools/schemas/diff.schema.json. Recce, dbt-audit-helper in summary mode,
       # or your own SQL: the tools do not care which, as long as the numbers come
       # from a closed event_time window identical on both sides. The README's
-      # tools section shows an example query and a converter that writes the JSON.
+      # tools section shows an example query, and templates/diff_to_json.py turns
+      # one row of its result into the file:
+      #   ... your query ... > row.csv
+      #   python diff_to_json.py --model fct_orders --out diff/fct_orders.json < row.csv
       # README section 3, Stage E step 2.
       - name: produce the diff
         run: |

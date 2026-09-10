@@ -401,14 +401,33 @@ select
 from matched
 ```
 
-Uma linha na saída, um `diff.json` na entrada: `gross_revenue` entra em
-`altered_columns` quando `gross_revenue_changed > 0`, e
-`gross_revenue_delta_pct` — que o `nullif` já transforma em `null` quando a
-produção é 0 — vai para `metrics.gross_revenue.delta_pct`. Para uma primary key
-de várias colunas, junte por todas. Para um modelo crítico, acrescente os dois
-números da sua query de reconciliação como `reconciliation`; uma linha de
-`metric, model_value, external_value` é o formato recomendado, legível por um
-humano e por quem escreve o JSON.
+**Uma linha na saída, um `diff.json` na entrada.** Essa tradução é o
+[`templates/diff_to_json.py`](templates/diff_to_json.py) — só stdlib, sem rede,
+nada para configurar. Ele lê uma linha de CSV ou JSON e reconhece as colunas
+pelos sufixos, então nomeie-as com o nome das suas métricas e entregue:
+
+```bash
+python tools/templates/diff_to_json.py --model fct_orders --out diff/fct_orders.json < row.csv
+```
+
+| Coluna na linha | Para onde vai |
+| --- | --- |
+| `row_delta`, `removed_pks` | os dois inteiros obrigatórios |
+| `<metric>_delta_pct` | `metrics.<metric>.delta_pct`. Vazio continua `null` — que é o que o `nullif` acima já escreveu quando a produção era 0 |
+| `<metric>_changed` | acima de zero, `<metric>` entra em `altered_columns` |
+| `<metric>_value` | `metrics.<metric>.value`, para um modelo que a produção não tem |
+| `reconciliation_model_value`, `reconciliation_external_value` | o par `reconciliation` que um modelo crítico deve |
+| `window_column`, `window_start`, `window_end` | a `window` que o `compare` imprime para quem revisa |
+
+Qualquer outra coisa na linha é ignorada, então a query pode selecionar mais do
+que isto precisa. Para uma primary key de várias colunas, junte por todas.
+Escrever o JSON na mão também serve: a tabela desta seção é o contrato inteiro.
+
+**Se você já roda alguma coisa.** Os diffs de contagem e de valor do Recce, e o
+`compare_relations` do `dbt-audit-helper` em modo summary, medem esses números —
+nomeie as colunas de saída como acima e o mesmo conversor termina o serviço. Só
+em modo summary: o Controle 4 diz que o agente vê agregados e nunca linhas, e um
+artefato de diff é lido por todo mundo que abre o PR.
 
 ---
 

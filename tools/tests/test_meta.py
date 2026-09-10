@@ -117,7 +117,8 @@ def test_m4_nothing_here_reaches_for_the_network():
     # and the yml, sql, json and CODEOWNERS beside it are where a stray address
     # would actually matter.
     looked_at = [TOOLS / "slp.py"] + sorted(TOOLS.glob("schemas/*")) \
-        + sorted(TOOLS.glob("templates/*")) + sorted(TOOLS.glob("tests/*.py")) \
+        + sorted(p for p in TOOLS.glob("templates/*") if p.is_file()) \
+        + sorted(TOOLS.glob("tests/*.py")) \
         + sorted(p for p in (TOOLS / "tests" / "fixtures").rglob("*") if p.is_file()) \
         + sorted(p for p in EXAMPLES.rglob("*") if p.is_file() and p.suffix != ".md")
     address = re.compile(r"https?" + "://")  # split, so this file does not match itself

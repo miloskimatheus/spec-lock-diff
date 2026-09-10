@@ -48,6 +48,27 @@ runs at all.
   opens with a `slp check` of its own so the sixty-minute job is not where an
   unreadable spec is discovered.
 
+- **The last hand-written step of Stage E is written.** Producing the diff reads
+  the warehouse, so it is not and will not be the tools' job. But the step after
+  it — turning one row of a comparison query into the JSON of
+  `schemas/diff.schema.json` — never needed a warehouse, and README section 5
+  asked the reader to do it by hand: which column belongs in `altered_columns`,
+  which number is a percentage and which is a value, where the `nullif` already
+  put a `null`. Get it wrong and `compare` either refuses the file (`C0`) or, far
+  worse, reads it as nothing having changed.
+
+  `templates/diff_to_json.py` does that translation. Stdlib only, no network,
+  nothing to configure: it reads one row of CSV or JSON and knows the columns by
+  their suffixes — `<metric>_delta_pct`, `<metric>_changed`, `<metric>_value`,
+  the reconciliation pair, the window — so naming them after your metrics is the
+  whole of the setup. An empty percentage stays `null` rather than becoming
+  `0.0`, which is the difference between a number nobody can evaluate and a
+  number that passed. It fails closed on anything it cannot convert.
+
+  Its output is validated against the real schema in the suite, and one test runs
+  a row through it and into `compare`. Recce and `dbt-audit-helper` in summary
+  mode measure the same numbers; section 5 now says how to map them.
+
 - **There is a second way in, and it does not weaken the first.** `pyproject.toml`
   publishes the tool as `spec-lock-diff`, so `pipx run spec-lock-diff check` works
   with nothing copied into your repository at all. Vendoring stays the documented

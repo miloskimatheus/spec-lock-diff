@@ -394,13 +394,33 @@ select
 from matched
 ```
 
-One row out, one `diff.json` in: `gross_revenue` goes in `altered_columns` when
-`gross_revenue_changed > 0`, and `gross_revenue_delta_pct` — which `nullif`
-already turns into `null` when production is 0 — into
-`metrics.gross_revenue.delta_pct`. For a multi-column key, join on every column.
-For a critical model, add your reconciliation query's two numbers as
-`reconciliation`; one row of `metric, model_value, external_value` is the
-recommended shape, readable by a human and by whatever writes the JSON.
+**One row out, one `diff.json` in.** That translation is
+[`templates/diff_to_json.py`](templates/diff_to_json.py) — stdlib only, no
+network, nothing to configure. It reads one row of CSV or JSON and knows the
+columns by their suffixes, so name them after your metrics and hand it over:
+
+```bash
+python tools/templates/diff_to_json.py --model fct_orders --out diff/fct_orders.json < row.csv
+```
+
+| Column in the row | Where it goes |
+| --- | --- |
+| `row_delta`, `removed_pks` | the two required integers |
+| `<metric>_delta_pct` | `metrics.<metric>.delta_pct`. Empty stays `null` — which is what the `nullif` above already wrote when production was 0 |
+| `<metric>_changed` | above zero, `<metric>` joins `altered_columns` |
+| `<metric>_value` | `metrics.<metric>.value`, for a model production does not have |
+| `reconciliation_model_value`, `reconciliation_external_value` | the `reconciliation` pair a critical model owes |
+| `window_column`, `window_start`, `window_end` | the `window` `compare` prints for the reviewer |
+
+Anything else in the row is ignored, so the query may select more than this
+needs. For a multi-column key, join on every column. Writing the JSON yourself is
+fine too: the table in this section is the whole contract.
+
+**If you already run something.** Recce's row-count and value diffs, and
+`dbt-audit-helper`'s `compare_relations` in summary mode, both measure these
+numbers — name their output columns as above and the same converter finishes the
+job. Summary mode only: Control 4 says the agent sees aggregates and never rows,
+and a diff artifact is read by everyone who opens the pull request.
 
 ---
 
