@@ -18,6 +18,7 @@ never seen it.
 | --- | --- |
 | `G9` | any change on the branch to a **protected path** of Control 5A — `.github/`, `.pre-commit-config.yaml`, `CODEOWNERS`, `AGENTS.md`, `dbt_project.yml`, `macros/`, `models/semantic/`, `docs/profile/`, `tools/` — and any file **added under `tests/generic/`**. A `{% test unique %}` dropped into either place replaces the built-in `unique` everywhere it is declared, because dbt resolves macros from the project before its own; no test file changes, and `G1`, `G3` and `T1` all read a healthy project. CODEOWNERS made a human approve it; the gate makes it a red check, so the approval is not the only thing standing. Paths with a rule of their own — the package files (`G6`), `analyses/reconciliation_*` (`G5`), a test file already there (`G1`) — stay with it, so one change is one finding |
 | `G10` | a **singular test added under `tests/`** whose own `{{ config() }}` stops it failing: `severity` that is not `error`, `enabled: false`, an `error_if`, `warn_if`, `fail_calc` or `limit`. The yml rules could not see it, because no yml changed; the predicate is the one `T1` and `G3` use |
+| `I4` | nothing. For a spec that was not on `main`, it prints the commit on the branch that first wrote it and who wrote it. `G7` accepts the first writer of a new spec as the human, because a commit author is text and there is no identity to check it against; `I4` puts that fact in front of the Author, who is the one person who can say whether they read and approved the six fields before any line of code |
 
 ### Changed behaviour
 
@@ -49,6 +50,14 @@ never seen it.
   production does not have blocks with a message that says which of the two to
   write. A metric declares one of the two, never both, and a refactoring may
   not declare `value`: both are schema rules with their own sentence.
+
+- **The lock now covers the history the gate reads.** `G7` and `I1` walk the
+  commits of the pull request, and 0.3.0 said that a squash defeats them. So
+  does `commit --amend`, so does a rebase, and those are what an agent does by
+  habit; Control 1's branch protection was written for `main` only, so nothing
+  stopped a force-push to the pull request's branch. README §2 Control 1 asks
+  for force-push to be blocked on every branch — one ruleset — and section 9
+  says what `G7`, `I1` and `I4` are worth without it: advisory.
 
 ## 0.3.0 — the shape of the project, not the shape of the fixtures
 

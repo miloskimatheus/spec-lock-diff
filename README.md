@@ -129,6 +129,10 @@ Branch protection on `main` (all mandatory):
 - No bypass for anyone — including admins.
 - Mandatory status checks: CI (stage D) and Diff (stage E) of the per-PR flow.
 
+On every branch (a ruleset that targets `*`, or the equivalent):
+
+- **Force-push blocked.** The anti-fraud gate (Control 5B) walks the commits of the pull request to see when the spec and the pre-registration were first written and how often they changed. A rewritten history — `commit --amend`, a rebase, a squash — is a history with none of that in it, and nothing the gate can read tells it so. An agent that cannot rewrite the branch cannot erase the evidence; an agent that can, can.
+
 ---
 
 ### <img src="assets/icon-c2.svg" width="19" height="19" alt=""> Control 2: Restricted data access

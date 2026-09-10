@@ -31,7 +31,7 @@ não diz nada, estas ferramentas não fazem nada.
 
 | Caminho | O que é |
 | --- | --- |
-| `slp.py` | A ferramenta inteira: três comandos, vinte e oito regras, um arquivo que se lê de uma sentada. |
+| `slp.py` | A ferramenta inteira: três comandos, vinte e nove regras, um arquivo que se lê de uma sentada. |
 | `schemas/spec.schema.json` | Como uma `meta.spec` precisa ser (README §3 Etapa A). |
 | `schemas/pre_registration.schema.json` | Como um `meta.pre_registration` precisa ser (README §3 Etapa B). |
 | `schemas/diff.schema.json` | Como um `diff.json` precisa ser — a única interface com o que quer que meça o seu diff. |
@@ -212,8 +212,9 @@ na config — dois `dbt_utils.expression_is_true` na mesma expressão, com um
 um: quantos eram, quantos são, e quais configs estão no segundo saco e não no
 primeiro. Numerá-los seria errado justamente no caso que importa, porque tirar o
 primeiro de dois passa o número dele para o segundo, e isso se lê como edição de
-config em vez de teste removido. Para as duas regras que precisam de histórico,
-ele caminha pelos commits com `--first-parent`, do mais antigo para o mais novo.
+config em vez de teste removido. Para as três regras que precisam de histórico
+— `G7`, `I1`, `I4` —, ele caminha pelos commits com `--first-parent`, do mais
+antigo para o mais novo.
 Tudo o que um commit tem é lido por um único `git cat-file --batch`, então um
 pull request custa cerca de dois processos de git por commit em vez de um por
 arquivo por commit — 150 modelos numa branch de 30 commits gastavam vinte
@@ -742,6 +743,7 @@ ganhe um `BLOCK` em silêncio.
 | §2 Controle 5B — "Teste adicionado que não pode falhar", para um teste singular em `tests/` | `G10` | `gate/G10_singular_born_warn` | `gate/G10_ok_singular_plain` |
 | §3 Etapa B — "um contador de alterações é incrementado no PR" | `I1` | `gate/I1_two_edits` | `gate/I1_ok_written_once` |
 | §2 Controle 5B — "`WHERE` ou cláusula de exclusão adicionada a um teste", para um teste que esta branch adiciona | `I3` | `gate/I3_new_test_with_where` | `gate/I3_ok_new_test_plain` |
+| §3 Etapa A — "os 6 campos precisam ser lidos e aprovados pelo humano antes de qualquer linha de código" | `I4` | `gate/I4_spec_first_written_on_branch` | `gate/I4_ok_spec_from_main` |
 | §3 Etapa E passo 3 — o diff e o pré-registro precisam ser legíveis | `C0` | `compare/C0_no_prereg` | `compare/C1_inside` |
 | §3 Etapa E passo 3 — "um número está fora do intervalo declarado" | `C1` | `compare/C1_row_delta_above_max` | `compare/C1_inside` |
 | §3 Etapa E passo 3 — linhas que existem em produção e não na versão nova | `C2` | `compare/C2_removed_pks_over` | `compare/C1_inside` |
@@ -778,7 +780,7 @@ ponto desta lista.
 | A `T1` recusa um teste de unicidade *mais forte* que a primary key | O `unique_combination_of_columns` aceito precisa nomear exatamente a `primary_key` da spec. Um `unique` numa das colunas de uma chave de duas é uma afirmação mais estrita e ainda assim se lê como "no uniqueness test on primary key". Acrescente a forma que você usa a `ACCEPTED_PK_TESTS`, ou escreva também o teste que a regra pede. README §2 Regra 2. |
 | O que uma mudança no `dbt_project.yml` ou numa macro *faz* | A `G9` bloqueia qualquer mudança no `dbt_project.yml` ou em `macros/` na branch, então `data_tests: {+severity: warn}` não entra num pull request do agente sem ser visto. O gate continua não lendo nenhum dos dois: um pull request humano que mude um deles é do CODEOWNERS julgar, e não será o gate a dizer o que a mudança faz com os testes. README §2 Controle 5B, Regra 3. |
 | Uma spec **apagada** | A `G7` dispara quando uma spec *muda*; uma spec removida por inteiro não aciona regra nenhuma do `gate`, e o `check` pega só o sintoma (`S1`, "model has no meta.spec"), que se lê como um modelo que nunca teve uma. Um pré-registro apagado junto com uma mudança no modelo agora é `G8`; um apagado sozinho, com o modelo intocado, ainda não aciona nada. README §3 Etapa A, Etapa B. |
-| Evasão da `G7` e da `I1` pelo formato do histórico | As duas regras leem o histórico da branch, então as duas dependem do formato dele. A caminhada usa `--first-parent`, que pula trabalho feito numa branch lateral e mesclado: uma spec criada *e* editada dentro de uma branch dessas passa pela `G7`, e a contagem da `I1` fica subestimada. **Squash não é a solução** — esta página já disse que era, e é pior: o squash apaga os commits intermediários de vez, então, para uma spec escrita pela primeira vez na branch, a `G7` não tem contra o que comparar e a `I1` reporta zero. Mesmo conteúdo, três veredictos conforme a topologia, o que combina mal com o Princípio 3. Até a caminhada mudar: preserve os commits do pull request e leia a `I1` como piso. Uma spec que já existia na `main` está segura de qualquer jeito, porque é o merge-base que a `G7` usa. README §3 Etapa B. |
+| Evasão da `G7`, da `I1` e da `I4` pelo formato do histórico | As três regras leem o histórico da branch, então as três dependem do formato dele. A caminhada usa `--first-parent`, que pula trabalho feito numa branch lateral e mesclado: uma spec criada *e* editada dentro de uma branch dessas passa pela `G7`, e a contagem da `I1` fica subestimada. Um histórico reescrito é pior, e é o que agentes fazem por hábito: `commit --amend`, um rebase, um squash apagam os commits intermediários de vez, então, para uma spec escrita pela primeira vez na branch, a `G7` não tem contra o que comparar, a `I1` reporta zero e a `I4` aponta para o commit reescrito. Mesmo conteúdo, três veredictos conforme a topologia, o que combina mal com o Princípio 3. Nada do que o gate consegue ler avisa que um histórico foi reescrito, então a trava precisa avisar: o README §2 Controle 1 agora pede que force-push seja bloqueado em toda branch, o que é um ruleset. Com ele, preserve os commits do pull request e leia a `I1` como piso; sem ele, `G7`, `I1` e `I4` são consultivas. Uma spec que já existia na `main` está segura de qualquer jeito, porque é o merge-base que a `G7` usa. README §3 Etapa B. |
 | Cada edge da spec virar um unit test (Regra 2) | Os `known_edges` da spec são validados como texto e nada confere que cada um virou um unit test com fixture sintética. Uma spec com cinco edges e nenhum unit test passa no `check`. README §2 Regra 2. |
 | Se uma tolerância ou uma âncora conseguem falhar | `reconciliation_tolerance: "999%"` e `external_validation: "TODO"` satisfazem o schema. O mesmo argumento que o schema do pré-registro faz sobre intervalos abertos vale para eles; o schema ainda não faz esse argumento. README §3 Etapa A. |
 | Detectar dado real em fixtures (Regra 7) | Estas ferramentas só verificam as próprias fixtures (meta-teste M6). Para o seu repositório use gitleaks com regras para e-mail e CPF, como o README §3 Etapa D descreve. |

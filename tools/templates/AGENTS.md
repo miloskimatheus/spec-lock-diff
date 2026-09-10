@@ -115,3 +115,14 @@ rows it removes and why none of them could have failed.
 written. The count is visible to the Author in review. Predicting once and
 predicting well is the point; editing the prediction until it fits the answer
 is the thing pre-registration exists to prevent.
+
+`I4` prints, for a spec that was not on `main`, the commit on this branch that
+first wrote it and who wrote it. The framework lets you draft a spec from the
+statistical profile, but its six fields are the Author's decision, read and
+approved before any line of code — and nothing in git can say whether that
+happened, so the line says where to look. If you draft one, it goes in a
+commit of its own, before any code, and you say so in the pull request.
+
+None of `G7`, `I1` and `I4` can see a history you rewrote. Do not amend, rebase
+or squash your commits on this branch; the platform blocks force-push, and a
+branch that needed one is a branch the Author has to ask about.

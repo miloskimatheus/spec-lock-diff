@@ -34,6 +34,14 @@ def test_replacing_mains_pre_registration_is_not_an_edit(tmp_path):
     assert "pre-registration was modified 1 time after it was first written" in out, out
 
 
+def test_a_spec_first_written_on_the_branch_is_pointed_at(tmp_path):
+    """I4 names the commit, so the Author can find the six fields they are asked to have read."""
+    repo = build(FIXTURES / "gate" / "I4_spec_first_written_on_branch", tmp_path)
+    second = git(repo, "rev-parse", "--short", "HEAD").strip()
+    _, out, _ = run_slp(["gate", "--base", "base"], repo)
+    assert "meta.spec was first written on this branch, in commit %s by Fixture;" % second in out, out
+
+
 def test_nothing_changed_says_so(tmp_path):
     repo = build(QUIET, tmp_path)
     code, out, _ = run_slp(["gate", "--base", "base"], repo)

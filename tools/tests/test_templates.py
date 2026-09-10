@@ -133,10 +133,12 @@ def test_the_rule_count_in_the_readmes_is_the_number_of_rules():
     """A count nobody checks is a count that drifts the first time a rule lands."""
     import slp
     said = {7: "seven", 24: "twenty-four", 25: "twenty-five", 26: "twenty-six",
-            27: "twenty-seven", 28: "twenty-eight"}
+            27: "twenty-seven", 28: "twenty-eight", 29: "twenty-nine", 30: "thirty",
+            31: "thirty-one", 32: "thirty-two"}
     words = {"twenty-four": "vinte e quatro", "twenty-five": "vinte e cinco",
              "twenty-six": "vinte e seis", "twenty-seven": "vinte e sete",
-             "twenty-eight": "vinte e oito"}
+             "twenty-eight": "vinte e oito", "twenty-nine": "vinte e nove",
+             "thirty": "trinta", "thirty-one": "trinta e uma", "thirty-two": "trinta e duas"}
     english = said.get(len(slp.RULE_IDS))
     assert english, "no word for %d rules; add it here" % len(slp.RULE_IDS)
     assert "%s rules" % english in (TOOLS / "README.md").read_text(encoding="utf-8")

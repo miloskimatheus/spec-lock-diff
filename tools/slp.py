@@ -42,7 +42,7 @@ CFG_KEYS = ("enabled", "error_if", "fail_calc", "limit", "severity",
 # Every rule id these tools can print. The README coverage table has one row per
 # id and the fixtures one folder per id; meta-test M2 keeps the three in step.
 RULE_IDS = ("S1", "S2", "S3", "S4", "P1", "P2", "T1",
-            "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G10", "I1", "I3",
+            "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G10", "I1", "I3", "I4",
             "C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "I2")
 # Rules that only ever inform. The README asks for what they say to be visible,
 # not for it to stop the pull request, so they never raise the exit code.
@@ -50,7 +50,7 @@ RULE_IDS = ("S1", "S2", "S3", "S4", "P1", "P2", "T1",
 # because a refactoring's intervals are pinned to zero by the schema, so C1 to
 # C4 already refuse every number it could catch; if that stops being true, this
 # tuple is where C5 goes back to blocking.
-INFO_RULES = ("I1", "I2", "I3", "C5")
+INFO_RULES = ("I1", "I2", "I3", "I4", "C5")
 
 
 class SlpError(Exception):
@@ -489,7 +489,7 @@ PROTECTED_FILES = (".pre-commit-config.yaml", "CODEOWNERS", "AGENTS.md", "dbt_pr
 # What the gate rules read: the tree at the merge-base, the tree at head, and one
 # light inventory per commit in between (oldest first, merge-base included).
 Gate = NamedTuple("Gate", [("root", object), ("before", dict), ("after", dict),
-                           ("walk", list), ("marts", tuple)])
+                           ("walk", list), ("marts", tuple), ("commits", list)])
 
 def _canon(obj):
     """One text for one value, whatever order the yml file happened to use."""
@@ -834,6 +834,20 @@ def _inherited(now, then):
     """A pre-registration identical to the one at the merge-base: main's prediction, not this PR's."""
     return now is not None and then is not None and _canon(now) == _canon(then)
 
+def gate_spec_first_written(ctx):
+    """README §3 Stage A — "the 6 fields must be read and approved by the human before any line of code is written": a spec that was not on main was written on this branch, and the Author is told where, because nothing in git can say by whom it was approved."""
+    out = []
+    for model in sorted(ctx.after["specs"]):
+        if ctx.after["specs"][model] is None or ctx.before["specs"].get(model) is not None \
+                or not _in_marts(ctx, model):
+            continue
+        at = next(i for i, inv in enumerate(ctx.walk) if inv["specs"].get(model) is not None)
+        out.append(info(_file(ctx, model), model, "meta.spec was first written on this branch, "
+                        "in commit %s; the framework asks the Author to have read and approved "
+                        "its six fields before any line of code, and only the Author can say "
+                        "whether that happened" % ctx.commits[at], "I4"))
+    return out
+
 def gate_prereg_present(ctx):
     """README §3 Stage C — "Cannot start without a valid pre-registration"; Stage B — the agent declares the numerical changes it expects "before writing any code", and a pre-registration "belongs to one pull request"."""
     out = []
@@ -1090,7 +1104,8 @@ CHECK_RULES = [check_spec_present, check_model_declared, check_spec_schema,
 GATE_RULES = [gate_test_removed, gate_test_filter, gate_test_severity,
               gate_test_narrowed, gate_unit_test_changed, gate_recon_with_model,
               gate_packages, gate_protected_paths, gate_singular_born_muted,
-              gate_spec_changed, gate_prereg_present, gate_prereg_counter]
+              gate_spec_changed, gate_spec_first_written, gate_prereg_present,
+              gate_prereg_counter]
 COMPARE_RULES = [compare_contract, compare_rows, compare_removed_pks,
                  compare_columns, compare_metrics, compare_refactoring,
                  compare_reconciliation, compare_summary]
@@ -1133,7 +1148,11 @@ def cmd_gate(args):
     before, after = inventory(root, base, marts=marts), inventory(root, args.head, marts=marts)
     # The walk starts at the merge-base and ends at head, both already read.
     walk = [before] + [inventory(root, ref, False, marts) for ref in commits[:-1]] + [after]
-    return report(apply_rules(GATE_RULES, Gate(root, before, after, walk, marts)), "gate",
+    # Who wrote each commit of the walk, in one git process, for the rules that
+    # say where on the branch something first appeared.
+    who = ["main"] + git(root, "log", "--no-walk=unsorted", "--format=%h by %an",
+                         *commits).splitlines()
+    return report(apply_rules(GATE_RULES, Gate(root, before, after, walk, marts, who)), "gate",
                   "no changes" if before == after else _count(len(commits), "commit"))
 
 def cmd_compare(args):

@@ -129,6 +129,10 @@ Branch protection na `main` (todas obrigatórias):
 - Sem bypass para ninguém — inclusive admins.
 - Status checks obrigatórios: CI (etapa D) e Diff (etapa E) do fluxo por PR.
 
+Em toda branch (um ruleset que mira `*`, ou o equivalente):
+
+- **Force-push bloqueado.** O gate antifraude (Controle 5B) percorre os commits do pull request para ver quando a spec e o pré-registro foram escritos pela primeira vez e quantas vezes mudaram. Um histórico reescrito — `commit --amend`, um rebase, um squash — é um histórico sem nada disso dentro, e nada do que o gate consegue ler avisa. Um agente que não consegue reescrever a branch não consegue apagar a evidência; um que consegue, consegue.
+
 ---
 
 ### <img src="assets/icon-c2.svg" width="19" height="19" alt=""> Controle 2: Acesso a dados restrito
