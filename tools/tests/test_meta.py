@@ -194,7 +194,7 @@ def test_the_version_is_the_one_the_changelog_describes():
 # the rules actually cost and a cap wants to bite. WHOLE_FILE goes up, and what
 # was bought is room to explain: it is the one of the three that counts prose,
 # so a margin there is the margin the other two exist to protect.
-MACHINERY, ONE_RULE, WHOLE_FILE = 480, 32, 1300
+MACHINERY, ONE_RULE, WHOLE_FILE = 520, 32, 1350
 
 
 def _weights():

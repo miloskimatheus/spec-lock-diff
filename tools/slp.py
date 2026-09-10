@@ -46,7 +46,7 @@ INERT_KEYS = ("tags", "meta", "description", "name", "store_failures_as",
 
 # Every rule id these tools can print. The README coverage table has one row per
 # id and the fixtures one folder per id; meta-test M2 keeps the three in step.
-RULE_IDS = ("S1", "S2", "S3", "S4", "P1", "P2", "T1",
+RULE_IDS = ("S1", "S2", "S3", "S4", "S5", "P1", "P2", "T1",
             "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G10", "I1", "I3", "I4",
             "C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "I2")
 # Rules that only ever inform. The README asks for what they say to be visible,
@@ -378,6 +378,78 @@ def check_spec_consistency(project):
                 and not (project.dir / query).is_file():
             out.append(block(model.file, model.name, "spec.reconciliation_query points at %s, "
                              "which does not exist" % query, "S3"))
+    return out
+
+# --- check: what CODEOWNERS owns (README §2 Control 5A, §3 Stage E approval rules) ---
+
+# Where git looks for the file, in the order it looks.
+CODEOWNERS_FILES = (".github/CODEOWNERS", "CODEOWNERS", "docs/CODEOWNERS")
+
+def _owner_rules(root):
+    """The CODEOWNERS file as (pattern, owners) in file order, or None when there is no file.
+
+    The patterns are gitignore's, without negation: a leading slash or a slash
+    inside anchors the pattern to the root, otherwise it matches at any depth;
+    a trailing slash means the directory and everything under it; `*` stops at
+    a slash and `**` does not. The last line that matches a path wins, and a
+    line with a pattern and no owner un-owns what it matches.
+    """
+    path = next((root / p for p in CODEOWNERS_FILES if (root / p).is_file()), None)
+    if path is None:
+        return None
+    rules = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        words = line.split("#")[0].split()
+        if not words:
+            continue
+        pattern, owners = words[0], words[1:]
+        anchored = pattern.startswith("/") or "/" in pattern.rstrip("/")
+        body = re.escape(pattern.strip("/")).replace(r"\*\*", ".*") \
+            .replace(r"\*", "[^/]*").replace(r"\?", "[^/]")
+        tail = "/.*" if pattern.endswith("/") else "(/.*)?"
+        rules.append((re.compile(("^" if anchored else "^(.*/)?") + body + tail + "$"), owners))
+    return rules
+
+def _owners(rules, path):
+    """Who CODEOWNERS makes approve a change to path: the last matching line decides."""
+    owners = []
+    for regex, who in rules:
+        if regex.match(path):
+            owners = who
+    return owners
+
+def _incremental(model, sql):
+    """Whether the model is materialized as incremental, in its yml config or in its sql."""
+    config = model.entry.get("config") if isinstance(model.entry.get("config"), dict) else {}
+    if config.get("materialized") == "incremental":
+        return True
+    if sql is None or not sql.is_file():
+        return False
+    return re.search(r"materialized\s*=\s*['\"]incremental['\"]",
+                     sql.read_text(encoding="utf-8", errors="replace")) is not None
+
+def check_owned(project):
+    """README §3 Stage E — "Critical model: a Partner (≠ Author) approves. CODEOWNERS enforces this"; §2 Control 5A — "Incremental models (list explicitly)"."""
+    rules, out = _owner_rules(project.dir), []
+    for model in _sorted_models(project):
+        spec = model.spec if isinstance(model.spec, dict) else {}
+        sql = project.files.get(model.name)
+        kind = "critical" if model.is_marts and spec.get("tier") == "critical" else \
+            "incremental" if _incremental(model, sql and project.dir / sql) else ""
+        if not kind:
+            continue
+        asks = "a Partner approves a critical model, and CODEOWNERS is what enforces it " \
+            "(README §3 Stage E)" if kind == "critical" else "README §2 Control 5A asks for " \
+            "incremental models to be listed explicitly"
+        if rules is None:
+            out.append(block(model.file, model.name, "%s model, and this repository has no "
+                             "CODEOWNERS file (%s); %s" % (kind, ", ".join(CODEOWNERS_FILES), asks),
+                             "S5"))
+            continue
+        out += [block(path, model.name, "%s model, and no line of CODEOWNERS owns %s; %s"
+                      % (kind, path, asks), "S5")
+                for path in sorted(set(p for p in (sql, model.file) if p))
+                if not _owners(rules, path)]
     return out
 
 # --- check: the pre-registration of every model (README §3 Stage B, Rule 6) ---
@@ -1117,7 +1189,7 @@ def compare_coverage(ctx):
 # --- Rule registries. A rule is one function: context in, findings out. ---
 
 CHECK_RULES = [check_spec_present, check_model_declared, check_spec_schema,
-               check_spec_consistency,
+               check_spec_consistency, check_owned,
                check_prereg_schema, check_prereg_consistency, check_pk_test]
 GATE_RULES = [gate_test_removed, gate_test_filter, gate_test_severity,
               gate_test_narrowed, gate_unit_test_changed, gate_recon_with_model,

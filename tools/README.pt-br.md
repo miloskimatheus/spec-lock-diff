@@ -31,7 +31,7 @@ não diz nada, estas ferramentas não fazem nada.
 
 | Caminho | O que é |
 | --- | --- |
-| `slp.py` | A ferramenta inteira: três comandos, vinte e nove regras, um arquivo que se lê de uma sentada. |
+| `slp.py` | A ferramenta inteira: três comandos, trinta regras, um arquivo que se lê de uma sentada. |
 | `schemas/spec.schema.json` | Como uma `meta.spec` precisa ser (README §3 Etapa A). |
 | `schemas/pre_registration.schema.json` | Como um `meta.pre_registration` precisa ser (README §3 Etapa B). |
 | `schemas/diff.schema.json` | Como um `diff.json` precisa ser — a única interface com o que quer que meça o seu diff. |
@@ -114,8 +114,9 @@ poucas coisas que um schema não vê — as colunas da primary key existem? a qu
 de reconciliação existe? as colunas sensíveis e as marcações `meta.sensitive`
 concordam? — e imprime uma linha por problema. Também lista os arquivos `.sql`
 dos caminhos de marts, para que um modelo que ninguém declarou num yml não
-passe por falta do que cobrar (`S4`); nunca lê o que há dentro deles, nunca
-chama o git e nunca toca no warehouse.
+passe por falta do que cobrar (`S4`); lê uma coisa só dentro deles — um
+`config()` que diga `materialized='incremental'`, para a `S5` —, nunca chama o
+git e nunca toca no warehouse.
 
 **Onde olha.** Em `models/marts/`, porque é ali que o README §3 Etapa A torna a
 spec obrigatória. Se os seus marts moram em outro lugar, diga com
@@ -174,6 +175,20 @@ BLOCK	models/marts/fct_orders.yml	fct_orders	the uniqueness test on primary key 
 Isso é `T1` e não uma regra do `gate` de propósito: o `gate` compara um teste
 com a versão anterior dele mesmo, e um teste escrito assim num modelo novo não
 tem versão anterior para ser mais fraco que ela.
+
+**O que o CODEOWNERS possui.** Duas das regras de aprovação do framework não
+são regras sobre o yml. A Etapa E diz que um Parceiro aprova um modelo crítico
+e que "o CODEOWNERS impõe isso"; o Controle 5A diz que modelos incrementais são
+listados explicitamente, porque um seletor não distingue um do outro. As duas
+degradam em silêncio: um modelo crítico num diretório que nenhuma linha do
+CODEOWNERS cobre entra só com a aprovação do Autor, e nada na plataforma avisa.
+A `S5` lê o `.github/CODEOWNERS` (ou `CODEOWNERS`, ou `docs/CODEOWNERS`) do
+jeito que o git lê — padrões de gitignore, a última linha que casa vence, uma
+linha sem dono tira o dono — e bloqueia quando o sql ou o yml de um modelo
+crítico, ou de um modelo cuja config diz `materialized: incremental`, não é de
+ninguém. Ela não sabe dizer se o dono é o time *certo*; sabe dizer se existe
+um. Lê o sql para uma coisa só, o `config()` que diz incremental;
+`+materialized` definido no `dbt_project.yml` não é lido.
 
 **Como mudar.** Para exigir um campo novo na spec, adicione ao
 `schemas/spec.schema.json` com uma `description` escrita como exigência — essa
@@ -769,6 +784,7 @@ ganhe um `BLOCK` em silêncio.
 | §3 Etapa A — os seis campos obrigatórios e o formato deles | `S2` | `check/spec_invalid_tier` | `check/spec_ok` |
 | §3 Etapa A — a spec nomeia colunas deste modelo, e uma query de reconciliação que existe | `S3` | `check/sensitive_mismatch` | `check/spec_ok` |
 | §3 Etapa A — um arquivo de modelo que nenhum yml declara não tem spec a cobrar | `S4` | `check/sql_without_yml` | `check/spec_ok` |
+| §3 Etapa E — "Modelo crítico: um Parceiro aprova. O CODEOWNERS impõe isso"; §2 Controle 5A — "Modelos incrementais (listar explicitamente)" | `S5` | `check/critical_unowned` | `check/critical_owned` |
 | §3 Etapa B — o formato do pré-registro | `P1` | `check/prereg_open_interval` | `check/prereg_ok` |
 | §3 Etapa B, Regra 6 — intervalos fechados, e as métricas da spec | `P2` | `check/prereg_min_gt_max` | `check/prereg_ok` |
 | §2 Regra 2 — "cria um teste de unicidade na primary_key da spec" | `T1` | `check/pk_single_missing` | `check/pk_single_unique` |
