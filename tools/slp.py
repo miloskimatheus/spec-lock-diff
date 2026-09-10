@@ -289,8 +289,14 @@ def read_doc(doc, rel, marts=MARTS):
     return models, units
 
 def _dirs(marts, top=False):
-    """The marts paths as prefixes, or the directories that hold them - where yml is read from."""
-    paths = tuple(p.strip("/") + "/" for p in marts)
+    """The marts paths as prefixes, or the directories that hold them - where yml is read from.
+
+    A leading ./ is a path to a shell and to pathlib, and nothing at all to git,
+    whose paths never start with one. Left in, --marts-path ./models/marts made
+    check read the right folder and gate match no file at all: one flag value,
+    two verdicts, and the one that printed OK had looked at nothing.
+    """
+    paths = tuple(re.sub(r"^(?:\./)+", "", p).strip("/") + "/" for p in marts)
     return tuple(sorted(set(p.split("/")[0] + "/" for p in paths))) if top else paths
 
 def read_project(project_dir, marts=MARTS):
@@ -1235,6 +1241,14 @@ def cmd_gate(args):
     if not commits:
         return report([], "gate", "no commits")
     marts = tuple(args.marts_path)
+    # read_project refuses a marts path that is not a directory, and gate never
+    # saw that refusal: it reads git, where a path that is not there is not a
+    # missing folder but a prefix matching nothing, and every marts rule then
+    # passes over the empty set. Same refusal, from the side that reads git.
+    listed = git(root, "ls-tree", "-r", "--name-only", args.head, "--", *_dirs(marts))
+    for path in _dirs(marts):
+        if not any(line.startswith(path) for line in listed.splitlines()):
+            raise SlpError("%s holds no file at %s; nothing to check is not OK" % (path, args.head))
     before, after = inventory(root, base, marts=marts), inventory(root, args.head, marts=marts)
     # The walk starts at the merge-base and ends at head, both already read.
     walk = [before] + [inventory(root, ref, False, marts) for ref in commits[:-1]] + [after]

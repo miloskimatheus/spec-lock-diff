@@ -545,10 +545,11 @@ o ponto da lista; o [CHANGELOG.md](CHANGELOG.md) conta cada história.
 **Onde aprovado não quer dizer aprovado.** Leia este grupo primeiro: são as
 maneiras de um verde ser um verde sobre nada.
 
-- O `gate` nunca confere se o `--marts-path` existe — ele lê o git, não o
-  diretório do projeto, então `--marts-path models/martz` imprime `OK`. Nem
-  aceita `./models/marts`, porque caminho do git nunca começa com `./`: um valor
-  de flag, dois veredictos. Mantenha a flag num lugar só e copie.
+- O `--marts-path` ainda precisa dizer a mesma coisa em três comandos e dois
+  workflows, e nada confere que diz. Um caminho que não existe agora é exit 2
+  nos três, e `./models/marts` nomeia o mesmo diretório que `models/marts` — mas
+  um caminho que existe e é o errado continua estreitando o que é conferido sem
+  avisar. Mantenha a flag num lugar só e copie.
 - Um projeto dbt que não está na raiz do repositório git faz o `gate` sair com 2
   em toda leitura, e o `--project-dir` não salva.
 - Um schema yml escrito com jinja é ilegível para um parser YAML puro — exit 2

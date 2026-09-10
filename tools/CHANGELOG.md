@@ -48,6 +48,21 @@ runs at all.
   opens with a `slp check` of its own so the sixty-minute job is not where an
   unreadable spec is discovered.
 
+- **`--marts-path` had one value and two verdicts, and one of them was a green
+  about nothing.** `check` and `compare` go through `read_project`, which refuses
+  a marts path that is not a directory. `gate` reads git, never saw that refusal,
+  and treated a path that is not there as a prefix matching nothing: every marts
+  rule walked an empty set and it printed `OK`. `--marts-path models/martz` is
+  now exit 2 in all three. Separately, a leading `./` survived normalisation — a
+  path to a shell and to pathlib, and nothing at all to git, whose paths never
+  begin with one — so `--marts-path ./models/marts` made `check` read the right
+  folder while `gate` matched no file. Both spellings now name the same
+  directory. This closes the first bullet of README section 8, on the one flag an
+  adopter is most likely to have to change.
+
+- **`tools/slp.py` is executable.** It has carried `#!/usr/bin/env python3` since
+  the first commit and mode 644 with it, so `./tools/slp.py` did not run.
+
 - **There is something to run.** `examples/quickstart` is a dbt project the gates
   pass on: two marts, one `standard` and one `critical`, with their specs, their
   pre-registrations, the reconciliation query the critical one owes, and the

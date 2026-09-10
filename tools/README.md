@@ -534,10 +534,11 @@ which is the point of the list; [CHANGELOG.md](CHANGELOG.md) tells each story.
 **Where a pass is not a pass.** Read this group first: these are the ways a green
 can be a green about nothing.
 
-- `gate` never checks that `--marts-path` exists — it reads git, not the project
-  directory, so `--marts-path models/martz` prints `OK`. Nor does it accept
-  `./models/marts`, since git paths never start with `./`: one flag value, two
-  verdicts. Keep the flag in one place and copy it.
+- `--marts-path` still has to say the same thing in three commands and two
+  workflows, and nothing checks that it does. A path that is not there is now
+  exit 2 in all three, and `./models/marts` names the same directory as
+  `models/marts` — but a path that exists and is the wrong one still narrows
+  what is checked without saying so. Keep the flag in one place and copy it.
 - A dbt project that is not at the git repository root makes `gate` exit 2 on
   every read, and `--project-dir` cannot save it.
 - A schema yml written with jinja is unreadable to a plain YAML parser — exit 2

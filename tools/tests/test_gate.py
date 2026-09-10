@@ -54,6 +54,33 @@ def test_head_at_the_merge_base_is_not_a_pull_request(tmp_path):
     assert (code, out) == (0, "slp gate: OK (no commits)\n")
 
 
+def test_a_marts_path_that_is_not_there_is_an_error_not_a_pass(tmp_path):
+    """R3: gate read git, where a missing folder is a prefix that matches nothing.
+
+    check and compare go through read_project, which refuses a marts path that is
+    not a directory. gate never saw that refusal, so `--marts-path models/martz`
+    walked every rule over an empty set and printed OK - a green about nothing,
+    on the one flag an adopter is most likely to get wrong.
+    """
+    repo = build(FIXTURES / "gate" / "G1_removed_unique", tmp_path)
+    code, out, err = run_slp(["gate", "--base", "base", "--marts-path", "models/martz"], repo)
+    assert code == 2, out
+    assert err.startswith("ERROR ") and "models/martz/ holds no file" in err
+
+
+def test_a_marts_path_that_starts_with_a_dot_is_the_same_path(tmp_path):
+    """One flag value, two verdicts: check accepted ./models/marts and gate silently did not.
+
+    git paths never begin with ./, so the prefix matched nothing and every marts
+    rule passed. Both spellings now name the same directory, and both block.
+    """
+    repo = build(FIXTURES / "gate" / "G1_removed_unique", tmp_path)
+    plain = run_slp(["gate", "--base", "base", "--marts-path", "models/marts"], repo)
+    dotted = run_slp(["gate", "--base", "base", "--marts-path", "./models/marts/"], repo)
+    assert dotted == plain
+    assert dotted[0] == 1 and "[G1]" in dotted[1]
+
+
 def test_outside_a_git_repository_it_refuses_to_judge(tmp_path):
     """R3: no history means nothing to compare, which is an error, not a pass."""
     (tmp_path / "models" / "marts").mkdir(parents=True)
