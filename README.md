@@ -249,7 +249,7 @@ When the agent needs to understand the structure of data, it consults `docs/prof
 
 **Part B — Anti-fraud gate:**
 
-A script that runs in CI on the commits made by the bot. It is the only custom script that the framework requires. It analyzes the bot's diffs and **blocks the PR** if it finds any of these situations:
+A script that runs in CI on the pull requests the bot opens — the opener of a pull request is an identity the platform authenticates, unlike the author of a commit, which is text — and judges every commit in them, whoever wrote it. On a pull request a human opens it runs and is advisory: CODEOWNERS (Part A) judges those. It is the only custom script that the framework requires. It analyzes the diffs and **blocks the PR** if it finds any of these situations:
 
 | Detected situation                                              | Why it blocks                                                                                                                                                   |
 | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -490,7 +490,7 @@ The build includes:
 
 ### Stage E: Diff + human review (once per PR)
 
-**What it is:** A full `dbt build` (without sample) followed by a numerical diff between the new version and current production. Runs once per PR, when the PR is marked as ready-for-review.
+**What it is:** A full `dbt build` (without sample) followed by a numerical diff between the new version and current production. Runs when the PR is marked as ready-for-review, and again on every push after that — Control 1 dismisses an approval on push, and a diff of code that has since changed is worth the same. While the PR is a draft it does not run, which is why the agent opens the PR as a draft and marks it ready when stage C is done.
 
 **The diff is produced by automation, deterministically** — the same build, the same closed `event_time` window, the same comparison, every time. Neither a human nor the agent composes it ad hoc, and neither one gets to choose which numbers appear. The human's entire job at this stage is to _read_ it.
 

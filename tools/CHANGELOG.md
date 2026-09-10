@@ -64,6 +64,24 @@ never seen it.
   config key given twice — `where` on the test and under `config:` — is exit 2
   instead of whichever came last.
 
+- **`templates/ci.yml` no longer lets a pull request judge itself, and knows
+  whose pull request it is on.** It ran `python tools/slp.py` from the pull
+  request's own checkout, so a pull request that edited the gate was judged by
+  the edited gate; each job now extracts `tools/` at the pull request's base
+  with `git archive` and runs that copy (`.github/` has no such answer, and the
+  template says so). It ran the gate as a required step on every pull request,
+  which made a human's own package bump or macro change — the pull request
+  Rule 8 tells the agent to ask for — fail `G6` with no bypass; the gate is now
+  required on the pull requests opened by the bot user of Control 1, named in
+  the repository variable `AGENT_LOGIN`, and advisory on the others, where its
+  findings go to the job summary and CODEOWNERS decides. Unset, it is required
+  everywhere: a variable nobody set must not make a gate optional. And it ran
+  Stage E on every push of any non-draft pull request; that is what a required
+  check has to do once the pull request is ready, so the template keeps it and
+  `AGENTS.md` tells the agent to open the pull request as a draft and mark it
+  ready when Stage C is done. README §2 Control 5B says whose pull requests the
+  gate is required on, and §3 Stage E says when the diff runs.
+
 - **The lock now covers the history the gate reads.** `G7` and `I1` walk the
   commits of the pull request, and 0.3.0 said that a squash defeats them. So
   does `commit --amend`, so does a rebase, and those are what an agent does by

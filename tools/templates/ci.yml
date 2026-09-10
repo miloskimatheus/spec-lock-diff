@@ -7,7 +7,11 @@
 # stops gating.
 #
 # .github/ is a protected path (Control 5A), so only humans edit this file.
-# That is deliberate: an agent that can edit the CI controls the rules.
+# That is deliberate: an agent that can edit the CI controls the rules. A
+# workflow runs from the pull request's own tree, so CODEOWNERS is the only
+# thing standing between the agent and this file; gate rule G9 makes the
+# attempt a red check, but the gate it runs is the one wired below, so read
+# this file's diff whenever a pull request touches it.
 
 name: ci
 
@@ -22,6 +26,17 @@ concurrency:
 
 permissions:
   contents: read
+
+# YOU: set the repository variable AGENT_LOGIN to the bot user of Control 1
+# (Settings > Secrets and variables > Actions > Variables). The gate is required
+# on the pull requests that user opens - the opener of a pull request is an
+# identity the platform authenticates, unlike the author of a commit, which is
+# text - and advisory on everyone else's: a human who changes a macro or bumps a
+# package in a pull request of their own is what Rule 8 asks for, and CODEOWNERS
+# is what judges it. Left unset, the gate is required on every pull request. A
+# variable nobody set must not make it optional anywhere.
+env:
+  AGENT_PR: ${{ vars.AGENT_LOGIN == '' || github.event.pull_request.user.login == vars.AGENT_LOGIN }}
 
 jobs:
   # Runs on every push to the branch. README section 3, Stage D: must finish in
@@ -45,6 +60,25 @@ jobs:
       # here anyway so a change on dbt's side cannot take the gates down with it.
       - run: pip install dbt-core dbt-postgres "pyyaml" "jsonschema>=4"
 
+      # The gate must not be judged by whoever it judges. A pull request that
+      # edits tools/ would otherwise run its own version of the gate on itself -
+      # G9 blocks the edit, but the edited gate is what would be running. So the
+      # three commands run from the copy on the branch the pull request targets.
+      # On the pull request that first adds tools/ there is no such copy; the
+      # step says so and uses this one.
+      - name: the tools from the base branch
+        run: |
+          base=${{ github.event.pull_request.base.sha }}
+          rm -rf "$RUNNER_TEMP/tools" "$RUNNER_TEMP/base-tools"
+          if git cat-file -e "$base:tools/slp.py" 2>/dev/null; then
+            git archive "$base" tools | tar -x -C "$RUNNER_TEMP"
+            mv "$RUNNER_TEMP/tools" "$RUNNER_TEMP/base-tools"
+          else
+            echo "tools/ is not on the base branch yet; this run judges with the pull request's own copy" >&2
+            cp -r tools "$RUNNER_TEMP/base-tools"
+          fi
+          echo "SLP=$RUNNER_TEMP/base-tools/slp.py" >> "$GITHUB_ENV"
+
       # Stage A and Rule 2: every marts model has a complete spec, a valid
       # pre-registration when it has one, and a uniqueness test on its primary key.
       #
@@ -53,14 +87,16 @@ jobs:
       # below. Read the summary line: it says how many models were held to the
       # framework and how many were read at all, and only the first is coverage.
       - name: slp check
-        run: python tools/slp.py check
+        run: python "$SLP" check
 
       # Control 5B: nothing on this branch weakened a test, a unit test, a
-      # reconciliation, a package pin or a spec - and no model's sql changed
-      # without a pre-registration to hold its numbers against. The output goes to the job
-      # summary so the Author reads it without opening the logs (Stage B asks for
-      # the pre-registration change counter to be visible in review).
+      # reconciliation, a package pin, a protected path or a spec - and no model's
+      # sql changed without a pre-registration to hold its numbers against. The
+      # output goes to the job summary so the Author reads it without opening the
+      # logs (Stage B asks for the pre-registration change counter to be visible
+      # in review). Required on the agent's pull requests: see AGENT_PR above.
       - name: slp gate
+        if: env.AGENT_PR == 'true'
         shell: bash  # bash -eo pipefail, so tee cannot swallow a failure
         run: |
           # The findings are tab separated. Without a fence the job summary
@@ -68,7 +104,23 @@ jobs:
           # the fence even when the gate blocks and -e ends the step.
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           trap 'echo "```" >> "$GITHUB_STEP_SUMMARY"' EXIT
-          python tools/slp.py gate \
+          python "$SLP" gate \
+            --base ${{ github.event.pull_request.base.sha }} \
+            --head ${{ github.event.pull_request.head.sha }} \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # The same gate on a pull request a human opened. Its findings go to the
+      # job summary for the code owners to read; its exit code does not fail the
+      # job, because CODEOWNERS is what decides those pull requests (Control 5A).
+      - name: slp gate (advisory)
+        if: env.AGENT_PR != 'true'
+        continue-on-error: true
+        shell: bash  # bash -eo pipefail, so the step's own status still says what the gate said
+        run: |
+          echo 'This pull request was not opened by the agent identity, so the gate is advisory here: read it, and CODEOWNERS decides.' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          trap 'echo "```" >> "$GITHUB_STEP_SUMMARY"' EXIT
+          python "$SLP" gate \
             --base ${{ github.event.pull_request.base.sha }} \
             --head ${{ github.event.pull_request.head.sha }} \
             | tee -a "$GITHUB_STEP_SUMMARY"
@@ -97,7 +149,13 @@ jobs:
           dbt build --select state:modified+ --defer --state ./prod-artifacts \
             --sample "30 days"
 
-  # Runs once the pull request is ready for review. README section 3, Stage E.
+  # README section 3, Stage E. Runs when the pull request is marked ready for
+  # review, and again on every push after that: a required check belongs to a
+  # commit, so a diff of code that has since changed is worth what a dismissed
+  # approval is worth (Control 1). While the pull request is a draft it does not
+  # run, which is why the agent opens the pull request as a draft and marks it
+  # ready when Stage C is done - one full build per push before that would be
+  # Control 3's cost problem with a green badge on it.
   diff:
     needs: ci
     if: github.event.pull_request.draft == false
@@ -113,6 +171,20 @@ jobs:
           python-version: "3.12"
 
       - run: pip install dbt-core dbt-postgres "pyyaml" "jsonschema>=4"  # YOU: your adapter, as above
+
+      # Same reason as in `ci`: compare runs from the base branch's copy.
+      - name: the tools from the base branch
+        run: |
+          base=${{ github.event.pull_request.base.sha }}
+          rm -rf "$RUNNER_TEMP/tools" "$RUNNER_TEMP/base-tools"
+          if git cat-file -e "$base:tools/slp.py" 2>/dev/null; then
+            git archive "$base" tools | tar -x -C "$RUNNER_TEMP"
+            mv "$RUNNER_TEMP/tools" "$RUNNER_TEMP/base-tools"
+          else
+            echo "tools/ is not on the base branch yet; this run judges with the pull request's own copy" >&2
+            cp -r tools "$RUNNER_TEMP/base-tools"
+          fi
+          echo "SLP=$RUNNER_TEMP/base-tools/slp.py" >> "$GITHUB_ENV"
 
       - name: warehouse auth
         run: |
@@ -160,6 +232,6 @@ jobs:
         run: |
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           trap 'echo "```" >> "$GITHUB_STEP_SUMMARY"' EXIT
-          python tools/slp.py compare \
+          python "$SLP" compare \
             --base ${{ github.event.pull_request.base.sha }} \
             diff/*.json | tee -a "$GITHUB_STEP_SUMMARY"

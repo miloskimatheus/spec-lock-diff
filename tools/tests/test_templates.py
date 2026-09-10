@@ -81,9 +81,12 @@ def test_ci_yml_wires_the_three_commands_into_two_jobs():
     steps = {"ci": "", "diff": ""}
     for job in steps:
         steps[job] = "\n".join(str(step.get("run", "")) for step in workflow["jobs"][job]["steps"])
-    assert "python tools/slp.py check" in steps["ci"]
-    assert "python tools/slp.py gate" in steps["ci"]
-    assert "python tools/slp.py compare" in steps["diff"]
+    # The commands run from the base branch's copy of tools/ (see below), so
+    # the path is the SLP variable that step sets, never tools/slp.py itself.
+    assert 'python "$SLP" check' in steps["ci"]
+    assert 'python "$SLP" gate' in steps["ci"]
+    assert 'python "$SLP" compare' in steps["diff"]
+    assert "python tools/slp.py" not in steps["ci"] + steps["diff"]
     # The gate walks the commits of the pull request, so a shallow checkout breaks it.
     for job in ("ci", "diff"):
         checkout = workflow["jobs"][job]["steps"][0]
@@ -96,7 +99,7 @@ def test_ci_yml_pipes_the_gate_into_the_job_summary_without_losing_its_exit_code
     for line in text.splitlines():
         if "tee -a" in line:
             assert "GITHUB_STEP_SUMMARY" in line
-    assert text.count("shell: bash") == 2  # bash -eo pipefail on both piped steps
+    assert text.count("shell: bash") == 3  # bash -eo pipefail on every piped step
 
 
 def test_ci_yml_fences_the_findings_so_the_job_summary_can_be_read():
@@ -104,7 +107,7 @@ def test_ci_yml_fences_the_findings_so_the_job_summary_can_be_read():
     workflow = yaml.safe_load((TEMPLATES / "ci.yml").read_text(encoding="utf-8"))
     piped = [step for job in workflow["jobs"].values() for step in job["steps"]
              if "tee -a" in str(step.get("run", ""))]
-    assert len(piped) == 2
+    assert len(piped) == 3
     for step in piped:
         run = step["run"]
         assert run.count("```") == 2, step["name"]
@@ -117,7 +120,7 @@ def test_ci_yml_hands_compare_every_diff_in_one_call():
     """C7 blocks on a pre-registered model with no diff, and only sees what it was given."""
     workflow = yaml.safe_load((TEMPLATES / "ci.yml").read_text(encoding="utf-8"))
     steps = "\n".join(str(s.get("run", "")) for s in workflow["jobs"]["diff"]["steps"])
-    assert re.search(r"python tools/slp\.py compare \\\n\s+--base .+ \\\n\s+diff/\*\.json", steps), steps
+    assert re.search(r'python "\$SLP" compare \\\n\s+--base .+ \\\n\s+diff/\*\.json', steps), steps
 
 
 def test_the_readme_and_the_workflow_ask_for_the_same_jsonschema():
@@ -144,3 +147,41 @@ def test_the_rule_count_in_the_readmes_is_the_number_of_rules():
     assert "%s rules" % english in (TOOLS / "README.md").read_text(encoding="utf-8")
     assert "%s regras" % words[english] in \
         (TOOLS / "README.pt-br.md").read_text(encoding="utf-8")
+
+
+def test_ci_yml_requires_the_gate_on_the_agents_pull_requests_and_fails_closed():
+    """Control 5B: required on the pull requests the bot opens; advisory where CODEOWNERS decides.
+
+    The opener of a pull request is an identity the platform authenticates, unlike
+    a commit's author. A variable nobody set must not make the gate optional, so
+    an empty AGENT_LOGIN means required everywhere.
+    """
+    workflow = yaml.safe_load((TEMPLATES / "ci.yml").read_text(encoding="utf-8"))
+    flag = workflow["env"]["AGENT_PR"]
+    assert "vars.AGENT_LOGIN == ''" in flag
+    assert "github.event.pull_request.user.login == vars.AGENT_LOGIN" in flag
+    gates = [s for s in workflow["jobs"]["ci"]["steps"] if str(s.get("name", "")).startswith("slp gate")]
+    assert [g["name"] for g in gates] == ["slp gate", "slp gate (advisory)"]
+    required, advisory = gates
+    assert required["if"] == "env.AGENT_PR == 'true'" and "continue-on-error" not in required
+    assert advisory["if"] == "env.AGENT_PR != 'true'" and advisory["continue-on-error"] is True
+    assert "advisory" in advisory["run"] and "CODEOWNERS decides" in advisory["run"]
+
+
+def test_ci_yml_runs_the_tools_from_the_base_branch():
+    """A pull request that edits tools/ must not be judged by its own edit."""
+    workflow = yaml.safe_load((TEMPLATES / "ci.yml").read_text(encoding="utf-8"))
+    for job in ("ci", "diff"):
+        steps = workflow["jobs"][job]["steps"]
+        base = [s for s in steps if s.get("name") == "the tools from the base branch"]
+        assert len(base) == 1, job
+        run = base[0]["run"]
+        assert "github.event.pull_request.base.sha" in run and "git archive" in run
+        assert 'echo "SLP=' in run and "GITHUB_ENV" in run
+        # It fails open only in the one case where there is nothing to fall back
+        # to, and says so on stderr.
+        assert "is not on the base branch yet" in run and ">&2" in run
+        # And it comes before the first command that uses it.
+        names = [s.get("name", "") for s in steps]
+        first = min(i for i, n in enumerate(names) if n.startswith("slp "))
+        assert names.index("the tools from the base branch") < first, job

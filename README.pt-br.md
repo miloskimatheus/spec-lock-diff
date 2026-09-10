@@ -249,7 +249,7 @@ Quando o agente precisa entender a estrutura de um dado, ele consulta `docs/prof
 
 **Parte B — Gate anti-fraude:**
 
-Um script que roda em CI sobre os commits feitos pelo bot. É o único script customizado que o framework exige. Ele analisa os diffs do bot e **bloqueia o PR** se encontrar qualquer uma destas situações:
+Um script que roda em CI nos pull requests que o bot abre — quem abre um pull request é uma identidade que a plataforma autentica, ao contrário do autor de um commit, que é texto — e julga todo commit dentro deles, seja quem for que o escreveu. Num pull request aberto por um humano ele roda e é consultivo: o CODEOWNERS (Parte A) julga esses. É o único script customizado que o framework exige. Ele analisa os diffs e **bloqueia o PR** se encontrar qualquer uma destas situações:
 
 | Situação detectada                                    | Por que bloqueia                                                                                                                                |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -490,7 +490,7 @@ O build inclui:
 
 ### Etapa E: Diff + review humano (uma vez por PR)
 
-**O que é:** Um `dbt build` completo (sem amostra) seguido de um diff numérico entre a versão nova e a produção atual. Roda uma única vez por PR, quando o PR é marcado como ready-for-review.
+**O que é:** Um `dbt build` completo (sem amostra) seguido de um diff numérico entre a versão nova e a produção atual. Roda quando o PR é marcado como ready-for-review, e de novo a cada push depois disso — o Controle 1 descarta uma aprovação a cada push, e um diff de um código que mudou desde então vale o mesmo. Enquanto o PR é rascunho ele não roda, e é por isso que o agente abre o PR como rascunho e o marca como pronto quando a etapa C termina.
 
 **O diff é produzido pela automação, de forma determinística** — o mesmo build, a mesma janela fechada de `event_time`, a mesma comparação, todas as vezes. Nem um humano nem o agente monta esse diff ad hoc, e nenhum dos dois escolhe quais números aparecem. O trabalho do humano nesta etapa é inteiramente _ler_.
 

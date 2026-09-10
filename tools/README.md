@@ -74,7 +74,10 @@ says nothing, these tools do nothing.
    `@your-org/data-platform` with the team that approves.
 5. **Turn on branch protection** for `main`: require pull requests, require
    review from Code Owners, and list `ci` and `diff` as required checks — those
-   are the job names in `ci.yml`.
+   are the job names in `ci.yml`. Block force-push on every branch (README §2
+   Control 1). Set the repository variable `AGENT_LOGIN` to the bot user of
+   Control 1, so the gate is required on the pull requests it opens and advisory
+   on yours.
 6. **Check that it runs:**
    ```bash
    python tools/slp.py --version
@@ -307,11 +310,19 @@ standing, and on the agent's own pull requests nobody has to notice. A human
 who must change one does it in a pull request of their own — which is the next
 paragraph.
 
-**Gate scope.** The gate judges the whole pull request, not "the agent's
-commits". There is no bot identity to configure, and a commit author is text
-anyone can write. What follows: in an agent PR nobody weakens a test — not the
-agent, not a human. A human who must change a test does it **before the agent
-starts**, as part of writing the spec, or in a separate PR of their own.
+**Gate scope.** Inside a pull request the gate judges every commit, whoever
+wrote it: a commit author is text anyone can write, and there is nothing to
+check it against. Which pull requests it *blocks* is decided by who opened
+them, which is an identity the platform authenticates. `templates/ci.yml`
+requires the gate on the pull requests opened by the agent identity of
+Control 1 (the repository variable `AGENT_LOGIN`; unset, it is required on
+every pull request, because a variable nobody set must not make a gate
+optional) and runs it advisory on everyone else's, where its findings go to
+the job summary and CODEOWNERS decides. What follows: in an agent PR nobody
+weakens a test — not the agent, not a human. A human who must change a test, a
+macro, a package pin or the CI does it **before the agent starts**, as part of
+writing the spec, or in a pull request of their own, where the gate is read
+and not enforced.
 
 **How to change it.** One rule is one function: a docstring that starts with
 the README sentence it enforces, a rule id, and a list of findings. Append it to
@@ -558,8 +569,28 @@ every time the agent pushes … Must complete in less than 15 minutes." Stage E:
 
 **How it works.** `ci` checks out the whole history, runs `check` and `gate`,
 and builds what changed on a sample window. `diff` waits for `ci`, builds with
-full data, produces the diff and runs `compare`. Both pipe their output into the
-job summary, so the Author reads the findings without opening the logs.
+full data, produces the diff and runs `compare --base`. Both pipe their output
+into the job summary, so the Author reads the findings without opening the
+logs. Three things the 0.3.0 template did not do:
+
+- **It runs the tools from the base branch's copy of `tools/`.** A pull request
+  that edits the gate was judged by the edited gate: `G9` now blocks the edit,
+  but the gate that says so would have been the edited one. Each job extracts
+  `tools/` at the pull request's base with `git archive` and runs that copy.
+  `.github/` has no such answer — a workflow runs from the pull request's own
+  tree — so CODEOWNERS is what stands there, and a reviewer reads the diff of
+  this file whenever a pull request touches it.
+- **The gate is required on the agent's pull requests and advisory on the
+  others.** The repository variable `AGENT_LOGIN` names the bot user of
+  Control 1; a pull request that user opened runs `slp gate` as a required
+  step, any other runs `slp gate (advisory)`, whose findings go to the job
+  summary and whose exit code does not fail the job. Unset, the gate is
+  required everywhere. See *Gate scope* above for why.
+- **`diff` runs when the pull request is marked ready for review, and on every
+  push after that.** A required check belongs to a commit, so a diff of code
+  that has since changed is worth what a dismissed approval is worth. It does
+  not run on a draft, which is why `AGENTS.md` tells the agent to open the pull
+  request as a draft and mark it ready when Stage C is done.
 
 **When it runs.** On every push to a pull request; `diff` only once the pull
 request is out of draft.
@@ -567,8 +598,9 @@ request is out of draft.
 **How to use it.** Copy to `.github/workflows/ci.yml`, then work through the
 marked lines: your adapter, your warehouse authentication, your production
 artifacts, your full build, your diff. Each of those steps exits 1 until you
-write it — a template that is shipped unedited fails closed. Finally, list `ci`
-and `diff` as required checks in branch protection.
+write it — a template that is shipped unedited fails closed. Set the repository
+variable `AGENT_LOGIN` to the bot user of Control 1. Finally, list `ci` and
+`diff` as required checks in branch protection.
 
 **How to change it.** It is an example, not a contract; the only parts other
 things depend on are the two job names and the three `slp.py` commands. If you
@@ -788,7 +820,7 @@ point of this list.
 | Each spec edge becoming a unit test (Rule 2) | The spec's `known_edges` are validated as text and nothing checks that each became a unit test with a synthetic fixture. A spec with five edges and no unit tests passes `check`. README §2 Rule 2. |
 | Whether a tolerance or an anchor can fail | `reconciliation_tolerance: "999%"` and `external_validation: "TODO"` satisfy the schema. The same argument the pre-registration schema makes about open intervals applies to them; the schema does not make it yet. README §3 Stage A. |
 | Detecting real data in fixtures (Rule 7) | These tools only check their own fixtures (meta-test M6). For your repository use gitleaks with rules for email and document numbers, as README §3 Stage D describes. |
-| Bot-identity mode: judging only the agent's commits | There is no bot identity to configure, and a commit author is text anyone can write. The gate judges the whole pull request; see [Gate scope](#gate). |
+| Judging only the agent's commits inside one pull request | A commit author is text anyone can write, so inside a pull request the gate judges every commit. Which pull requests it *blocks* is decided by who opened them, an identity the platform authenticates; see [Gate scope](#gate). |
 | The `PreToolUse` hook that refuses writes to protected paths | Agent-specific and optional. README §2 Control 5B, "Optional (extra layer of protection)". |
 | Judging natural language: whether a grain is *good*, whether a reason justifies an interval | Principle 3: an LLM is never the final judge. These are the human's three readings in Stage E step 5. |
 

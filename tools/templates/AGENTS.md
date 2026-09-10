@@ -36,9 +36,15 @@ YOU: if the marts of this project do not live in `models/marts/`, add
 `--marts-path <dir>` to both commands, once per directory, and keep it
 identical to the CI workflow.
 
-`check` and `gate` are the same commands CI runs. If `gate` blocks, do not
-work around it: the thing it found is a test you weakened, and rule 3 says the
-code is what changes.
+`check` and `gate` are the same commands CI runs, and on the pull requests you
+open the gate is a required check. If `gate` blocks, do not work around it: the
+thing it found is a test you weakened, and rule 3 says the code is what
+changes.
+
+Open the pull request as a **draft**, and mark it ready for review only when
+Stage C is done. Stage E's full build and diff run the moment it is ready, and
+on every push after that; a draft is how you keep them from running on every
+push before.
 
 Read `check`'s last line. It says how many models it held to the framework and
 how many it read: `OK (3 models in models/marts/, of 40 models read)`. If the
