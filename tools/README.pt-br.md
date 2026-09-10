@@ -89,6 +89,15 @@ Uma regra daqui alcança um arquivo que é do degrau 3: a `S5` exige que um mode
 crítico ou incremental tenha dono no CODEOWNERS, e bloqueia enquanto não tiver.
 Escreva esse arquivo cedo, ou comece por modelos `tier: standard`.
 
+Ainda não tem um projeto seu? Tem um em
+[`examples/quickstart`](../examples/quickstart/README.md) — dois marts, um
+standard e um crítico, com suas specs, seus pré-registros e seus diffs — e uma
+lista de coisas para quebrar de propósito e ver uma regra disparar:
+
+```bash
+python tools/slp.py check --project-dir examples/quickstart
+```
+
 ### Degrau 2 — `check` e `gate` no CI, ainda sem warehouse nenhum
 
 | Copie | Para | Depois edite |
@@ -598,8 +607,9 @@ maneiras de um verde ser um verde sobre nada.
 | --- | --- |
 | `slp.py` | A ferramenta inteira: três comandos, todas as regras, um arquivo que se lê de uma sentada. |
 | `schemas/` | O que uma spec, um pré-registro e um `diff.json` precisam ser. |
-| `templates/` | CODEOWNERS, AGENTS.md e um workflow de CI, prontos para copiar. |
+| `templates/` | CODEOWNERS, AGENTS.md e os dois workflows de CI, prontos para copiar. |
 | `tests/` | A suíte, e `tests/fixtures/` — cada caso como arquivos de verdade, uma pasta por caso com um `README.txt`. |
+| `../examples/` | Um projeto em que os portões passam, e um passo a passo de um em que eles não passam. Os READMEs de lá imprimem saída de verdade, e o `tests/test_examples.py` roda os comandos e confere. |
 
 - **Uma regra por pull request.** Uma regra é uma função, uma docstring que
   começa pela frase do framework que ela impõe, um id, uma fixture que bloqueia,

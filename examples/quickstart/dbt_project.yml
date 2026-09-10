@@ -1,0 +1,9 @@
+# A dbt project only so the example is one. The tools never read this file -
+# `check` and `compare` look at models/, analyses/ and diff/ - but G9 protects it,
+# so it is part of the lesson that it is here.
+name: quickstart
+version: "1.0.0"
+config-version: 2
+profile: quickstart
+model-paths: ["models"]
+analysis-paths: ["analyses"]

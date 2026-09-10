@@ -48,6 +48,23 @@ runs at all.
   opens with a `slp check` of its own so the sixty-minute job is not where an
   unreadable spec is discovered.
 
+- **There is something to run.** `examples/quickstart` is a dbt project the gates
+  pass on: two marts, one `standard` and one `critical`, with their specs, their
+  pre-registrations, the reconciliation query the critical one owes, and the
+  `diff.json` files a Stage E build would have written. It needs no dbt, no
+  warehouse, no credential and no network, and its README lists five things to
+  break on purpose to watch a named rule fire. `gate` reads git rather than the
+  working tree and cannot be shown in place, so it gets `examples/gate-walkthrough`
+  — two snapshots of one model, and the one deleted test between them.
+
+  Both READMEs print real output, and `tests/test_examples.py` runs every command
+  they print and compares the result character for character. A change to the
+  wording of a summary line now reds a test in `examples/`, which is the point: an
+  example that no longer runs is worse than none, because it is the first thing a
+  reader tries and the last thing anyone remembers to update. **M4** and **M6**
+  were widened to cover the folder, so no address, document number or URL can
+  enter it either.
+
 - **README section 1 is a ladder.** Five rungs, each green on its own: `check`
   on your machine, `check` and `gate` in CI, the protected paths and branch
   protection, the warehouse controls, and Stage E. The old section asked for all

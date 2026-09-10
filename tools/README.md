@@ -88,6 +88,15 @@ One rule here reaches for a file that belongs to rung 3: `S5` asks that a
 critical or incremental model be owned by somebody in CODEOWNERS, and blocks
 while it is not. Write that file early, or start with `tier: standard`.
 
+No project of your own yet? There is one in
+[`examples/quickstart`](../examples/quickstart/README.md) — two marts, one
+standard and one critical, with their specs, their pre-registrations and their
+diffs — and a list of things to break on purpose to watch a rule fire:
+
+```bash
+python tools/slp.py check --project-dir examples/quickstart
+```
+
 ### Rung 2 — `check` and `gate` in CI, still with no warehouse
 
 | Copy | To | Then edit |
@@ -586,8 +595,9 @@ can be a green about nothing.
 | --- | --- |
 | `slp.py` | The whole tool: three commands, every rule, one file you can read in one sitting. |
 | `schemas/` | What a spec, a pre-registration and a `diff.json` must look like. |
-| `templates/` | CODEOWNERS, AGENTS.md and a CI workflow, ready to copy. |
+| `templates/` | CODEOWNERS, AGENTS.md and the two CI workflows, ready to copy. |
 | `tests/` | The suite, and `tests/fixtures/` — every case as real files, one folder per case with a `README.txt`. |
+| `../examples/` | A project the gates pass on, and a walkthrough of one that they do not. Its READMEs print real output, and `tests/test_examples.py` runs the commands and compares. |
 
 - **One rule per pull request.** A rule is one function, one docstring starting
   with the framework sentence it enforces, one rule id, one fixture that blocks,

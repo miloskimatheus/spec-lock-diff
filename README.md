@@ -34,6 +34,15 @@ The framework boils down to three phases:
 
 A working reference implementation of the gates lives in **[`tools/`](tools/README.md)**: three commands in one Python file, no network and no warehouse.
 
+**Want to see it before you read all this?** [`examples/quickstart`](examples/quickstart/README.md) is a dbt project the gates pass on — two marts, their specs, their pre-registrations and their diffs. No dbt, no warehouse and no credentials needed:
+
+```bash
+pip install "pyyaml" "jsonschema>=4"
+python tools/slp.py check --project-dir examples/quickstart
+```
+
+Adoption is a ladder, not a cliff: `check` and `gate` are twenty-one of the thirty rules and need no warehouse at all. [The install section](tools/README.md#1-install) has the five rungs, each green on its own.
+
 ---
 
 ## Table of Contents
@@ -91,7 +100,9 @@ You are not writing rules for the agent to obey — you are building an environm
 **Who executes:** Platform. **When:** One time only, before the first PR with an agent.
 
 > [!IMPORTANT]
-> Don't start building stuff without setting the controls.
+> Don't turn an agent loose on the repository before these five are in place. They are what make everything after them enforceable instead of advisory.
+>
+> They are **not** a prerequisite for running the gates. `check` and `gate` — twenty-one of the thirty rules in [`tools/`](tools/README.md#1-install) — need no warehouse, no identity and no spending cap, and are worth having on a repository no agent has touched yet. Adoption is a ladder; this section is its fourth rung.
 
 <p align="center">
   <picture>

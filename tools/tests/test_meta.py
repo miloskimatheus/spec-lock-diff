@@ -10,7 +10,7 @@ import re
 import pytest
 
 import slp
-from conftest import FIXTURES, TOOLS, expectation, run_slp
+from conftest import EXAMPLES, FIXTURES, TOOLS, expectation, run_slp
 
 SOURCE = (TOOLS / "slp.py").read_text(encoding="utf-8")
 TREE = ast.parse(SOURCE)
@@ -106,9 +106,13 @@ def test_m3_the_only_program_the_tools_run_is_git():
 
 def test_m4_nothing_here_reaches_for_the_network():
     """R2: a URL in the code is either a mistake or a socket waiting to be opened."""
+    # examples/ too, except its markdown: a getting-started page may link out,
+    # and the yml, sql, json and CODEOWNERS beside it are where a stray address
+    # would actually matter.
     looked_at = [TOOLS / "slp.py"] + sorted(TOOLS.glob("schemas/*")) \
         + sorted(TOOLS.glob("templates/*")) + sorted(TOOLS.glob("tests/*.py")) \
-        + sorted(p for p in (TOOLS / "tests" / "fixtures").rglob("*") if p.is_file())
+        + sorted(p for p in (TOOLS / "tests" / "fixtures").rglob("*") if p.is_file()) \
+        + sorted(p for p in EXAMPLES.rglob("*") if p.is_file() and p.suffix != ".md")
     address = re.compile(r"https?" + "://")  # split, so this file does not match itself
     for path in looked_at:
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
@@ -132,7 +136,9 @@ def _cpf_is_valid(digits):
 
 def test_m6_the_fixtures_are_invented():
     """R9: the repository's own PR checklist forbids real data. This checks it."""
-    for path in sorted(p for p in FIXTURES.rglob("*") if p.is_file()):
+    invented = sorted(p for p in FIXTURES.rglob("*") if p.is_file()) \
+        + sorted(p for p in EXAMPLES.rglob("*") if p.is_file())
+    for path in invented:
         text = path.read_text(encoding="utf-8", errors="replace")
         for address in re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", text):
             assert address.endswith("@example.com"), "%s: %s" % (path.name, address)
