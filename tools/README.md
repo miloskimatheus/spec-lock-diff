@@ -54,19 +54,22 @@ slp gate: 1 block - BLOCKED
 
 ## 1. Install
 
-**You need** Python 3.9+ and git 2.20+, plus two libraries and nothing else:
+**You need** Python 3.9+ and git 2.20+. Then one of two ways in.
 
-```bash
-pip install "pyyaml" "jsonschema>=4"
-```
+| | How | What it buys, and what it costs |
+| --- | --- | --- |
+| **Vendored** | `pip install "pyyaml" "jsonschema>=4"`, then copy `tools/` next to your `dbt_project.yml` — the folder, not the file, because `slp.py` reads its schemas from the directory beside it. | Nothing in the trust root but a file you can read: no index, no network, and the gate sits in your repository where its diff is reviewable. |
+| **Installed** | `pipx run spec-lock-diff check`, or `pip install spec-lock-diff`. For CI, put the version in a `.slp-version` file at the repository root and the workflow installs exactly that. | One line instead of a folder. It also puts an index in the trust root, which vendoring does not — which is why the workflow reads the pin from the branch the pull request targets, and why `.slp-version` is a protected path. |
 
-If dbt is installed you have both already. The jsonschema floor is not
+The wheel carries the tool and its schemas, not the templates or the tests:
+those live in this repository, at the tag of the version you pinned. Either way
+the command is named `slp`; this document writes `python tools/slp.py`, which is
+the vendored spelling, throughout.
+
+If dbt is installed you have both libraries already. The jsonschema floor is not
 decoration — the schemas are draft 2020-12 and its validator arrived in 4.0; on
 3.x the tools fail to start rather than fall back. If your system has no bare
 `python`, read `python3` for every `python` in this document.
-
-**Copy `tools/` next to your `dbt_project.yml`** — the folder, not the file:
-`slp.py` reads its schemas from the directory beside it.
 
 Then climb. Each rung below is green on its own and worth something on its own,
 and no rule on a rung you have reached is weaker for the rungs you have not.
@@ -595,6 +598,7 @@ can be a green about nothing.
 | Path | What it is |
 | --- | --- |
 | `slp.py` | The whole tool: three commands, every rule, one file you can read in one sitting. |
+| `__init__.py` | One docstring, no imports. It exists so `../pyproject.toml` can map this directory to the package name without moving anything. |
 | `schemas/` | What a spec, a pre-registration and a `diff.json` must look like. |
 | `templates/` | CODEOWNERS, AGENTS.md and the two CI workflows, ready to copy. |
 | `tests/` | The suite, and `tests/fixtures/` — every case as real files, one folder per case with a `README.txt`. |

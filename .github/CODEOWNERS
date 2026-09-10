@@ -6,3 +6,6 @@
 # The gate must not be editable by whoever it judges (Control 5B).
 # Already covered by the line above; the explicit line documents the intent.
 tools/  @miloskimatheus
+
+# The wheel's metadata pins the version and the dependencies the gate installs.
+pyproject.toml  @miloskimatheus

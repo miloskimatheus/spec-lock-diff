@@ -50,9 +50,11 @@ def test_codeowners_adds_only_what_it_explains():
     template = (TEMPLATES / "CODEOWNERS").read_text(encoding="utf-8")
     owned = re.findall(r"^(/\S+)\s+@", template, re.M)  # commented lines own nothing
     # The additions the template explains: the gate itself, the second place git
-    # looks for CODEOWNERS, and the other two files that pin dependencies.
+    # looks for CODEOWNERS, the other two files that pin dependencies, and the
+    # file that pins the gate's own version when it is installed rather than
+    # vendored - a package pin by another name.
     extra = {"/tools/", "/CODEOWNERS", "/.github/CODEOWNERS",
-             "/package-lock.yml", "/dependencies.yml"}
+             "/package-lock.yml", "/dependencies.yml", "/.slp-version"}
     for path in owned:
         assert path in extra or path.strip("/").split("*")[0] in README, path
 
@@ -172,8 +174,12 @@ def test_the_first_workflow_needs_nothing_but_python():
     runs = _runs(WORKFLOWS["ci.yml"]["jobs"]["ci"])
     assert "exit 1" not in runs
     assert "dbt" not in runs
-    installs = [line.strip() for line in runs.splitlines() if "pip install" in line]
-    assert installs == ['pip install "pyyaml" "jsonschema>=4"']
+    installs = [line.strip() for line in runs.splitlines()
+                if "pip install" in line and not line.strip().startswith("#")]
+    # Two, and both are the gate: its dependencies, and - when the base branch
+    # pins a version rather than vendoring tools/ - the gate itself.
+    assert installs == ['pip install "pyyaml" "jsonschema>=4"',
+                        'pip install --quiet "spec-lock-diff==$version"']
 
 
 def test_the_warehouse_workflow_fails_closed_until_it_is_edited():
@@ -228,8 +234,13 @@ def test_the_readme_and_the_workflows_ask_for_the_same_jsonschema():
     for name in WORKFLOWS:
         lines = [line for line in (TEMPLATES / name).read_text(encoding="utf-8").splitlines()
                  if "pip install" in line and not line.strip().startswith("#")]
-        assert lines, name
-        for line in lines:
+        # The gate installed by version carries the two pins in its own metadata,
+        # which test_packaging holds to the same allowlist. Every other install
+        # names them here, so no job can reach a gate with whatever an adapter
+        # happened to pull in.
+        deps = [line for line in lines if "spec-lock-diff==" not in line]
+        assert deps, name
+        for line in deps:
             assert '"pyyaml"' in line and '"jsonschema>=4"' in line, "%s: %s" % (name, line)
     for name in ("README.md", "README.pt-br.md"):
         assert '"jsonschema>=4"' in (TOOLS / name).read_text(encoding="utf-8"), name

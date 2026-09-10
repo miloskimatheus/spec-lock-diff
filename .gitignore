@@ -16,6 +16,11 @@ __pycache__/
 .venv/
 venv/
 
+# Packaging
+build/
+dist/
+*.egg-info/
+
 # Tools
 .pytest_cache/
 tools/tools-backlog.md

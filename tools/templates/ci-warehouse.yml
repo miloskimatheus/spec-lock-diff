@@ -114,14 +114,21 @@ jobs:
         run: |
           base=${{ github.event.pull_request.base.sha }}
           rm -rf "$RUNNER_TEMP/tools" "$RUNNER_TEMP/base-tools"
-          if git cat-file -e "$base:tools/slp.py" 2>/dev/null; then
+          version=$(git show "$base:.slp-version" 2>/dev/null | tr -d '[:space:]')
+          if [ -n "$version" ]; then
+            # Installed, and pinned by the branch being targeted: a pull request
+            # that edits .slp-version does not change the version that judges it.
+            pip install --quiet "spec-lock-diff==$version"
+            echo "SLP=$(python -c 'import spec_lock_diff.slp as m; print(m.__file__)')" >> "$GITHUB_ENV"
+          elif git cat-file -e "$base:tools/slp.py" 2>/dev/null; then
             git archive "$base" tools | tar -x -C "$RUNNER_TEMP"
             mv "$RUNNER_TEMP/tools" "$RUNNER_TEMP/base-tools"
+            echo "SLP=$RUNNER_TEMP/base-tools/slp.py" >> "$GITHUB_ENV"
           else
             echo "tools/ is not on the base branch yet; this run judges with the pull request's own copy" >&2
             cp -r tools "$RUNNER_TEMP/base-tools"
+            echo "SLP=$RUNNER_TEMP/base-tools/slp.py" >> "$GITHUB_ENV"
           fi
-          echo "SLP=$RUNNER_TEMP/base-tools/slp.py" >> "$GITHUB_ENV"
 
       # The tripwire. ci.yml has already run this, but a required check belongs to
       # a workflow, and this one cannot say `needs: ci`. Two seconds here is what

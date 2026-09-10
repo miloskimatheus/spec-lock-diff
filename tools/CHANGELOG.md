@@ -48,6 +48,34 @@ runs at all.
   opens with a `slp check` of its own so the sixty-minute job is not where an
   unreadable spec is discovered.
 
+- **There is a second way in, and it does not weaken the first.** `pyproject.toml`
+  publishes the tool as `spec-lock-diff`, so `pipx run spec-lock-diff check` works
+  with nothing copied into your repository at all. Vendoring stays the documented
+  default and the high-assurance path: no index, no network, and a gate whose diff
+  your reviewers can read.
+
+  Nothing moved to make it work. `tools/` is mapped to the package name, so
+  `SCHEMA_DIR` — the directory beside the module — is `tools/schemas/` when
+  vendored and `site-packages/spec_lock_diff/schemas/` when installed, and
+  `slp.py` needed no edit and knows nothing about which world it is in.
+
+  Installing does put an index in the trust root, which vendoring does not, and
+  a naive `pip install spec-lock-diff==0.4.0` written into the workflow would
+  have cost the property the `git archive` step exists for: CODEOWNERS would
+  still gate an edit to the pin, but nothing would make a downgrade to a version
+  with fewer rules *inert on the pull request that makes it*. So the workflow
+  reads the version from `.slp-version` **on the branch the pull request
+  targets**, exactly as it reads `tools/` from there — and `.slp-version` is in
+  the CODEOWNERS template, a package pin by another name. Both paths end at the
+  same `$SLP`, so nothing downstream of that step forks.
+
+  `tests/test_packaging.py` holds the wheel to the file: the same version string,
+  the same two dependencies **M3** permits — one list now, so a new import fails
+  the packaging test until it is declared and M3 until it is allowed — the
+  schemas covered by the package data, the console script still named `slp`
+  because every summary line begins with that word, and `tools/` still holding
+  exactly one module.
+
 - **`--marts-path` had one value and two verdicts, and one of them was a green
   about nothing.** `check` and `compare` go through `read_project`, which refuses
   a marts path that is not a directory. `gate` reads git, never saw that refusal,

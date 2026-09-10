@@ -80,10 +80,17 @@ def test_m2_a_rule_that_only_informs_never_blocks():
     assert seen == set(slp.INFO_RULES), sorted(set(slp.INFO_RULES) - seen)
 
 
+# What slp.py may import, and which of those come from an index rather than the
+# standard library. test_packaging holds the wheel's dependencies to the second
+# set, so adding an import is a packaging decision in the same pull request.
+ALLOWED_IMPORTS = {"argparse", "json", "os", "pathlib", "subprocess", "sys",
+                   "dataclasses", "typing", "re", "hashlib", "yaml", "jsonschema"}
+DISTRIBUTIONS = {"yaml": "pyyaml", "jsonschema": "jsonschema"}
+
+
 def test_m3_the_tools_depend_on_nothing_new():
     """R2 and R5: no LLM, no network, no warehouse, and nothing dbt does not install."""
-    allowed = {"argparse", "json", "os", "pathlib", "subprocess", "sys",
-               "dataclasses", "typing", "re", "hashlib", "yaml", "jsonschema"}
+    allowed = ALLOWED_IMPORTS
     imported = set()
     for node in ast.walk(TREE):
         if isinstance(node, ast.Import):

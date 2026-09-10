@@ -81,20 +81,34 @@ jobs:
       # edits tools/ would otherwise run its own version of the gate on itself -
       # G9 blocks the edit, but the edited gate is what would be running. So the
       # three commands run from the copy on the branch the pull request targets.
-      # On the pull request that first adds tools/ there is no such copy; the
-      # step says so and uses this one.
+      #
+      # Two ways to have one. If the base branch carries a `.slp-version` file,
+      # that version is installed from the index - which is how you run these
+      # tools without vendoring tools/ into your repository at all. Otherwise the
+      # base branch's own tools/ is extracted. Either way the version that judges
+      # a pull request is the one already on the branch it targets, and
+      # `.slp-version` is a protected path so raising or lowering it is a change
+      # a code owner approves. On the pull request that first adds either, there
+      # is nothing to fall back to; the step says so and uses this one.
       - name: the tools from the base branch
         run: |
           base=${{ github.event.pull_request.base.sha }}
           rm -rf "$RUNNER_TEMP/tools" "$RUNNER_TEMP/base-tools"
-          if git cat-file -e "$base:tools/slp.py" 2>/dev/null; then
+          version=$(git show "$base:.slp-version" 2>/dev/null | tr -d '[:space:]')
+          if [ -n "$version" ]; then
+            # Installed, and pinned by the branch being targeted: a pull request
+            # that edits .slp-version does not change the version that judges it.
+            pip install --quiet "spec-lock-diff==$version"
+            echo "SLP=$(python -c 'import spec_lock_diff.slp as m; print(m.__file__)')" >> "$GITHUB_ENV"
+          elif git cat-file -e "$base:tools/slp.py" 2>/dev/null; then
             git archive "$base" tools | tar -x -C "$RUNNER_TEMP"
             mv "$RUNNER_TEMP/tools" "$RUNNER_TEMP/base-tools"
+            echo "SLP=$RUNNER_TEMP/base-tools/slp.py" >> "$GITHUB_ENV"
           else
             echo "tools/ is not on the base branch yet; this run judges with the pull request's own copy" >&2
             cp -r tools "$RUNNER_TEMP/base-tools"
+            echo "SLP=$RUNNER_TEMP/base-tools/slp.py" >> "$GITHUB_ENV"
           fi
-          echo "SLP=$RUNNER_TEMP/base-tools/slp.py" >> "$GITHUB_ENV"
 
       # Stage A and Rule 2: every marts model has a complete spec, a valid
       # pre-registration when it has one, and a uniqueness test on its primary key.

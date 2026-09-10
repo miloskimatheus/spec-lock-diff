@@ -54,20 +54,23 @@ slp gate: 1 block - BLOCKED
 
 ## 1. Instalação
 
-**Você precisa de** Python 3.9+ e git 2.20+, mais duas bibliotecas e nada além:
+**Você precisa de** Python 3.9+ e git 2.20+. Depois, um de dois caminhos.
 
-```bash
-pip install "pyyaml" "jsonschema>=4"
-```
+| | Como | O que compra, e o que custa |
+| --- | --- | --- |
+| **Copiado** | `pip install "pyyaml" "jsonschema>=4"`, depois copie `tools/` para o lado do seu `dbt_project.yml` — a pasta, não o arquivo, porque o `slp.py` lê os schemas do diretório ao lado dele. | Nada na raiz de confiança além de um arquivo que você lê: sem índice, sem rede, e o portão fica no seu repositório, onde o diff dele é revisável. |
+| **Instalado** | `pipx run spec-lock-diff check`, ou `pip install spec-lock-diff`. No CI, ponha a versão num arquivo `.slp-version` na raiz do repositório e o workflow instala exatamente aquela. | Uma linha no lugar de uma pasta. Também põe um índice na raiz de confiança, o que copiar não faz — por isso o workflow lê o pin da branch que o PR mira, e por isso o `.slp-version` é caminho protegido. |
 
-Se você tem dbt instalado, já tem as duas. O piso do jsonschema não é enfeite —
-os schemas são JSON Schema draft 2020-12 e o validador dele chegou na 4.0; na
-3.x as ferramentas não caem para um draft antigo, elas não sobem. Se no seu
-sistema não existe `python` puro, leia `python3` em todo `python` deste
+O wheel carrega a ferramenta e os schemas dela, não os templates nem os testes:
+esses ficam neste repositório, na tag da versão que você fixou. De um jeito ou
+de outro o comando se chama `slp`; este documento escreve `python tools/slp.py`,
+que é a grafia da versão copiada, do início ao fim.
+
+Se você tem dbt instalado, já tem as duas bibliotecas. O piso do jsonschema não
+é enfeite — os schemas são JSON Schema draft 2020-12 e o validador dele chegou
+na 4.0; na 3.x as ferramentas não caem para um draft antigo, elas não sobem. Se
+no seu sistema não existe `python` puro, leia `python3` em todo `python` deste
 documento.
-
-**Copie `tools/` para o lado do seu `dbt_project.yml`** — a pasta, não o
-arquivo: o `slp.py` lê os schemas do diretório ao lado dele.
 
 Depois suba. Cada degrau abaixo fica verde sozinho e vale alguma coisa sozinho,
 e nenhuma regra de um degrau que você alcançou fica mais fraca por causa dos
@@ -607,6 +610,7 @@ maneiras de um verde ser um verde sobre nada.
 | Caminho | O que é |
 | --- | --- |
 | `slp.py` | A ferramenta inteira: três comandos, todas as regras, um arquivo que se lê de uma sentada. |
+| `__init__.py` | Uma docstring, nenhum import. Existe para o `../pyproject.toml` mapear este diretório para o nome do pacote sem mover nada. |
 | `schemas/` | O que uma spec, um pré-registro e um `diff.json` precisam ser. |
 | `templates/` | CODEOWNERS, AGENTS.md e os dois workflows de CI, prontos para copiar. |
 | `tests/` | A suíte, e `tests/fixtures/` — cada caso como arquivos de verdade, uma pasta por caso com um `README.txt`. |
