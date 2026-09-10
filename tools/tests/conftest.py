@@ -10,6 +10,9 @@ Fixture conventions
     fixtures/gate/<CASE>/{before,after}/...     (before, mid, after when a case
                                                  needs three commits)
     fixtures/compare/<case>/{diff.json, models/marts/...}
+    fixtures/compare_base/<case>/{before,after}/... + diff.json
+                                                (compare --base needs a history,
+                                                 so these are repositories)
 
 A fixture folder is named `<RULE_ID>_<what_happens>` when it must block, and
 `<RULE_ID>_ok_<what_happens>` when it must pass. The name is the expectation.

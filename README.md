@@ -246,6 +246,7 @@ When the agent needs to understand the structure of data, it consults `docs/prof
 | `docs/profile/`                             | Statistical profiles. If the agent changes the profile, it changes its own reference.                                                                    |
 | Incremental models (list explicitly)        | Incremental models are more complex and fragile.                                                                                                         |
 | Critical model directories                  | The CODEOWNERS owner should be the domain's data owner.                                                                                                  |
+| `tools/`                                    | The anti-fraud gate itself (Part B). If the agent can change what judges it, it is judged by nothing.                                                    |
 
 **Part B — Anti-fraud gate:**
 

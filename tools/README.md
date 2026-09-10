@@ -83,7 +83,7 @@ says nothing, these tools do nothing.
    python tools/slp.py --version
    ```
 7. **Optional, and worth it:** `pip install pytest && pytest tools/tests -q`.
-   Around two hundred and eighty tests, a few seconds, no network. If they
+   Around three hundred and forty tests, a few seconds, no network. If they
    pass, the gates on your machine are the gates in CI.
 
 ---
@@ -545,9 +545,9 @@ pull request, forever.
 directories where the file asks, and turn on "Require review from Code Owners".
 
 **How to change it.** The file follows the README's table row by row, and
-`test_templates.py` fails if a row goes missing. It adds three paths the table
-does not list — `tools/`, and, commented out, `models/staging/` and `.claude/`
-— each with the reason next to it. To add another, add the line and its reason.
+`test_templates.py` fails if a row goes missing. It adds two paths the table
+does not list, commented out — `models/staging/` and `.claude/` — each with the
+reason next to it. To add another, add the line and its reason.
 
 ### `templates/AGENTS.md`
 
@@ -703,11 +703,12 @@ because a rule with several things to say usually has a reading order for them.
 `I2`'s is the order Stage E asks you to read the numbers in. The same files in
 give the same lines out, in the same order, on every machine.
 
-Four rules only ever inform and never change the exit code: `I1`, the
+Five rules only ever inform and never change the exit code: `I1`, the
 pre-registration change counter; `I2`, the numbers themselves; `I3`, a filter on
-a test this branch adds; and `C5`, which names in one line what a refactoring
-promised and what moved. The first three were written to inform, which is why
-their ids start with `I`. `C5` was written to block and stopped: a refactoring's
+a test this branch adds; `I4`, the commit a spec new on this branch was first
+written in; and `C5`, which names in one line what a refactoring promised and
+what moved. The first four were written to inform, which is why their ids start
+with `I`. `C5` was written to block and stopped: a refactoring's
 intervals are pinned to zero by the schema, so `C1` to `C4` already refuse every
 number it could catch, and blocking twice for one problem makes a reviewer count
 two. Meta-test **M2** checks that promise against
@@ -769,10 +770,10 @@ not a finding either.
 One row per rule: the README sentence it enforces, the fixture where the rule
 fires, and the fixture where it stays silent. Meta-test **M2** fails if a rule
 has no row here, or a row names a fixture that does not exist or does not do
-what it says. Every rule blocks except the four in `INFO_RULES` — `I1`, the pre-registration
+what it says. Every rule blocks except the five in `INFO_RULES` — `I1`, the pre-registration
 change counter; `I2`, the numbers themselves; `I3`, a filter on a test this
-branch adds; and `C5`, the refactoring promise in one line — which only ever
-inform. The README asks for
+branch adds; `I4`, where a spec new on the branch was first written; and `C5`,
+the refactoring promise in one line — which only ever inform. The README asks for
 what they say to be *visible*, not for it to stop the PR, and **M2** checks that
 against the source so none of them can quietly grow a `BLOCK`.
 
@@ -842,6 +843,13 @@ point of this list.
 | Judging only the agent's commits inside one pull request | A commit author is text anyone can write, so inside a pull request the gate judges every commit. Which pull requests it *blocks* is decided by who opened them, an identity the platform authenticates; see [Gate scope](#gate). |
 | The `PreToolUse` hook that refuses writes to protected paths | Agent-specific and optional. README §2 Control 5B, "Optional (extra layer of protection)". |
 | Judging natural language: whether a grain is *good*, whether a reason justifies an interval | Principle 3: an LLM is never the final judge. These are the human's three readings in Stage E step 5. |
+| Tests on sources, seeds and snapshots | `gate` reads `models:` and `unit_tests:`. A `not_null` removed from a source column or from a seed prints `OK (no changes)`, and Control 5B says "test removed" without qualification. Until the reader takes `sources:`, `seeds:` and `snapshots:`, a test on one of those is CODEOWNERS' to notice. README §2 Control 5B. |
+| A marts model demoted out of the marts, or disabled | A `git mv` of a model's sql and yml into `models/intermediate/` passes `gate`, and in the next pull request the model is outside `S1`, `T1` and `G8`, because a marts model is one whose sql is in a marts path. `config: {enabled: false}` on a model keeps every test on paper and runs them on nothing, and neither command says so. README §3 Stage A. |
+| Python models | `S4`, `G8` and the marts test key on `.sql`. A `models/marts/fct_x.py` with no yml passes `check`, and a rewrite of it asks for no pre-registration. All three warehouses on the badge run them. README §3 Stage A, Stage B. |
+| Stage B's order | "Before writing any code" is checked as presence at the end of the branch, not as order along it: code in commit 2 and a pre-registration in commit 3 is `OK (2 commits)`. With force-push blocked (Control 1) the walk could tell; it does not yet. README §3 Stage B. |
+| `compare` trusts the spec | It re-validates the pre-registration and not the spec. With `tier: crítical`, `C6` is skipped and a critical model passes with no reconciliation. `check` catches it in the same CI run; `compare` is documented as standalone. README §3 Stage E step 4. |
+| An unreadable intermediate commit | A yml that does not parse in any commit of the walk, or a binary file under `tests/`, is exit 2 for the life of the branch, and the only cure is the history rewrite Control 1 now forbids. The reader could skip such a commit with an `INFO` and hash what it only needs to hash; it does not yet. README §2 Control 5B. |
+| `--marts-path` spelled `./models/marts` | `check` accepts it; `gate` reads paths from git, which never start with `./`, so it finds no marts yml and prints `OK`. One flag value, two verdicts. Normalizing the path, and having `gate` refuse one that exists at neither end of the range, is the fix. README §3 Stage A. |
 
 ---
 

@@ -189,11 +189,18 @@ def test_the_version_is_the_one_the_changelog_describes():
 # They are re-measured at each release and written back down here. A number only
 # goes up when the pull request says what was bought with it.
 #
-# 0.3.0, measured after the work: 424 lines of machinery, biggest rule 30, 1100
-# in all. ONE_RULE comes down from the 36 it was guessed at, because 30 is what
-# the rules actually cost and a cap wants to bite. WHOLE_FILE goes up, and what
-# was bought is room to explain: it is the one of the three that counts prose,
-# so a margin there is the margin the other two exist to protect.
+# 0.4.0, measured after the work: 510 lines of machinery, biggest rule 30, 1317
+# in all, thirty rules. MACHINERY went from 430 to 520 and every step bought
+# something a rule could not carry alone: the merge-base read compare does for
+# --base, the protected-path and singular-test inventory G9 and G10 read, the
+# config() reader, the CODEOWNERS matcher S5 reads the way git does, and the
+# two helpers every metric line shares now that a metric can be pre-registered
+# by value. ONE_RULE did not move: the biggest rule is still 30 lines, four new
+# rules landed under it, and a rule that needs more is two rules. WHOLE_FILE
+# went from 1150 to 1350, and what was bought is the sentence next to each of
+# those: it is the one of the three that counts prose.
+#
+# 0.3.0, for the record: 424, 30, 1100.
 MACHINERY, ONE_RULE, WHOLE_FILE = 520, 32, 1350
 
 

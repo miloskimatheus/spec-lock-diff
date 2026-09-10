@@ -83,7 +83,7 @@ não diz nada, estas ferramentas não fazem nada.
    python tools/slp.py --version
    ```
 7. **Opcional, e vale a pena:** `pip install pytest && pytest tools/tests -q`.
-   Cerca de duzentos e oitenta testes, alguns segundos, sem rede. Se passam, os
+   Cerca de trezentos e quarenta testes, alguns segundos, sem rede. Se passam, os
    gates da sua máquina são os gates do CI.
 
 ---
@@ -544,9 +544,9 @@ todo PR, para sempre.
 críticos onde o arquivo pede, e ligue "Require review from Code Owners".
 
 **Como mudar.** O arquivo segue a tabela do README linha a linha, e o
-`test_templates.py` falha se uma linha sumir. Ele acrescenta três paths que a
-tabela não lista — `tools/` e, comentados, `models/staging/` e `.claude/` — cada
-um com o motivo ao lado. Para acrescentar outro, escreva a linha e o motivo.
+`test_templates.py` falha se uma linha sumir. Ele acrescenta dois paths que a
+tabela não lista, comentados — `models/staging/` e `.claude/` —, cada um com o
+motivo ao lado. Para acrescentar outro, escreva a linha e o motivo.
 
 ### `templates/AGENTS.md`
 
@@ -708,11 +708,12 @@ uma ordem de leitura para elas. A da `I2` é a ordem em que a Etapa E pede que
 os números sejam lidos. Os mesmos arquivos na entrada dão as mesmas linhas na
 saída, na mesma ordem, em qualquer máquina.
 
-Quatro regras só informam e nunca mudam o exit code: a `I1`, o contador de
+Cinco regras só informam e nunca mudam o exit code: a `I1`, o contador de
 alterações do pré-registro; a `I2`, os números em si; a `I3`, um filtro num
-teste que esta branch adiciona; e a `C5`, que diz numa linha o que uma
-refatoração prometeu e o que se moveu. As três primeiras nasceram para informar,
-por isso os ids começam com `I`. A `C5` nasceu para bloquear e deixou de
+teste que esta branch adiciona; a `I4`, o commit em que uma spec nova nesta
+branch foi escrita pela primeira vez; e a `C5`, que diz numa linha o que uma
+refatoração prometeu e o que se moveu. As quatro primeiras nasceram para
+informar, por isso os ids começam com `I`. A `C5` nasceu para bloquear e deixou de
 bloquear: os intervalos de uma refatoração são fixados em zero pelo schema,
 então a `C1` até a `C4` já recusam qualquer número que ela pudesse pegar, e
 bloquear duas vezes por um problema faz o revisor contar dois. O meta-teste **M2** confere essa promessa contra
@@ -775,11 +776,12 @@ teste também não é achado.
 Uma linha por regra: a frase do README que ela impõe, a fixture em que a regra
 dispara e a fixture em que ela fica calada. O meta-teste **M2** falha se uma
 regra não tem linha aqui, ou se uma linha aponta para uma fixture que não existe
-ou que não faz o que a linha diz. Toda regra bloqueia, menos as quatro em
+ou que não faz o que a linha diz. Toda regra bloqueia, menos as cinco em
 `INFO_RULES` — a `I1`, contador de alterações do pré-registro; a `I2`, os
-números em si; a `I3`, um filtro num teste que esta branch adiciona; e a `C5`, a
+números em si; a `I3`, um filtro num teste que esta branch adiciona; a `I4`,
+onde uma spec nova na branch foi escrita pela primeira vez; e a `C5`, a
 promessa da refatoração numa linha —, que só informam. O README pede que o que elas dizem esteja *visível*, não que pare o
-PR, e o **M2** confere isso contra o código-fonte, para que nenhuma das três
+PR, e o **M2** confere isso contra o código-fonte, para que nenhuma delas
 ganhe um `BLOCK` em silêncio.
 
 | README | Regra | Fixture em que dispara | Fixture em que fica calada |
@@ -848,6 +850,13 @@ ponto desta lista.
 | Julgar só os commits do agente dentro de um pull request | Autor de commit é texto que qualquer um escreve, então dentro de um pull request o gate julga todo commit. Quais pull requests ele *bloqueia* é decidido por quem os abriu, uma identidade que a plataforma autentica; veja [Escopo do gate](#gate). |
 | O hook `PreToolUse` que recusa escrita em paths protegidos | É específico do agente e opcional. README §2 Controle 5B, "Opcional (camada extra de proteção)". |
 | Julgar linguagem natural: se um grain é *bom*, se um motivo justifica um intervalo | Princípio 3: um LLM nunca é o juiz final. Isso são as três leituras do humano na Etapa E, passo 5. |
+| Testes em sources, seeds e snapshots | O `gate` lê `models:` e `unit_tests:`. Um `not_null` removido de uma coluna de source ou de um seed imprime `OK (no changes)`, e o Controle 5B diz "teste removido" sem qualificar. Até o leitor pegar `sources:`, `seeds:` e `snapshots:`, um teste num desses é do CODEOWNERS reparar. README §2 Controle 5B. |
+| Um modelo de marts rebaixado para fora dos marts, ou desligado | Um `git mv` do sql e do yml de um modelo para `models/intermediate/` passa pelo `gate`, e no pull request seguinte o modelo está fora de `S1`, `T1` e `G8`, porque modelo de marts é aquele cujo sql está num caminho de marts. `config: {enabled: false}` num modelo mantém todos os testes no papel e os roda em nada, e nenhum dos comandos avisa. README §3 Etapa A. |
+| Modelos em Python | `S4`, `G8` e o teste de marts olham para `.sql`. Um `models/marts/fct_x.py` sem yml passa pelo `check`, e uma reescrita dele não pede pré-registro. Os três warehouses do selo rodam esses modelos. README §3 Etapa A, Etapa B. |
+| A ordem da Etapa B | "Antes de escrever qualquer código" é conferido como presença no fim da branch, não como ordem ao longo dela: código no commit 2 e pré-registro no commit 3 é `OK (2 commits)`. Com force-push bloqueado (Controle 1) a caminhada poderia dizer; ainda não diz. README §3 Etapa B. |
+| O `compare` confia na spec | Ele revalida o pré-registro e não a spec. Com `tier: crítical`, a `C6` é pulada e um modelo crítico passa sem reconciliação. O `check` pega isso na mesma rodada de CI; o `compare` é documentado como autônomo. README §3 Etapa E, passo 4. |
+| Um commit intermediário ilegível | Um yml que não parseia em qualquer commit da caminhada, ou um arquivo binário em `tests/`, é exit 2 pela vida inteira da branch, e a única cura é a reescrita de histórico que o Controle 1 agora proíbe. O leitor poderia pular esse commit com um `INFO` e fazer hash do que só precisa de hash; ainda não faz. README §2 Controle 5B. |
+| `--marts-path` escrito `./models/marts` | O `check` aceita; o `gate` lê caminhos do git, que nunca começam com `./`, então não acha yml de marts nenhum e imprime `OK`. Um valor de flag, dois veredictos. Normalizar o caminho, e fazer o `gate` recusar um que não existe em nenhuma das pontas do intervalo, é a correção. README §3 Etapa A. |
 
 ---
 

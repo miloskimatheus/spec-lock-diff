@@ -99,6 +99,32 @@ never seen it.
   for force-push to be blocked on every branch — one ruleset — and section 9
   says what `G7`, `I1` and `I4` are worth without it: advisory.
 
+- **`tools/` is in the README's protected-path table**, next to the paths it
+  judges. The CODEOWNERS template had it as an addition of its own; it is a
+  row of Control 5A now, with `G9` behind it.
+
+### Still not enforced
+
+Found in the same review, each demonstrated against 0.3.0 with a repository
+the harness built, and **not** fixed. Each is a row in README section 9.
+
+- Tests on sources, seeds and snapshots are invisible to `gate`: removing one
+  prints `OK (no changes)`.
+- A marts model demoted out of the marts with `git mv`, or disabled with
+  `config: {enabled: false}`, leaves every marts rule unnoticed.
+- Python models do not exist to the tools.
+- Stage B's order — the pre-registration before any code — is checked as
+  presence at the end, not as order along the branch.
+- `compare` re-validates the pre-registration and not the spec, so a
+  misspelled `tier` skips `C6`.
+- An unparseable yml in an intermediate commit, or a binary file under
+  `tests/`, is exit 2 for the life of the branch.
+- `--marts-path ./models/marts` silences `gate` and not `check`.
+- Two places where the README's sentences pull against each other and the
+  tools chose — Stage B's scope beyond the marts, and the first pull request
+  of a critical model, which `G5` blocks by construction — are written up as
+  framework issue 13 rather than decided here.
+
 ## 0.3.0 — the shape of the project, not the shape of the fixtures
 
 0.2.0 closed the silent passes the rules had. This one closes the silent passes

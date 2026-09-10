@@ -246,6 +246,7 @@ Quando o agente precisa entender a estrutura de um dado, ele consulta `docs/prof
 | `docs/profile/`                              | Perfis estatísticos. Se o agente mudar o perfil, ele muda sua própria referência.                                             |
 | Modelos incrementais (listar explicitamente) | Modelos incrementais são mais complexos e frágeis.                                                                            |
 | Diretórios de modelos críticos               | O dono do CODEOWNERS deve ser o data owner do domínio.                                                                        |
+| `tools/`                                     | O próprio gate antifraude (Parte B). Se o agente pode mudar o que o julga, ele é julgado por nada.                            |
 
 **Parte B — Gate anti-fraude:**
 

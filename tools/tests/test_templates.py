@@ -23,7 +23,7 @@ def test_codeowners_protects_every_path_the_readme_lists():
     """Control 5A is a table in prose; the template is the same table as a control."""
     template = (TEMPLATES / "CODEOWNERS").read_text(encoding="utf-8")
     paths = re.findall(r"^\| `([^`]+)`", _table("**Part A — CODEOWNERS", "**Part B"), re.M)
-    assert len(paths) == 11
+    assert len(paths) == 12
     for path in paths:
         assert path.strip("/") in template, path
 
