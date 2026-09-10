@@ -1,0 +1,10 @@
+version: 2
+
+models:
+  - name: fct_orders
+    columns:
+      - name: order_id
+        tests:
+          - unique:
+              config:
+                severity: warn

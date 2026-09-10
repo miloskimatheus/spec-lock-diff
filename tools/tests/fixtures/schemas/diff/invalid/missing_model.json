@@ -1,0 +1,2 @@
+// expect: required
+{"row_delta": 0, "removed_pks": 0, "altered_columns": [], "metrics": {}}

@@ -1,0 +1,7 @@
+version: 2
+
+models:
+  - name: stg_orders
+    description: "a staging model, where a spec is welcome but not mandatory"
+    columns:
+      - name: order_id

@@ -1,0 +1,10 @@
+version: 2
+
+models:
+  - name: fct_orders
+    columns:
+      - name: order_id
+        tests:
+          - not_null:
+              config:
+                where: "order_id is not null"

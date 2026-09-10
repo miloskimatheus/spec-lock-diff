@@ -31,6 +31,33 @@
 <!-- Which permission, CI gate, schema, or branch protection makes the rule real?
      If the answer is "the agent is told not to", the rule is not finished yet. -->
 
+## If this changes `tools/`
+
+**Which README sentence does this enforce?**
+
+<!-- Rule R1: a tool may only enforce something the framework README says.
+     No sentence, no rule — open a *Framework improvement* issue first. -->
+
+**Which fixture proves it blocks, and which proves it passes?**
+
+<!-- Every rule needs one fixture that blocks and one that passes.
+     Meta-test M2 fails if a rule id has no fixture and no coverage-table row.
+     A rule that only informs (INFO_RULES) has no healthy-and-silent case; its
+     second fixture is one where the tool could not read the numbers at all. -->
+
+**Can it pass something it should have looked at?**
+
+<!-- The failure this framework exists to prevent is a green that means "I did
+     not look". If the rule reads a list, ask what happens when something is
+     missing from the list rather than wrong in it: a model with no yml, a diff
+     that never arrived, a second test of the same name. Those were seven real
+     bugs in v0.1.0, and every one of them printed OK.
+
+     Then ask the other half of it: does every fixture put the files where this
+     one does? v0.3.0's bugs were not in the rules, they were in the shape of
+     the project the fixtures all happened to take - a yml beside its sql, a
+     test with no twin, a model whose code nobody rewrote. -->
+
 ## Checklist
 
 - [ ] I read [CONTRIBUTING.md](CONTRIBUTING.md)

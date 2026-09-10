@@ -1,0 +1,15 @@
+version: 2
+
+models:
+  - name: fct_orders
+    columns:
+      - name: customer_id
+        data_tests:
+          - relationships:
+              to: ref('dim_accounts')
+              field: account_id
+          - relationships:
+              to: ref('dim_customers')
+              field: customer_id
+              config:
+                where: "1 = 0"

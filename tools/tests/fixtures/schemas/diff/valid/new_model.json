@@ -1,0 +1,8 @@
+{
+  "model": "fct_orders",
+  "row_delta": 1284003,
+  "removed_pks": 0,
+  "altered_columns": [],
+  "metrics": {"gross_revenue": {"delta_pct": null, "value": 14203118.40}},
+  "window": {"column": "order_date", "start": "2025-12-01", "end": "2025-12-31"}
+}

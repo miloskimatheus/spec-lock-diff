@@ -1,0 +1,8 @@
+# The pre-registration of README section 3, Stage B, copied verbatim.
+type: data_change
+reason: "include status='partially_shipped', previously excluded incorrectly"
+row_delta: {min: 0, max: 12000}
+removed_pks: {max: 0}
+altered_columns: [gross_revenue, order_count]
+metrics:
+  gross_revenue: {delta_pct: {min: 0.0, max: 0.8}}

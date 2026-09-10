@@ -1,0 +1,7 @@
+# expect: required
+type: data_change
+reason: "an interval without a max never fails"
+row_delta: {min: 0}
+removed_pks: {max: 0}
+altered_columns: []
+metrics: {}

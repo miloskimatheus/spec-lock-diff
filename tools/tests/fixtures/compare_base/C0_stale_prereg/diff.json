@@ -1,0 +1,7 @@
+{
+  "model": "fct_refunds",
+  "row_delta": 0,
+  "removed_pks": 0,
+  "altered_columns": [],
+  "metrics": {"gross_revenue": {"delta_pct": 0.0}}
+}

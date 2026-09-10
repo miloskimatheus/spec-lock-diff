@@ -1,0 +1,14 @@
+version: 2
+
+models:
+  - name: fct_orders
+    meta:
+      spec:
+        sensitive_columns: []
+        known_edges: []
+        metrics: {}
+        tier: standard
+        primary_key: [order_id]
+        grain: "one row per order"
+    columns:
+      - name: order_id

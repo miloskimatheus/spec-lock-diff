@@ -1,0 +1,27 @@
+version: 2
+
+models:
+  - name: fct_orders
+    meta:
+      spec:
+        grain: "one row per order"
+        primary_key: [order_id]
+        tier: standard
+        metrics:
+          gross_revenue: "sum of order_total before discounts and taxes"
+        known_edges: []
+        sensitive_columns: []
+      pre_registration:
+        type: data_change
+        reason: "a metric the spec never defined"
+        row_delta: {min: 0, max: 10}
+        removed_pks: {max: 0}
+        altered_columns: []
+        metrics:
+          gross_revenue: {delta_pct: {min: 0.0, max: 0.8}}
+          order_count: {delta_pct: {min: 0.0, max: 1.0}}
+    columns:
+      - name: order_id
+        tests:
+          - unique
+      - name: gross_revenue

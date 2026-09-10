@@ -1,0 +1,20 @@
+version: 2
+
+models:
+  - name: dim_customers
+    meta:
+      spec:
+        grain: "one row per customer"
+        primary_key: [customer_id]
+        tier: standard
+        metrics: {}
+        known_edges: []
+        sensitive_columns: [customer_email]
+    columns:
+      - name: customer_id
+        tests:
+          - unique
+      - name: customer_email
+      - name: customer_document
+        meta:
+          sensitive: true

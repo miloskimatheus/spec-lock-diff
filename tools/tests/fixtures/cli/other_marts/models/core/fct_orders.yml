@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: fct_orders
+    description: "a marts model that does not live in models/marts/"
+    meta:
+      spec:
+        grain: "one row per order"
+        primary_key: [order_id]
+        tier: standard
+        metrics: {}
+        known_edges: []
+        sensitive_columns: []
+    columns:
+      - name: order_id
+        data_tests:
+          - unique

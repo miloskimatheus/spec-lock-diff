@@ -1,0 +1,29 @@
+# The framework applies its own Control 5B to this repository: the rules in
+# tools/ are checked by a machine on every change, not by good intentions.
+name: tools tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      # The only dependencies the tools are allowed to have (backlog rule R5).
+      # jsonschema is floored because the schemas are draft 2020-12, and
+      # Draft202012Validator arrived in 4.0.
+      - run: pip install pyyaml "jsonschema>=4" pytest
+      - run: pytest tools/tests -q

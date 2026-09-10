@@ -2,3 +2,7 @@
 # The framework this repo describes requires CODEOWNERS on protected paths
 # (Control 5A) — the repo applies the same rule to itself.
 *       @miloskimatheus
+
+# The gate must not be editable by whoever it judges (Control 5B).
+# Already covered by the line above; the explicit line documents the intent.
+tools/  @miloskimatheus

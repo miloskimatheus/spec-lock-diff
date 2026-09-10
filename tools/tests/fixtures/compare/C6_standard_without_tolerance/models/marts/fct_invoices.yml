@@ -1,0 +1,23 @@
+version: 2
+
+models:
+  - name: fct_invoices
+    meta:
+      spec:
+        grain: "one row per invoice"
+        primary_key: [invoice_id]
+        tier: standard
+        metrics: {}
+        known_edges: []
+        sensitive_columns: []
+      pre_registration:
+        type: data_change
+        reason: "include invoices issued on the last day of the month"
+        row_delta: {min: 0, max: 500}
+        removed_pks: {max: 0}
+        altered_columns: []
+        metrics: {}
+    columns:
+      - name: invoice_id
+        tests:
+          - unique

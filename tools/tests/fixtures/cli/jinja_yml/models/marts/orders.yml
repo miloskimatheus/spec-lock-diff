@@ -1,0 +1,8 @@
+version: 2
+
+models:
+{% for name in ["fct_orders", "fct_invoices"] %}
+  - name: {{ name }}
+    columns:
+      - name: id
+{% endfor %}

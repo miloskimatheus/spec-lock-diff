@@ -1,0 +1,7 @@
+# expect: maxItems
+type: refactoring
+reason: "a refactoring that changes a column value is not a refactoring"
+row_delta: {min: 0, max: 0}
+removed_pks: {max: 0}
+altered_columns: [gross_revenue]
+metrics: {}

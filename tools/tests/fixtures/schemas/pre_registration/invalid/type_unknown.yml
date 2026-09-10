@@ -1,0 +1,7 @@
+# expect: enum
+type: bugfix
+reason: "there are two types, and this is neither"
+row_delta: {min: 0, max: 0}
+removed_pks: {max: 0}
+altered_columns: []
+metrics: {}

@@ -129,6 +129,10 @@ Branch protection on `main` (all mandatory):
 - No bypass for anyone — including admins.
 - Mandatory status checks: CI (stage D) and Diff (stage E) of the per-PR flow.
 
+On every branch (a ruleset that targets `*`, or the equivalent):
+
+- **Force-push blocked.** The anti-fraud gate (Control 5B) walks the commits of the pull request to see when the spec and the pre-registration were first written and how often they changed. A rewritten history — `commit --amend`, a rebase, a squash — is a history with none of that in it, and nothing the gate can read tells it so. An agent that cannot rewrite the branch cannot erase the evidence; an agent that can, can.
+
 ---
 
 ### <img src="assets/icon-c2.svg" width="19" height="19" alt=""> Control 2: Restricted data access
@@ -242,10 +246,11 @@ When the agent needs to understand the structure of data, it consults `docs/prof
 | `docs/profile/`                             | Statistical profiles. If the agent changes the profile, it changes its own reference.                                                                    |
 | Incremental models (list explicitly)        | Incremental models are more complex and fragile.                                                                                                         |
 | Critical model directories                  | The CODEOWNERS owner should be the domain's data owner.                                                                                                  |
+| `tools/`                                    | The anti-fraud gate itself (Part B). If the agent can change what judges it, it is judged by nothing.                                                    |
 
 **Part B — Anti-fraud gate:**
 
-A script that runs in CI on the commits made by the bot. It is the only custom script that the framework requires. It analyzes the bot's diffs and **blocks the PR** if it finds any of these situations:
+A script that runs in CI on the pull requests the bot opens — the opener of a pull request is an identity the platform authenticates, unlike the author of a commit, which is text — and judges every commit in them, whoever wrote it. On a pull request a human opens it runs and is advisory: CODEOWNERS (Part A) judges those. It is the only custom script that the framework requires. It analyzes the diffs and **blocks the PR** if it finds any of these situations:
 
 | Detected situation                                              | Why it blocks                                                                                                                                                   |
 | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -255,6 +260,8 @@ A script that runs in CI on the commits made by the bot. It is the only custom s
 | `expect` value changed in an existing test                      | If the agent changes the expected result, any result becomes "correct".                                                                                          |
 | `analyses/reconciliation_*` changed in the same PR as the model | The agent cannot change the model AND the reconciliation that verifies the model in the same PR. It would be like a student writing the exam and the answer key. |
 | Package pin changed                                             | Changing dependency versions can introduce different behaviors.                                                                                                  |
+| A test **added** that cannot fail                                | A test born `enabled: false`, `severity: warn`, or with a threshold it never reaches appears in the diff as work done and reports a pass whatever the data does. A new test cannot be *weakened* — it has no earlier self — so the rule about existing tests never sees it. A filter (`where`) on a new test is reported rather than blocked: it may be scoping, and which rows it removes is a human's reading. A singular test under `tests/` carries its config in its own SQL, and is read there. |
+| A protected path (Part A) changed                                | CODEOWNERS makes a human approve it; the gate makes it a red check, so on the agent's pull requests nobody has to notice. A macro or a generic test definition added under `macros/` or `tests/generic/` with the name of a test in use replaces that test everywhere it is declared, and no test file in the project changes — the rows above see nothing. A human who must change a protected path does it in a pull request of their own. |
 
 **Optional (extra layer of protection):** If the agent supports hooks before executing tools (e.g., `PreToolUse` in Claude Code), configure a hook that refuses writing to protected paths on the spot — even before the commit.
 
@@ -331,7 +338,7 @@ meta:
 
     # --- 3 additional fields, mandatory ONLY for tier: critical ---
 
-    reconciliation_query: analyses/recon_fct_orders.sql
+    reconciliation_query: analyses/reconciliation_fct_orders.sql
     # Path to a SQL query that compares the model result with an
     # external source of truth (another system, closing spreadsheet, etc.).
     # This query runs in stage E with full data.
@@ -409,7 +416,18 @@ pre_registration:
     # For each metric in the spec, the expected percentage range of variation.
     # Example: gross_revenue should increase between 0% and 0.8%.
     # If the actual variation is -1% or +2%, the PR is blocked.
+    #
+    # A model that does not exist in production has no percentage to predict.
+    # Declare the value itself, inside the diff's window, written around the
+    # number in external_validation:
+    #   gross_revenue: {value: {min: 14000000, max: 14400000}}
+    # A metric declares one of the two, never both. row_delta is then the row
+    # count itself, and altered_columns is empty.
 ```
+
+**When it is mandatory:** For every model whose code the PR changes. Stage C cannot start without it, and stage E has nothing to compare against without it — a model that reaches the diff with no pre-registration is not a model that fails the comparison, it is a model nobody compared. Deleting the prediction must not be cheaper than missing it.
+
+**Whose it is:** A pre-registration belongs to one pull request. It is written on the branch, for the change that branch makes. One that is identical to what `main` already has is the previous change's prediction — made against another production, for another reason — not this one's, and it counts as absent: the agent replaces it, it does not inherit it. After the merge it stays in the `.yml` as the record of what was predicted, until the next change to that model replaces it.
 
 **Validation:** The pre-registration is validated by JSON Schema in CI (stage D). If the format is wrong, fields are missing, or intervals are open, CI fails.
 
@@ -432,7 +450,7 @@ Each rule below must have an infrastructure mechanism that enforces it. The text
 | 5   | **Fixed execution order.** The agent follows this sequence: `dbt compile` → `dbt test --select test_type:unit` → `dbt build`. If the same command fails 3 times in a row, the agent stops and calls a human.                                                             | 3-failure rule in the API gateway.                                                                              |
 | 6   | **Pre-registration before diff.** The agent must deliver the pre-registration (stage B) before any diff. Open intervals (without min or max) are invalid.                                                                                                                | JSON Schema in CI.                                                                                              |
 | 7   | **Never read individual rows.** The agent does not run `dbt show`, does not do `SELECT` without aggregation, and never pastes a value read from the warehouse into code, test, fixture, or PR comment. Fixtures are always synthetic (invented by the agent).            | `agent_ci` role without access to `raw`. Masking in staging/marts. Anti-fraud gate detects real data in fixtures. |
-| 8   | **Do not edit protected paths.** If the task requires changing a protected file (macros, CI, generic tests, etc.), the agent stops and asks the Author.                                                                                                                  | CODEOWNERS blocks merge without human approval.                                                                 |
+| 8   | **Do not edit protected paths.** If the task requires changing a protected file (macros, CI, generic tests, etc.), the agent stops and asks the Author.                                                                                                                  | CODEOWNERS blocks merge without human approval; the anti-fraud gate (Control 5B) blocks the PR.                |
 
 ---
 
@@ -473,7 +491,7 @@ The build includes:
 
 ### Stage E: Diff + human review (once per PR)
 
-**What it is:** A full `dbt build` (without sample) followed by a numerical diff between the new version and current production. Runs once per PR, when the PR is marked as ready-for-review.
+**What it is:** A full `dbt build` (without sample) followed by a numerical diff between the new version and current production. Runs when the PR is marked as ready-for-review, and again on every push after that — Control 1 dismisses an approval on push, and a diff of code that has since changed is worth the same. While the PR is a draft it does not run, which is why the agent opens the PR as a draft and marks it ready when stage C is done.
 
 **The diff is produced by automation, deterministically** — the same build, the same closed `event_time` window, the same comparison, every time. Neither a human nor the agent composes it ad hoc, and neither one gets to choose which numbers appear. The human's job at this stage must be only to _read_ the diff.
 
@@ -506,6 +524,7 @@ Using Recce or `dbt-audit-helper` in summary mode (never in mode that shows indi
 
 - The diff is calculated over a **closed `event_time` window**, identical on both sides (production and new version). This is essential: if production has data up to yesterday and the new version has data up to today, the "today" rows would appear as false differences.
 - The diff publishes: row count, removed PKs, columns with altered values, and the value of each metric defined in the spec.
+- For a model production does not have there is no delta to publish: the diff publishes each metric's value itself, in the window, and compares it with the value interval the pre-registration declared (stage B).
 
 **Step 3 — Comparison with the pre-registration**
 
@@ -513,6 +532,7 @@ Each diff number is automatically compared with the intervals declared in the pr
 
 - A number is outside the declared interval (e.g., row delta is 15,000, but the pre-registration said `max: 12000`).
 - A column shows a difference but is not in the pre-registration's `altered_columns` list.
+- A metric pre-registered by value lands outside its interval — or a model production does not have was pre-registered by percentage, when there is no production number to take a percentage of.
 - The type is `refactoring` but some delta is not zero.
 
 **Step 4 — Reconciliation (critical models only)**

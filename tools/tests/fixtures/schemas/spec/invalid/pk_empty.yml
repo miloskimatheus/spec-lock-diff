@@ -1,0 +1,7 @@
+# expect: minItems
+grain: "one row per order"
+primary_key: []
+tier: standard
+metrics: {}
+known_edges: []
+sensitive_columns: []

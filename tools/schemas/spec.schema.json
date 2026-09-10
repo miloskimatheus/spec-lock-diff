@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/miloskimatheus/spec-lock-diff/tools/schemas/spec.schema.json",
+  "title": "meta.spec",
+  "description": "What a model should do, decided by a human before any code is written (README section 3, Stage A). Every model under models/marts/ needs one.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["grain", "primary_key", "tier", "metrics", "known_edges", "sensitive_columns"],
+  "properties": {
+    "grain": {
+      "type": "string",
+      "minLength": 1,
+      "description": "must say what each row represents, in one sentence; it is the most important definition of the model"
+    },
+    "primary_key": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "description": "must be a column name"},
+      "description": "must list the columns that together identify a row uniquely"
+    },
+    "tier": {
+      "enum": ["critical", "standard"],
+      "description": "must be \"critical\" or \"standard\"; critical means the model feeds business decisions, financial reports or executive dashboards"
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "description": "must define the metric in natural language, so the diff can compare its value between production and the new version"
+      },
+      "description": "must be a mapping of metric name to natural language definition; write {} when the model calculates none"
+    },
+    "known_edges": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "must describe the expected result of a special case, not the implementation of it"
+      },
+      "description": "must list the special cases the Author already knows about, each of which becomes a unit test; write [] when there are none"
+    },
+    "sensitive_columns": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "description": "must be a column name"},
+      "description": "must list the columns that contain personal data, so Control 2 masking applies to them; write [] when there are none"
+    },
+    "reconciliation_query": {
+      "type": "string",
+      "pattern": "^analyses/reconciliation_[A-Za-z0-9_]+\\.sql$",
+      "description": "must be a path like analyses/reconciliation_<model>.sql, the query that compares the model with a source of truth outside the warehouse"
+    },
+    "reconciliation_tolerance": {
+      "type": "string",
+      "pattern": "^[0-9]+(\\.[0-9]+)?%$",
+      "description": "must be a percentage written with a percent sign, such as \"0.1%\": the largest difference from the source of truth that still passes"
+    },
+    "external_validation": {
+      "type": "string",
+      "minLength": 1,
+      "description": "must be a concrete number from outside the warehouse that anchors the model, because the spec itself can be wrong"
+    }
+  },
+  "if": {"properties": {"tier": {"const": "critical"}}, "required": ["tier"]},
+  "then": {
+    "required": ["reconciliation_query", "reconciliation_tolerance", "external_validation"],
+    "description": "a critical model also declares reconciliation_query, reconciliation_tolerance and external_validation"
+  }
+}

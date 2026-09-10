@@ -129,6 +129,10 @@ Branch protection na `main` (todas obrigatórias):
 - Sem bypass para ninguém — inclusive admins.
 - Status checks obrigatórios: CI (etapa D) e Diff (etapa E) do fluxo por PR.
 
+Em toda branch (um ruleset que mira `*`, ou o equivalente):
+
+- **Force-push bloqueado.** O gate antifraude (Controle 5B) percorre os commits do pull request para ver quando a spec e o pré-registro foram escritos pela primeira vez e quantas vezes mudaram. Um histórico reescrito — `commit --amend`, um rebase, um squash — é um histórico sem nada disso dentro, e nada do que o gate consegue ler avisa. Um agente que não consegue reescrever a branch não consegue apagar a evidência; um que consegue, consegue.
+
 ---
 
 ### <img src="assets/icon-c2.svg" width="19" height="19" alt=""> Controle 2: Acesso a dados restrito
@@ -237,15 +241,16 @@ Quando o agente precisa entender a estrutura de um dado, ele consulta `docs/prof
 | `dbt_project.yml`                            | Configuração global do projeto.                                                                                               |
 | `macros/`                                    | Macros são reutilizadas por vários modelos. Uma mudança afeta tudo.                                                           |
 | `tests/`                                     | Testes genéricos.                                                                                                             |
-| `analyses/reconciliation_*`                           | Queries de reconciliação. Se o agente mudar a reconciliação no mesmo PR do modelo, ele controla o que está sendo verificado.  |
+| `analyses/reconciliation_*`                  | Queries de reconciliação. Se o agente mudar a reconciliação no mesmo PR do modelo, ele controla o que está sendo verificado.  |
 | `models/semantic/`                           | Definições de métricas. Uma métrica errada propaga erro para todos os consumidores.                                           |
-| `docs/profile/`                               | Perfis estatísticos. Se o agente mudar o perfil, ele muda sua própria referência.                                             |
+| `docs/profile/`                              | Perfis estatísticos. Se o agente mudar o perfil, ele muda sua própria referência.                                             |
 | Modelos incrementais (listar explicitamente) | Modelos incrementais são mais complexos e frágeis.                                                                            |
 | Diretórios de modelos críticos               | O dono do CODEOWNERS deve ser o data owner do domínio.                                                                        |
+| `tools/`                                     | O próprio gate antifraude (Parte B). Se o agente pode mudar o que o julga, ele é julgado por nada.                            |
 
 **Parte B — Gate anti-fraude:**
 
-Um script que roda em CI sobre os commits feitos pelo bot. É o único script customizado que o framework exige. Ele analisa os diffs do bot e **bloqueia o PR** se encontrar qualquer uma destas situações:
+Um script que roda em CI nos pull requests que o bot abre — quem abre um pull request é uma identidade que a plataforma autentica, ao contrário do autor de um commit, que é texto — e julga todo commit dentro deles, seja quem for que o escreveu. Num pull request aberto por um humano ele roda e é consultivo: o CODEOWNERS (Parte A) julga esses. É o único script customizado que o framework exige. Ele analisa os diffs e **bloqueia o PR** se encontrar qualquer uma destas situações:
 
 | Situação detectada                                    | Por que bloqueia                                                                                                                                |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -255,6 +260,8 @@ Um script que roda em CI sobre os commits feitos pelo bot. É o único script cu
 | Valor `expect` alterado em um teste existente         | Se o agente muda o resultado esperado, qualquer resultado vira "correto".                                                                        |
 | `analyses/reconciliation_*` alterado no mesmo PR do modelo     | O agente não pode mudar o modelo E a reconciliação que verifica o modelo no mesmo PR. Seria como um aluno escrevendo a prova e o gabarito.        |
 | Pin de pacote alterado                                | Mudar versões de dependências pode introduzir comportamentos diferentes.                                                                         |
+| Teste **adicionado** que não pode falhar               | Um teste que já nasce `enabled: false`, `severity: warn`, ou com um limiar que ele nunca alcança aparece no diff como trabalho feito e reporta aprovação faça o dado o que fizer. Um teste novo não pode ser *enfraquecido* — ele não tem um eu anterior —, então a regra sobre testes existentes nunca o vê. Um filtro (`where`) num teste novo é reportado, não bloqueado: pode ser recorte legítimo, e quais linhas ele remove é leitura de humano. Um teste singular em `tests/` carrega a config no próprio SQL, e é lido ali. |
+| Caminho protegido (Parte A) alterado                    | O CODEOWNERS faz um humano aprovar; o gate faz disso um check vermelho, para que nos pull requests do agente ninguém precise reparar. Uma macro ou uma definição de generic test adicionada em `macros/` ou `tests/generic/` com o nome de um teste em uso substitui esse teste em todo lugar onde ele é declarado, e nenhum arquivo de teste do projeto muda — as linhas acima não veem nada. Um humano que precise mudar um caminho protegido faz isso num pull request próprio. |
 
 **Opcional (camada extra de proteção):** Se o agente suportar hooks antes de executar ferramentas (ex: `PreToolUse` no Claude Code), configure um hook que recusa a escrita em paths protegidos na hora — antes mesmo do commit.
 
@@ -331,7 +338,7 @@ meta:
 
     # --- 3 campos adicionais, obrigatórios SOMENTE para tier: critical ---
 
-    reconciliation_query: analyses/recon_fct_orders.sql
+    reconciliation_query: analyses/reconciliation_fct_orders.sql
     # Path de uma query SQL que compara o resultado do modelo com uma
     # fonte de verdade externa (outro sistema, planilha de fechamento etc.).
     # Esta query roda na etapa E com dado completo.
@@ -380,7 +387,7 @@ pre_registration:
   # Valores possíveis:
   #   "data_change" — a mudança deve alterar resultados numéricos.
   #   "refactoring" — a mudança NÃO deve alterar nenhum resultado.
-  #                   Se type é "refactoring", todo delta DEVE ser 0.
+  #                   Se o type é "refactoring", todo delta DEVE ser 0.
   #                   Qualquer diferença numérica bloqueia o PR.
 
   reason: "incluir status='partially_shipped', antes excluído indevidamente"
@@ -409,7 +416,18 @@ pre_registration:
     # Para cada métrica da spec, o intervalo percentual esperado de variação.
     # Exemplo: gross_revenue deve aumentar entre 0% e 0.8%.
     # Se a variação real for -1% ou +2%, o PR é bloqueado.
+    #
+    # Um modelo que não existe em produção não tem percentual a prever.
+    # Declare o próprio valor, dentro da janela do diff, escrito em torno do
+    # número da external_validation:
+    #   gross_revenue: {value: {min: 14000000, max: 14400000}}
+    # Uma métrica declara um dos dois, nunca ambos. row_delta passa a ser a
+    # própria contagem de linhas, e altered_columns fica vazio.
 ```
+
+**Quando é obrigatório:** Para todo modelo cujo código o PR altera. A etapa C não pode começar sem ele, e a etapa E não tem contra o que comparar sem ele — um modelo que chega ao diff sem pré-registro não é um modelo que reprova na comparação, é um modelo que ninguém comparou. Apagar a previsão não pode sair mais barato do que errar nela.
+
+**De quem é:** Um pré-registro pertence a um pull request. Ele é escrito na branch, para a mudança que aquela branch faz. Um que é idêntico ao que a `main` já tem é a previsão da mudança anterior — feita contra outra produção, por outra razão — e não desta, e conta como ausente: o agente o substitui, não o herda. Depois do merge ele fica no `.yml` como registro do que foi previsto, até que a próxima mudança naquele modelo o substitua.
 
 **Validação:** O pré-registro é validado por JSON Schema no CI (etapa D). Se o formato estiver errado, campos estiverem faltando, ou intervalos estiverem abertos, o CI falha.
 
@@ -432,7 +450,7 @@ Cada regra abaixo deve ter um mecanismo de infraestrutura que a impõe. A regra 
 | 5   | **Ordem de execução fixa.** O agente segue esta sequência: `dbt compile` → `dbt test --select test_type:unit` → `dbt build`. Se o mesmo comando falhar 3 vezes seguidas, o agente para e chama um humano.                                                             | Regra de 3 falhas no gateway de API.                                                                            |
 | 6   | **Pré-registro antes do diff.** O agente deve entregar o pré-registro (etapa B) antes de qualquer diff. Intervalos abertos (sem min ou sem max) são inválidos.                                                                                                        | JSON Schema no CI.                                                                                              |
 | 7   | **Nunca leia linhas individuais.** O agente não roda `dbt show`, não faz `SELECT` sem agregação, e nunca cola um valor lido do warehouse em código, teste, fixture ou comentário de PR. Fixtures são sempre sintéticas (inventadas pelo agente).                      | Role `agent_ci` sem acesso a `raw`. Masking em staging/marts. Gate anti-fraude detecta dados reais em fixtures. |
-| 8   | **Não edite paths protegidos.** Se a tarefa exige mudar um arquivo protegido (macros, CI, testes genéricos etc.), o agente para e pede ao Autor.                                                                                                                      | CODEOWNERS bloqueia merge sem aprovação humana.                                                                 |
+| 8   | **Não edite paths protegidos.** Se a tarefa exige mudar um arquivo protegido (macros, CI, testes genéricos etc.), o agente para e pede ao Autor.                                                                                                                      | CODEOWNERS bloqueia merge sem aprovação humana; o gate antifraude (Controle 5B) bloqueia o PR.                  |
 
 ---
 
@@ -473,7 +491,7 @@ O build inclui:
 
 ### Etapa E: Diff + review humano (uma vez por PR)
 
-**O que é:** Um `dbt build` completo (sem amostra) seguido de um diff numérico entre a versão nova e a produção atual. Roda uma única vez por PR, quando o PR é marcado como ready-for-review.
+**O que é:** Um `dbt build` completo (sem amostra) seguido de um diff numérico entre a versão nova e a produção atual. Roda quando o PR é marcado como ready-for-review, e de novo a cada push depois disso — o Controle 1 descarta uma aprovação a cada push, e um diff de um código que mudou desde então vale o mesmo. Enquanto o PR é rascunho ele não roda, e é por isso que o agente abre o PR como rascunho e o marca como pronto quando a etapa C termina.
 
 **O diff é produzido pela automação, de forma determinística** — o mesmo build, a mesma janela fechada de `event_time`, a mesma comparação, todas as vezes. Nem um humano nem o agente monta esse diff ad hoc, e nenhum dos dois escolhe quais números aparecem. O trabalho do humano nesta etapa deve ser apenas _ler_ o diff.
 
@@ -507,6 +525,7 @@ Usando Recce ou `dbt-audit-helper` em modo resumo (nunca em modo que mostre linh
 
 - O diff é calculado sobre uma **janela fechada de `event_time`**, idêntica nos dois lados (produção e versão nova). Isso é essencial: se a produção tem dados até ontem e a versão nova tem dados até hoje, as linhas de "hoje" apareceriam como diferenças falsas.
 - O diff publica: contagem de linhas, PKs removidas, colunas com valores alterados, e o valor de cada métrica definida na spec.
+- Para um modelo que a produção não tem, não há delta a publicar: o diff publica o próprio valor de cada métrica, na janela, e o compara com o intervalo de valor que o pré-registro declarou (etapa B).
 
 **Passo 3 — Comparação com o pré-registro**
 
@@ -514,6 +533,7 @@ Cada número do diff é comparado automaticamente com os intervalos declarados n
 
 - Um número está fora do intervalo declarado (ex: delta de linhas é 15.000, mas o pré-registro disse `max: 12000`).
 - Uma coluna apresenta diferença mas não está na lista `altered_columns` do pré-registro.
+- Uma métrica pré-registrada por valor cai fora do intervalo dela — ou um modelo que a produção não tem foi pré-registrado por percentual, quando não há número de produção do qual tirar um percentual.
 - O type é `refactoring` mas algum delta não é zero.
 
 **Passo 4 — Reconciliação (apenas modelos críticos)**

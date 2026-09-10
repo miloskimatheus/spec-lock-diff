@@ -1,0 +1,7 @@
+# expect: uniqueItems
+grain: "one row per order per day"
+primary_key: [order_id, order_id]
+tier: standard
+metrics: {}
+known_edges: []
+sensitive_columns: []

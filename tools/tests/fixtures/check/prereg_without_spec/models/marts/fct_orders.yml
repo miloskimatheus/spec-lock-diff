@@ -1,0 +1,16 @@
+version: 2
+
+models:
+  - name: fct_orders
+    meta:
+      pre_registration:
+        type: refactoring
+        reason: "predicting numbers for a model nobody specified"
+        row_delta: {min: 0, max: 0}
+        removed_pks: {max: 0}
+        altered_columns: []
+        metrics: {}
+    columns:
+      - name: order_id
+        tests:
+          - unique

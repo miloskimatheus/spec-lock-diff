@@ -1,0 +1,11 @@
+version: 2
+
+models:
+  - name: fct_orders
+    meta:
+      spec:
+        grain: "one row per order"
+    config:
+      meta:
+        spec:
+          grain: "one row per order, said twice"

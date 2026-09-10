@@ -1,0 +1,75 @@
+# CODEOWNERS - Spec-Lock-Diff, Control 5A (protected paths)
+#
+# Copy this file to .github/CODEOWNERS (or CODEOWNERS at the repository root)
+# and replace @your-org/data-platform with the team that must approve.
+# Then turn on branch protection with "Require review from Code Owners".
+#
+# What this file does: git refuses to merge a pull request that touches one of
+# these paths until a human owner approves it. It is a control, not a rule -
+# it works whether or not the agent read AGENTS.md.
+#
+# One line per row of the README's Control 5A table, in the same order.
+
+# CI workflows. If the agent changes the CI, it controls the rules.
+/.github/                       @your-org/data-platform
+
+# Local validation hooks.
+/.pre-commit-config.yaml        @your-org/data-platform
+
+# The file that defines who approves what. Both places git looks for it.
+/.github/CODEOWNERS             @your-org/data-platform
+/CODEOWNERS                     @your-org/data-platform
+
+# The agent's rules.
+/AGENTS.md                      @your-org/data-platform
+
+# dbt dependencies. An agent could pin a vulnerable version. The README's row is
+# packages.yml; the lock file and dependencies.yml are the same decision under
+# other names, and gate rule G6 watches all three.
+/packages.yml                   @your-org/data-platform
+/package-lock.yml               @your-org/data-platform
+/dependencies.yml               @your-org/data-platform
+
+# Global project configuration.
+/dbt_project.yml                @your-org/data-platform
+
+# Macros are reused by several models. One change affects everything.
+/macros/                        @your-org/data-platform
+
+# Generic tests.
+/tests/                         @your-org/data-platform
+
+# Reconciliation queries. If the agent changes the reconciliation in the same
+# PR as the model, it controls what is being verified.
+/analyses/reconciliation_*      @your-org/data-platform
+
+# Metric definitions. A wrong metric propagates errors to all consumers.
+/models/semantic/               @your-org/data-platform
+
+# Statistical profiles. If the agent changes the profile, it changes its own
+# reference.
+/docs/profile/                  @your-org/data-platform
+
+# Incremental models are more complex and fragile. The README asks for them to
+# be listed explicitly, because a selector cannot tell one from another.
+# YOU: one line per incremental model, for example
+# /models/marts/fct_events.sql  @your-org/data-platform
+
+# The owner of a critical model directory should be the domain's data owner.
+# YOU: one line per critical directory, for example
+# /models/marts/finance/        @your-org/finance-data
+
+# The anti-fraud gate itself. If the agent can change what judges it, it is
+# judged by nothing. Gate rule G9 blocks the attempt on the agent's pull
+# requests; this line is what makes a human read it on everyone else's.
+/tools/                         @your-org/data-platform
+
+# --- Two paths the README's table does not list ---
+
+# On warehouses where the agent cannot read raw data, staging is effectively
+# human-only work. Uncomment if that is your setup.
+# /models/staging/              @your-org/data-platform
+
+# Agent settings, if you use an agent that keeps them in the repository.
+# Same reason as AGENTS.md: the agent should not write its own instructions.
+# /.claude/                     @your-org/data-platform

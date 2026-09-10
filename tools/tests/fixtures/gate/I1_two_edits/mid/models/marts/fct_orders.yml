@@ -1,0 +1,23 @@
+version: 2
+
+models:
+  - name: fct_orders
+    meta:
+      spec:
+        grain: "one row per order"
+        primary_key: [order_id]
+        tier: standard
+        metrics: {}
+        known_edges: []
+        sensitive_columns: []
+      pre_registration:
+        type: data_change
+        reason: "second estimate, after reading the model"
+        row_delta: {min: 0, max: 500}
+        removed_pks: {max: 0}
+        altered_columns: []
+        metrics: {}
+    columns:
+      - name: order_id
+        tests:
+          - unique

@@ -1,0 +1,13 @@
+{
+  "model": "fct_orders",
+  "row_delta": 15000,
+  "removed_pks": 0,
+  "altered_columns": [
+    "gross_revenue"
+  ],
+  "metrics": {
+    "gross_revenue": {
+      "delta_pct": 0.42
+    }
+  }
+}

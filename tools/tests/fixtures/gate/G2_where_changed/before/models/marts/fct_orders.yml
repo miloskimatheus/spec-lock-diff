@@ -1,0 +1,9 @@
+version: 2
+
+models:
+  - name: fct_orders
+    columns:
+      - name: order_id
+        tests:
+          - unique:
+              where: "order_date >= '2024-01-01'"

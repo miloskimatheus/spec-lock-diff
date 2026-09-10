@@ -1,0 +1,26 @@
+version: 2
+
+models:
+  - name: dim_customers
+    meta:
+      spec:
+        grain: "one row per order"
+        primary_key: [order_id]
+        tier: standard
+        metrics:
+          gross_revenue: "sum of order_total before discounts and taxes"
+        known_edges: []
+        sensitive_columns: []
+      pre_registration:
+        type: data_change
+        reason: "include status partially_shipped, previously excluded incorrectly"
+        row_delta: {min: 0, max: 12000}
+        removed_pks: {max: 0}
+        altered_columns: [gross_revenue]
+        metrics:
+          gross_revenue: {delta_pct: {min: 0.0, max: 0.8}}
+    columns:
+      - name: order_id
+        tests:
+          - unique
+      - name: gross_revenue

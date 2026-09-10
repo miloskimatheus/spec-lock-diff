@@ -1,0 +1,8 @@
+# A refactoring promises that nothing moves, so every number is 0.
+type: refactoring
+reason: "extract the discount rule into a CTE; the result must not change"
+row_delta: {min: 0, max: 0}
+removed_pks: {max: 0}
+altered_columns: []
+metrics:
+  gross_revenue: {delta_pct: {min: 0, max: 0}}

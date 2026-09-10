@@ -1,0 +1,8 @@
+# expect: additionalProperties
+type: data_change
+reason: "a field the format does not have"
+row_delta: {min: 0, max: 10}
+removed_pks: {max: 0}
+altered_columns: []
+metrics: {}
+confidence: "high"

@@ -1,0 +1,8 @@
+# expect: additionalProperties
+grain: "one row per order"
+primary_keys: [order_id]
+primary_key: [order_id]
+tier: standard
+metrics: {}
+known_edges: []
+sensitive_columns: []

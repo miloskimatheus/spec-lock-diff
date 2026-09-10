@@ -1,0 +1,22 @@
+version: 2
+
+models:
+  - name: fct_invoices
+    meta:
+      spec:
+        grain: "one row per invoice"
+        primary_key: [invoice_id]
+        tier: critical
+        metrics:
+          invoiced_amount: "sum of invoice_total after discounts"
+        known_edges: []
+        sensitive_columns: []
+        reconciliation_query: analyses/reconciliation_fct_invoices.sql
+        reconciliation_tolerance: "0.1%"
+        external_validation: "invoiced_amount 2025-11 = 1,000,000.00 in the closing spreadsheet"
+    columns:
+      - name: invoice_id
+        tests:
+          - unique
+      - name: invoice_total
+        description: "the amount invoiced, after discounts"
