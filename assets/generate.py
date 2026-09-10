@@ -10,7 +10,8 @@ every typeface a system stack, and each drawing ships as a light/dark pair that
 import io
 import os
 
-OUT = "/home/matheus/GitHub/toys/spec_lock_diff/assets"
+# Beside this file, so a clone can regenerate the drawings without editing it.
+OUT = os.path.dirname(os.path.abspath(__file__))
 
 MONO = '"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace'
 
