@@ -42,7 +42,7 @@ CFG_KEYS = ("enabled", "error_if", "fail_calc", "limit", "severity",
 # Every rule id these tools can print. The README coverage table has one row per
 # id and the fixtures one folder per id; meta-test M2 keeps the three in step.
 RULE_IDS = ("S1", "S2", "S3", "S4", "P1", "P2", "T1",
-            "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "I1", "I3",
+            "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G10", "I1", "I3",
             "C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "I2")
 # Rules that only ever inform. The README asks for what they say to be visible,
 # not for it to stop the pull request, so they never raise the exit code.
@@ -479,6 +479,12 @@ def check_pk_test(project):
 
 # Files that pin what the project builds with. Any change to one is a G6 finding.
 PKG_FILES = ("packages.yml", "package-lock.yml", "dependencies.yml")
+# Paths only a human changes (README §2 Control 5A). Any change to one on the
+# branch is a G9 finding. The paths with a rule of their own - the package
+# files (G6), reconciliations (G5), a test file already there (G1) - are left
+# to it, so that one change is one finding.
+PROTECTED_DIRS = (".github/", "macros/", "models/semantic/", "docs/profile/", "tools/")
+PROTECTED_FILES = (".pre-commit-config.yaml", "CODEOWNERS", "AGENTS.md", "dbt_project.yml")
 
 # What the gate rules read: the tree at the merge-base, the tree at head, and one
 # light inventory per commit in between (oldest first, merge-base included).
@@ -549,17 +555,20 @@ def inventory(root, commit, full=True, marts=MARTS):
     """
     inv = {"tests": {}, "files": {}, "units": {}, "specs": {}, "preregs": {},
            "models": {}, "sqls": {}, "code": {}, "recons": {}, "packages": {},
-           "where": {}}
+           "where": {}, "protected": {}, "singular": {}}
     listing = git(root, "ls-tree", "-r", "-z", "--name-only", commit, "--",
-                  *(_dirs(marts, True) + ("tests", "analyses") + PKG_FILES))
+                  *(_dirs(marts, True) + ("tests", "analyses") + PKG_FILES
+                    + tuple(p.rstrip("/") for p in PROTECTED_DIRS) + PROTECTED_FILES))
     # What to read is decided first and read in one go, so that the cost of the
     # commit walk is one git process per commit rather than one per file.
     plan = []
     for path in sorted(p for p in listing.split("\0") if p):
         if path.startswith(_dirs(marts, True)) and path.endswith((".yml", ".yaml")):
             plan.append(("yml", path))
-        elif not full:
+        if not full:
             continue
+        if path.startswith(PROTECTED_DIRS) or path in PROTECTED_FILES:
+            plan.append(("protected", path))  # a yml under models/semantic/ is read both ways
         elif path.startswith(_dirs(marts, True)) and path.endswith(".sql"):
             plan.append(("sql", path))
         elif path.startswith("tests/"):
@@ -577,6 +586,8 @@ def inventory(root, commit, full=True, marts=MARTS):
             continue
         if kind != "yml":
             inv[kind][path] = _sha(blobs[path])
+            if kind == "files" and path.endswith(".sql") and not path.startswith("tests/generic/"):
+                inv["singular"][path] = blobs[path]  # G10 reads the config() it carries
             continue
         models, units = read_doc(parse_yaml(blobs[path], "%s at %s" % (path, commit[:8])),
                                  path, marts)
@@ -770,6 +781,39 @@ def gate_packages(ctx):
     return [block(path, "", "%s changed on this branch; the versions the project builds with "
                   "are a human decision" % path, "G6")
             for path in _changed(ctx, "packages")]
+
+def gate_protected_paths(ctx):
+    """README §2 Control 5A — "Certain files and directories must be protected so that only humans can modify them"; §3 Stage C Rule 8 — "Do not edit protected paths"."""
+    out = [block(path, "", "%s changed on this branch; it is a protected path, and Rule 8 says "
+                 "the agent stops and asks a human, who changes it in a pull request of their "
+                 "own" % path, "G9") for path in _changed(ctx, "protected")]
+    for path in sorted(set(ctx.after["files"]) - set(ctx.before["files"])):
+        if path.startswith("tests/generic/"):
+            out.append(block(path, "", "%s is a new generic test definition; one that carries "
+                             "the name of a test in use replaces that test everywhere it is "
+                             "declared, with no test file changing, and a human writes those"
+                             % path, "G9"))
+    return out
+
+# The config() a singular test carries in its own sql, as `key=value` pairs.
+_CONFIG = re.compile(r"config\s*\((.*?)\)\s*}}", re.S)
+
+def _muted_sql(text):
+    """Why a singular test cannot fail the build, read from its own config(), or "" when it can."""
+    cfg = {}
+    for body in _CONFIG.findall(text):
+        for key, value in re.findall(r"(\w+)\s*=\s*([^,\s)]+)", body):
+            cfg[key] = value.strip("'\"")
+    if str(cfg.get("enabled", "true")).lower() != "true":
+        cfg["enabled"] = False
+    return _muted(cfg, DEAD_KEYS)
+
+def gate_singular_born_muted(ctx):
+    """README §2 Control 5B — "A test added that cannot fail": a singular test under tests/ carries its config in its own sql, where the rules that read the yml cannot see it."""
+    return [block(path, "", "%s is a new singular test and cannot fail the build: %s"
+                  % (path, why), "G10")
+            for path in sorted(set(ctx.after["singular"]) - set(ctx.before["singular"]))
+            for why in [_muted_sql(ctx.after["singular"][path])] if why]
 
 def gate_spec_changed(ctx):
     """README §1 Principle 1 — "The human decides before, by writing the spec"; README §3 Stage A — the six fields are read and approved before any line of code is written."""
@@ -1045,8 +1089,8 @@ CHECK_RULES = [check_spec_present, check_model_declared, check_spec_schema,
                check_prereg_schema, check_prereg_consistency, check_pk_test]
 GATE_RULES = [gate_test_removed, gate_test_filter, gate_test_severity,
               gate_test_narrowed, gate_unit_test_changed, gate_recon_with_model,
-              gate_packages, gate_spec_changed, gate_prereg_present,
-              gate_prereg_counter]
+              gate_packages, gate_protected_paths, gate_singular_born_muted,
+              gate_spec_changed, gate_prereg_present, gate_prereg_counter]
 COMPARE_RULES = [compare_contract, compare_rows, compare_removed_pks,
                  compare_columns, compare_metrics, compare_refactoring,
                  compare_reconciliation, compare_summary]

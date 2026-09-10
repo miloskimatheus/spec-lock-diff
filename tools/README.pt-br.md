@@ -31,7 +31,7 @@ não diz nada, estas ferramentas não fazem nada.
 
 | Caminho | O que é |
 | --- | --- |
-| `slp.py` | A ferramenta inteira: três comandos, vinte e seis regras, um arquivo que se lê de uma sentada. |
+| `slp.py` | A ferramenta inteira: três comandos, vinte e oito regras, um arquivo que se lê de uma sentada. |
 | `schemas/spec.schema.json` | Como uma `meta.spec` precisa ser (README §3 Etapa A). |
 | `schemas/pre_registration.schema.json` | Como um `meta.pre_registration` precisa ser (README §3 Etapa B). |
 | `schemas/diff.schema.json` | Como um `diff.json` precisa ser — a única interface com o que quer que meça o seu diff. |
@@ -288,6 +288,25 @@ que teriam falhado. Nenhuma máquina distingue as duas coisas, então a `I3`
 imprime e quem faz a terceira leitura da Etapa E decide. É o mesmo predicado que
 a `T1` usa, e a `T1` recusa um `where` de saída, porque está julgando o único
 teste que o framework torna obrigatório e não um que o agente escolheu somar.
+
+**O que o yml não mostra.** Toda regra acima lê o yml do modelo, e o dbt deixa
+o mesmo enfraquecimento ser escrito onde nenhum yml muda. Um `{% test unique %}`
+adicionado em `tests/generic/` ou `macros/` substitui o `unique` nativo em todo
+lugar onde ele é declarado, porque o dbt resolve macros do projeto antes das
+dele; um teste singular em `tests/` carrega `severity`, `enabled`, `error_if` e
+o resto dentro do próprio `{{ config() }}`. Então a `G9` bloqueia qualquer
+mudança na branch a um caminho protegido do Controle 5A — `.github/`,
+`.pre-commit-config.yaml`, `CODEOWNERS`, `AGENTS.md`, `dbt_project.yml`,
+`macros/`, `models/semantic/`, `docs/profile/`, `tools/` — e qualquer arquivo
+adicionado em `tests/generic/`. Caminhos com regra própria ficam com ela, para
+que uma mudança seja um achado só: os arquivos de pacote são `G6`,
+`analyses/reconciliation_*` é `G5`, um arquivo de teste que já existia é `G1`.
+A `G10` lê o `config()` de todo teste singular que a branch adiciona e bloqueia
+um que não pode falhar, com o mesmo predicado que `T1` e `G3` usam. O
+CODEOWNERS continua fazendo um humano aprovar esses caminhos; o gate faz deles
+um check vermelho, para que a aprovação não seja a única coisa de pé, e nos
+pull requests do próprio agente ninguém precise reparar. Um humano que precise
+mudar um deles faz isso num pull request próprio — que é o parágrafo seguinte.
 
 **Escopo do gate.** O gate julga o PR inteiro, não "os commits do agente". Não
 existe identidade de bot para configurar, e autor de commit é texto que
@@ -719,6 +738,8 @@ ganhe um `BLOCK` em silêncio.
 | §2 Controle 5B — "Pin de pacote alterado" | `G6` | `gate/G6_version_bumped` | `gate/G6_ok_untouched` |
 | §1 Princípio 1, §3 Etapa A — a spec é decidida antes do código | `G7` | `gate/G7_existing_spec_edited` | `gate/G7_ok_new_spec_untouched` |
 | §3 Etapa C — "não pode começar sem um pré-registro válido" | `G8` | `gate/G8_sql_changed_no_prereg` | `gate/G8_ok_prereg_present` |
+| §2 Controle 5A, §3 Etapa C Regra 8 — "Não edite paths protegidos" | `G9` | `gate/G9_generic_test_added` | `gate/G9_ok_untouched` |
+| §2 Controle 5B — "Teste adicionado que não pode falhar", para um teste singular em `tests/` | `G10` | `gate/G10_singular_born_warn` | `gate/G10_ok_singular_plain` |
 | §3 Etapa B — "um contador de alterações é incrementado no PR" | `I1` | `gate/I1_two_edits` | `gate/I1_ok_written_once` |
 | §2 Controle 5B — "`WHERE` ou cláusula de exclusão adicionada a um teste", para um teste que esta branch adiciona | `I3` | `gate/I3_new_test_with_where` | `gate/I3_ok_new_test_plain` |
 | §3 Etapa E passo 3 — o diff e o pré-registro precisam ser legíveis | `C0` | `compare/C0_no_prereg` | `compare/C1_inside` |
@@ -755,8 +776,7 @@ ponto desta lista.
 | O `gate` não confere se o `--marts-path` existe | O `check` e o `compare` leem o diretório do projeto, então um caminho que não é diretório é exit 2 — "nothing to check is not OK". O `gate` lê o git e nunca olha, então `gate --marts-path models/martz` percorre a branch, não acha yml de modelo nenhum e imprime `OK`. Um typo num dos dois lugares em que a flag é escrita — o workflow de CI e o `AGENTS.md` pedem que sejam idênticos — vira um rebaixamento silencioso em vez de um erro. Até ser corrigido, mantenha a flag num lugar só e copie. README §3 Etapa A. |
 | Um projeto dbt que não está na raiz do repositório git | O `gate` pede caminhos ao `git ls-tree` e depois o conteúdo ao `git cat-file`; o primeiro responde relativo ao diretório atual e o segundo lê a partir da raiz do repositório, então, num subdiretório `dbt/`, toda leitura falha e o comando é exit 2. Fail closed, então não é aprovação silenciosa — mas o `gate` simplesmente não roda nesse layout, e o `--project-dir` não salva. O `spec.reconciliation_query` e a entrada de `analyses/` no `CODEOWNERS` discordam sobre a raiz no mesmo layout. README §2 Controle 5B. |
 | A `T1` recusa um teste de unicidade *mais forte* que a primary key | O `unique_combination_of_columns` aceito precisa nomear exatamente a `primary_key` da spec. Um `unique` numa das colunas de uma chave de duas é uma afirmação mais estrita e ainda assim se lê como "no uniqueness test on primary key". Acrescente a forma que você usa a `ACCEPTED_PK_TESTS`, ou escreva também o teste que a regra pede. README §2 Regra 2. |
-| `dbt_project.yml`, e a severity definida a partir dele | O `gate` lê os yml de modelo, `tests/`, `analyses/reconciliation_*` e os arquivos de pacote. Não lê o `dbt_project.yml`, então `data_tests: {+severity: warn}` ou `+enabled: false` ali dentro deixa todo teste do projeto sem poder bloquear e o `gate` diz `OK (no changes)`. O CODEOWNERS protege o arquivo (Controle 5A), então um humano precisa aprovar — mas não será o gate a contar a ele o que aquilo faz. README §2 Controle 5B. |
-| `macros/` | Mesma lista, mesma lacuna. Os generic tests customizados do dbt moram, por convenção, em `macros/`, e a Regra 3 fala em "modificar uma macro de teste" — o gate não os lê. O CODEOWNERS cobre a aprovação. README §2 Regra 3. |
+| O que uma mudança no `dbt_project.yml` ou numa macro *faz* | A `G9` bloqueia qualquer mudança no `dbt_project.yml` ou em `macros/` na branch, então `data_tests: {+severity: warn}` não entra num pull request do agente sem ser visto. O gate continua não lendo nenhum dos dois: um pull request humano que mude um deles é do CODEOWNERS julgar, e não será o gate a dizer o que a mudança faz com os testes. README §2 Controle 5B, Regra 3. |
 | Uma spec **apagada** | A `G7` dispara quando uma spec *muda*; uma spec removida por inteiro não aciona regra nenhuma do `gate`, e o `check` pega só o sintoma (`S1`, "model has no meta.spec"), que se lê como um modelo que nunca teve uma. Um pré-registro apagado junto com uma mudança no modelo agora é `G8`; um apagado sozinho, com o modelo intocado, ainda não aciona nada. README §3 Etapa A, Etapa B. |
 | Evasão da `G7` e da `I1` pelo formato do histórico | As duas regras leem o histórico da branch, então as duas dependem do formato dele. A caminhada usa `--first-parent`, que pula trabalho feito numa branch lateral e mesclado: uma spec criada *e* editada dentro de uma branch dessas passa pela `G7`, e a contagem da `I1` fica subestimada. **Squash não é a solução** — esta página já disse que era, e é pior: o squash apaga os commits intermediários de vez, então, para uma spec escrita pela primeira vez na branch, a `G7` não tem contra o que comparar e a `I1` reporta zero. Mesmo conteúdo, três veredictos conforme a topologia, o que combina mal com o Princípio 3. Até a caminhada mudar: preserve os commits do pull request e leia a `I1` como piso. Uma spec que já existia na `main` está segura de qualquer jeito, porque é o merge-base que a `G7` usa. README §3 Etapa B. |
 | Cada edge da spec virar um unit test (Regra 2) | Os `known_edges` da spec são validados como texto e nada confere que cada um virou um unit test com fixture sintética. Uma spec com cinco edges e nenhum unit test passa no `check`. README §2 Regra 2. |

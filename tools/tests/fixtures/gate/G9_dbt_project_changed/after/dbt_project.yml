@@ -1,0 +1,6 @@
+name: shop
+version: '1.0.0'
+profile: shop
+model-paths: [models]
+data_tests:
+  +severity: warn

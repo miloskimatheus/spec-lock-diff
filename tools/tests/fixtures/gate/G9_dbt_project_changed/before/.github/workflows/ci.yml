@@ -1,0 +1,7 @@
+name: ci
+on: [pull_request]
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/slp.py gate --base main

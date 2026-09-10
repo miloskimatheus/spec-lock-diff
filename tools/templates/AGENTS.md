@@ -18,7 +18,7 @@ This file is a protected path. You may not edit it.
 | 5 | **Fixed execution order.** The agent follows this sequence: `dbt compile` → `dbt test --select test_type:unit` → `dbt build`. If the same command fails 3 times in a row, the agent stops and calls a human. | 3-failure rule in the API gateway. |
 | 6 | **Pre-registration before diff.** The agent must deliver the pre-registration (stage B) before any diff. Open intervals (without min or max) are invalid. | JSON Schema in CI. |
 | 7 | **Never read individual rows.** The agent does not run `dbt show`, does not do `SELECT` without aggregation, and never pastes a value read from the warehouse into code, test, fixture, or PR comment. Fixtures are always synthetic (invented by the agent). | `agent_ci` role without access to `raw`. Masking in staging/marts. Anti-fraud gate detects real data in fixtures. |
-| 8 | **Do not edit protected paths.** If the task requires changing a protected file (macros, CI, generic tests, etc.), the agent stops and asks the Author. | CODEOWNERS blocks merge without human approval. |
+| 8 | **Do not edit protected paths.** If the task requires changing a protected file (macros, CI, generic tests, etc.), the agent stops and asks the Author. | CODEOWNERS blocks merge without human approval; the anti-fraud gate (Control 5B) blocks the PR. |
 
 ## Before you commit
 
@@ -51,7 +51,12 @@ what you think it is.
   `packages.yml`, `dbt_project.yml`, `macros/`, `tests/`,
   `analyses/reconciliation_*`, `models/semantic/`, `docs/profile/`, `tools/`,
   the incremental models and the critical model directories your CODEOWNERS
-  lists. YOU: keep this list identical to your CODEOWNERS file.
+  lists. YOU: keep this list identical to your CODEOWNERS file. `gate` blocks a
+  change to any of the first twelve on your branch (`G9`, with `G6`, `G5` and
+  `G1` for the ones that have a rule of their own), on top of the approval
+  CODEOWNERS asks for. A new file under `tests/generic/` or `macros/` counts:
+  a `{% test %}` that carries the name of a test in use replaces it everywhere
+  it is declared, and no test file changes.
 - `meta.spec` of any model. The spec is the human's decision, written before
   you started. If it is wrong, stop and say so; do not correct it.
 - Any test, unit test or reconciliation query that already exists. You may add
@@ -65,7 +70,8 @@ what you think it is.
   write one only when you can say out loud which rows it removes and why none of
   them could have failed. The uniqueness test on the primary key is the one the
   framework makes mandatory: there, a `where` is refused outright (`T1`), and
-  writing it that way is the same as not writing it.
+  writing it that way is the same as not writing it. A singular test you add
+  under `tests/` is read the same way, from its own `{{ config() }}` (`G10`).
 - A model file with no yml entry. A `.sql` in a marts path that no yml declares
   has no spec, no primary key and no test, and `check` blocks on it (`S4`). The
   yml may live anywhere under `models/` — what puts a model in scope is where

@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: fct_orders
+    meta:
+      spec:
+        grain: "one row per order"
+        primary_key: [order_id]
+        tier: standard
+        metrics: {}
+        known_edges: []
+        sensitive_columns: []
+    columns:
+      - name: order_id
+        tests:
+          - unique
+      - name: gross_revenue

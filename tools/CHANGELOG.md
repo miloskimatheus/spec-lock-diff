@@ -12,6 +12,13 @@ test no one had written a macro for. The steady state of a project that has
 used the framework for a month looked nothing like that, and the tools had
 never seen it.
 
+### New rules
+
+| Rule | What it blocks |
+| --- | --- |
+| `G9` | any change on the branch to a **protected path** of Control 5A — `.github/`, `.pre-commit-config.yaml`, `CODEOWNERS`, `AGENTS.md`, `dbt_project.yml`, `macros/`, `models/semantic/`, `docs/profile/`, `tools/` — and any file **added under `tests/generic/`**. A `{% test unique %}` dropped into either place replaces the built-in `unique` everywhere it is declared, because dbt resolves macros from the project before its own; no test file changes, and `G1`, `G3` and `T1` all read a healthy project. CODEOWNERS made a human approve it; the gate makes it a red check, so the approval is not the only thing standing. Paths with a rule of their own — the package files (`G6`), `analyses/reconciliation_*` (`G5`), a test file already there (`G1`) — stay with it, so one change is one finding |
+| `G10` | a **singular test added under `tests/`** whose own `{{ config() }}` stops it failing: `severity` that is not `error`, `enabled: false`, an `error_if`, `warn_if`, `fail_calc` or `limit`. The yml rules could not see it, because no yml changed; the predicate is the one `T1` and `G3` use |
+
 ### Changed behaviour
 
 - **A pre-registration belongs to one pull request.** It lives in the model's

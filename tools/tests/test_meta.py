@@ -16,7 +16,7 @@ SOURCE = (TOOLS / "slp.py").read_text(encoding="utf-8")
 TREE = ast.parse(SOURCE)
 RULES = (slp.CHECK_RULES + slp.GATE_RULES + slp.COMPARE_RULES
          + slp.COMPARE_RUN_RULES)
-COVERAGE = re.findall(r"^\|[^|]+\|\s*`([A-Z]\d)`\s*\|\s*`([^`]+)`\s*\|\s*`([^`]+)`\s*\|",
+COVERAGE = re.findall(r"^\|[^|]+\|\s*`([A-Z]\d+)`\s*\|\s*`([^`]+)`\s*\|\s*`([^`]+)`\s*\|",
                       (TOOLS / "README.md").read_text(encoding="utf-8"), re.M)
 
 
@@ -44,7 +44,7 @@ def test_m2_the_code_prints_no_rule_id_the_table_does_not_know():
     """The tuple at the top of slp.py and the ids in its rules cannot drift apart."""
     printed = set(node.value for node in ast.walk(TREE)
                   if isinstance(node, ast.Constant) and isinstance(node.value, str)
-                  and re.fullmatch(r"[A-Z]\d", node.value))
+                  and re.fullmatch(r"[A-Z]\d+", node.value))
     assert printed == set(slp.RULE_IDS)
 
 
@@ -71,7 +71,7 @@ def test_m2_a_rule_that_only_informs_never_blocks():
         if not isinstance(node, ast.FunctionDef):
             continue
         body = ast.get_source_segment(SOURCE, node)
-        ids = set(re.findall(r'"([A-Z]\d)"', body)) & set(slp.RULE_IDS)
+        ids = set(re.findall(r'"([A-Z]\d+)"', body)) & set(slp.RULE_IDS)
         if not ids & set(slp.INFO_RULES):
             continue
         seen |= ids
@@ -168,7 +168,7 @@ def test_r10_the_two_readmes_are_the_same_document():
     printed = lambda lines: [l for l in lines if re.match(r"^(BLOCK|INFO|slp |\$ python)", l)]
     assert printed(english) == printed(portuguese)
     # And both coverage tables cover the same rules, in the same order.
-    rows = lambda lines: re.findall(r"^\|[^|]+\|\s*`([A-Z]\d)`\s*\|", "\n".join(lines), re.M)
+    rows = lambda lines: re.findall(r"^\|[^|]+\|\s*`([A-Z]\d+)`\s*\|", "\n".join(lines), re.M)
     assert rows(english) == rows(portuguese) == list(slp.RULE_IDS)
 
 
@@ -194,7 +194,7 @@ def test_the_version_is_the_one_the_changelog_describes():
 # the rules actually cost and a cap wants to bite. WHOLE_FILE goes up, and what
 # was bought is room to explain: it is the one of the three that counts prose,
 # so a margin there is the margin the other two exist to protect.
-MACHINERY, ONE_RULE, WHOLE_FILE = 450, 32, 1200
+MACHINERY, ONE_RULE, WHOLE_FILE = 480, 32, 1300
 
 
 def _weights():

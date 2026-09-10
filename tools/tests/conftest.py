@@ -121,7 +121,7 @@ def findings(stdout):
 def expectation(folder):
     """What a fixture folder promises: the exit code and the rule ids to look for."""
     name = folder.name
-    rule = name.split("_")[0] if re.match(r"^[A-Z]\d_", name) else ""
+    rule = name.split("_")[0] if re.match(r"^[A-Z]\d+_", name) else ""
     want = {"exit": 0 if "_ok_" in name or name.endswith("_ok") else 1, "count": None}
     readme = folder / "README.txt"
     said = {}
