@@ -3,6 +3,57 @@
 Versions are tagged `tools-v<version>`. The framework README is versioned
 separately; these tools implement it and never lead it.
 
+## 0.5.0 — the ladder
+
+0.4.0 made the gates right. This one makes them reachable. Nothing about what a
+rule blocks changed; what changed is how much you must build before any rule
+runs at all.
+
+### Changed behaviour
+
+- **The CI template is two files, and the first one is green.** `templates/ci.yml`
+  used to carry Stage D and Stage E together, with six steps that exit 1 until
+  you write them — so an adopter's first pull request was red by construction,
+  and stayed red until a warehouse credential, a production manifest and a diff
+  producer were all in place. `check` and `gate` need none of those: twenty-one
+  of the thirty rules and the whole of Control 5B read yml, git and one line of
+  sql. They now live alone in `templates/ci.yml`, which installs Python and two
+  libraries and nothing else. The sample build, the full build and the diff move
+  to `templates/ci-warehouse.yml`, a file you copy when you have a warehouse to
+  point at. A file you have not copied is a check that is *absent*; the
+  alternative — one file with a variable that switches Stage E off — would have
+  been a check that is present and passes without having looked at anything,
+  which is the one thing this framework exists to prevent.
+
+  **If you already copied `ci.yml`, your required-check list is now wrong.** It
+  named `ci` and `diff`. Job `ci` no longer builds anything, and the job that
+  does is `build`, in the new file. Add `build` and `diff` to the list, or Stage
+  D stops gating and nothing says so.
+
+- **The two workflows no longer cancel each other.** A concurrency group is
+  shared by every workflow in a repository, so the old `pr-<number>` group
+  copied into a second file would have cancelled the first on every push — and a
+  cancelled run reports nothing, which branch protection reads as a check still
+  running. Both files now group on `${{ github.workflow }}-pr-<number>`.
+
+- **`AGENT_PR` and the gate stay in one file.** Copied into a workflow with no
+  `env:` block, `env.AGENT_PR != 'true'` reads the empty string as true: the
+  advisory branch runs, `continue-on-error` applies, and the required gate
+  quietly never runs. `ci-warehouse.yml` therefore has no `env:` block and no
+  gate step, and a test asserts that only one template has either.
+
+- **`diff` waits on `build`, not on `ci`.** GitHub has no dependency from one
+  workflow to another. What that trades away is the gate's veto over the hour: a
+  pull request that trips `slp gate` now still pays for the sample build. `diff`
+  opens with a `slp check` of its own so the sixty-minute job is not where an
+  unreadable spec is discovered.
+
+- **README section 1 is a ladder.** Five rungs, each green on its own: `check`
+  on your machine, `check` and `gate` in CI, the protected paths and branch
+  protection, the warehouse controls, and Stage E. The old section asked for all
+  of it before any of it, and the largest task in the project — producing the
+  diff — was one clause two hundred lines from its own contract.
+
 ## 0.4.0 — the second pull request
 
 0.3.0 fixed what the fixtures' *shape* hid. This one fixes what their *number*
@@ -96,7 +147,7 @@ never seen it.
   does `commit --amend`, so does a rebase, and those are what an agent does by
   habit; Control 1's branch protection was written for `main` only, so nothing
   stopped a force-push to the pull request's branch. README §2 Control 1 asks
-  for force-push to be blocked on every branch — one ruleset — and section 9
+  for force-push to be blocked on every branch — one ruleset — and section 8
   says what `G7`, `I1` and `I4` are worth without it: advisory.
 
 - **`tools/` is in the README's protected-path table**, next to the paths it
@@ -106,7 +157,7 @@ never seen it.
 ### Still not enforced
 
 Found in the same review, each demonstrated against 0.3.0 with a repository
-the harness built, and **not** fixed. Each is a row in README section 9.
+the harness built, and **not** fixed. Each is a row in README section 8.
 
 - Tests on sources, seeds and snapshots are invisible to `gate`: removing one
   prints `OK (no changes)`.
@@ -179,7 +230,7 @@ Each entry below has a fixture that fails against 0.2.0.
   jinja before reading it and these tools use a plain YAML parser, so a
   `{% for %}` that generates model entries takes the whole run down with
   `cannot parse ... found character '%'` — which reads like a typo and is not
-  one. The message names the cause now, and the limitation is in section 9,
+  one. The message names the cause now, and the limitation is in section 8,
   where it should have been all along.
 
 - **`gate` reads one commit in one git process.** It ran `git show` once per
@@ -208,7 +259,7 @@ Each entry below has a fixture that fails against 0.2.0.
 
 ### Still not enforced
 
-Found alongside these and **not** fixed. All are in README section 9 with the
+Found alongside these and **not** fixed. All are in README section 8 with the
 rest.
 
 - **`gate` does not check that `--marts-path` exists.** `check` and `compare`
@@ -222,7 +273,7 @@ rest.
   repository root, and in a `dbt/` subdirectory every read fails: exit 2. Fail
   closed, so no silent pass — but the command simply does not work in a common
   layout, and `--project-dir` cannot save it.
-- **`G7` and `I1` still depend on branch topology**, and section 9 used to
+- **`G7` and `I1` still depend on branch topology**, and section 8 used to
   recommend squashing as the way around it. It is not: a squash erases the
   intermediate commits, so a spec first written on the branch has nothing for
   `G7` to compare against and `I1` reports zero. That advice is withdrawn.
@@ -286,7 +337,7 @@ The seven above are fixed. Three more were found with them and are **not**:
 every test in the project unseen; the `--first-parent` walk lets `G7` and `I1`
 be evaded or undercounted by doing the work on a merged side branch; and a
 deleted `meta.spec` trips no `gate` rule (`check` catches the symptom via
-`S1`). They are listed in README section 9 with the rest.
+`S1`). They are listed in README section 8 with the rest.
 
 ## 0.1.0 — first reference implementation
 

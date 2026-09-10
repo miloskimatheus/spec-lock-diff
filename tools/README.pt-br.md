@@ -66,23 +66,72 @@ os schemas são JSON Schema draft 2020-12 e o validador dele chegou na 4.0; na
 sistema não existe `python` puro, leia `python3` em todo `python` deste
 documento.
 
-**Copie `tools/` para o lado do seu `dbt_project.yml`** e ponha os três
-templates no lugar. Cada um marca com `YOU:` as linhas que são suas.
+**Copie `tools/` para o lado do seu `dbt_project.yml`** — a pasta, não o
+arquivo: o `slp.py` lê os schemas do diretório ao lado dele.
+
+Depois suba. Cada degrau abaixo fica verde sozinho e vale alguma coisa sozinho,
+e nenhuma regra de um degrau que você alcançou fica mais fraca por causa dos
+degraus que você ainda não alcançou. Pare onde o valor parar.
+
+### Degrau 1 — `check`, na sua máquina
+
+```bash
+python tools/slp.py check
+```
+
+Todo modelo em `models/marts/` tem spec completa, pré-registro válido se tiver
+algum, e um teste de unicidade na chave primária capaz de reprovar de verdade.
+Sem CI, sem warehouse, sem git, sem dbt. É a
+[seção 2](#2-etapas-a-e-c--check) inteira, e é a Etapa A com uma máquina lendo
+por cima do seu ombro.
+
+Uma regra daqui alcança um arquivo que é do degrau 3: a `S5` exige que um modelo
+crítico ou incremental tenha dono no CODEOWNERS, e bloqueia enquanto não tiver.
+Escreva esse arquivo cedo, ou comece por modelos `tier: standard`.
+
+### Degrau 2 — `check` e `gate` no CI, ainda sem warehouse nenhum
+
+| Copie | Para | Depois edite |
+| --- | --- | --- |
+| `tools/templates/ci.yml` | `.github/workflows/ci.yml` | Nada, para começar. Defina a variável de repositório `AGENT_LOGIN` com o usuário-bot do agente, para o gate ser obrigatório nos PRs que ele abre e consultivo nos seus. |
+
+Vinte e uma das trinta regras e o Controle 5B inteiro, por um arquivo e uma
+variável. Ele instala Python e duas bibliotecas — sem adapter, sem credencial e
+sem um `exit 1` sequer — então a primeira execução já fica verde. Liste `ci`
+como check obrigatório.
+
+### Degrau 3 — os caminhos que ninguém edita caladinho
 
 | Copie | Para | Depois edite |
 | --- | --- | --- |
 | `tools/templates/CODEOWNERS` | `.github/CODEOWNERS` | Troque `@your-org/data-platform`; liste seus modelos incrementais e seus diretórios críticos. Ele segue a tabela de caminhos protegidos do framework linha por linha. |
 | `tools/templates/AGENTS.md` | `AGENTS.md` | Mantenha a lista de caminhos protegidos idêntica à do seu CODEOWNERS. Nada no arquivo é um controle — ele conta ao agente o que as máquinas vão fazer, para o agente não gastar um PR descobrindo. |
-| `tools/templates/ci.yml` | `.github/workflows/ci.yml` | Escreva seu adapter, sua autenticação no warehouse, seus artefatos de produção, seu build completo e seu diff. **Cada um desses passos sai com 1 até você escrever** — um template entregue sem edição falha fechado. |
 
 **Ligue a proteção de branch** na `main`: exigir pull request, exigir review dos
-Code Owners, listar `ci` e `diff` como checks obrigatórios (são os nomes dos
-jobs no `ci.yml`) e bloquear force-push em toda branch — três regras do gate leem
-o histórico da branch, e um histórico reescrito é um histórico que elas não
-enxergam. Defina a variável de repositório `AGENT_LOGIN` com o usuário-bot do
-agente, para o gate ser obrigatório nos PRs que ele abre e consultivo nos seus.
+Code Owners e bloquear force-push em toda branch — três regras do gate leem o
+histórico da branch, e um histórico reescrito é um histórico que elas não
+enxergam.
 
-**Confira que roda, depois rode os testes dele** — uns trezentos e quarenta,
+### Degrau 4 — os controles que não são código
+
+Controles 1 a 4 do [README do framework](../README.pt-br.md#2-construindo-a-trava--5-controles-obrigatórios):
+a identidade própria do agente, o acesso restrito aos dados, os tetos de gasto e
+os perfis estatísticos no lugar das linhas. Nada em `tools/` garante esses
+controles e nada aqui poderia — são permissões, monitores e máscaras, não um
+script. É o degrau que faz valer a pena ler os números do degrau seguinte.
+
+### Degrau 5 — Etapa E, o diff
+
+| Copie | Para | Depois edite |
+| --- | --- | --- |
+| `tools/templates/ci-warehouse.yml` | `.github/workflows/ci-warehouse.yml` | Escreva seu adapter, sua autenticação no warehouse, seus artefatos de produção, o build amostrado, o build completo e o diff. **Seis passos saem com 1 até você escrever** — um template entregue sem edição falha fechado. |
+
+Acrescente `build` e `diff` aos checks obrigatórios. O maior desses passos é o
+próprio diff, e é a única coisa que estas ferramentas não fazem por você: a
+[seção 5](#5-o-contrato-do-diffjson) é o contrato dele, e mostra uma query para
+partir daí.
+
+**Confira que roda, depois rode os testes dele** — uns trezentos e cinquenta,
 alguns segundos, sem rede. Se passam, os portões da sua máquina são os portões
 do CI.
 
@@ -238,8 +287,8 @@ Duas flags decidem se ele consegue fazer o trabalho:
   pré-registrado cujos números nunca apareceram, e uma regra sobre o que está
   *faltando* só enxerga o que recebeu.
 - **Passe `--base <git ref>`**, a branch que o PR mira, como o
-  `templates/ci.yml` faz. Aí um pré-registro ainda idêntico ao do merge-base é a
-  previsão da `main`, não deste PR: o `C7` não cobra o diff dele, e um diff
+  `templates/ci-warehouse.yml` faz. Aí um pré-registro ainda idêntico ao do
+  merge-base é a previsão da `main`, não deste PR: o `C7` não cobra o diff dele, e um diff
   medido contra ele é recusado (`C0`). Sem `--base`, todo pré-registro do
   projeto conta como deste PR — mais rígido, nunca mais frouxo, mas uma execução
   local pode bloquear por um modelo em que você nem tocou.
@@ -387,7 +436,7 @@ para impedir.
    mais fraco, e a Regra 3 diz que quem muda é o código.
 3. **Depois leia as linhas `INFO`.** Elas nunca mudam o código de saída, e é
    justamente por isso que são fáceis de pular e valem não pular. É por isso que
-   o `templates/ci.yml` joga a saída dos dois comandos no resumo do job.
+   os dois templates de workflow jogam no resumo do job o que executam.
 
 **Uma execução que não bloqueia nada não é uma execução que não achou nada para
 olhar.** `slp check: OK (3 models in models/marts/, of 40 models read)` é uma
@@ -426,7 +475,7 @@ fixtures a que os meta-testes a prendem — uma em que ela dispara, outra em que
 fica calada. O **M2** falha se uma regra não tem linha, ou se uma linha aponta
 para uma fixture que não faz o que a linha diz.
 
-Marcações: `§1 P`*n* um princípio, `§2 C`*n* um controle, `§2 R`*n* uma regra do
+Marcações: `§1 P`*n* um princípio, `§2 C`*n* um controle, `§3 C R`*n* uma regra do
 agente, `§3 A`–`§3 E` uma etapa. **Cinco regras só informam** e nunca mudam o
 código de saída — `I1`, `I2`, `I3`, `I4` e `C5`. O framework pede que o que elas
 dizem esteja *visível*, não que pare o PR, e o **M2** confere isso contra o
@@ -441,9 +490,9 @@ código-fonte, para que nenhuma delas ganhe um `BLOCK` em silêncio.
 | Uma spec que nomeia coluna ou query de reconciliação que não existe — §3 A | `S3` | `check/sensitive_mismatch` | `check/spec_ok` |
 | Um `.sql` num caminho de marts que nenhum yml declara — §3 A | `S4` | `check/sql_without_yml` | `check/spec_ok` |
 | Um modelo crítico ou incremental que o CODEOWNERS não possui — §3 E, §2 C5A | `S5` | `check/critical_unowned` | `check/critical_owned` |
-| Um pré-registro com intervalo aberto ou campo faltando — §3 B, §2 R6 | `P1` | `check/prereg_open_interval` | `check/prereg_ok` |
+| Um pré-registro com intervalo aberto ou campo faltando — §3 B, §3 C R6 | `P1` | `check/prereg_open_interval` | `check/prereg_ok` |
 | Um `min` acima do `max`, ou métricas que não são as da spec — §3 B | `P2` | `check/prereg_min_gt_max` | `check/prereg_ok` |
-| Nenhum teste de unicidade na `primary_key` da spec, ou um que não pode falhar — §2 R2 | `T1` | `check/pk_single_missing` | `check/pk_single_unique` |
+| Nenhum teste de unicidade na `primary_key` da spec, ou um que não pode falhar — §3 C R2 | `T1` | `check/pk_single_missing` | `check/pk_single_unique` |
 
 ### `gate`
 

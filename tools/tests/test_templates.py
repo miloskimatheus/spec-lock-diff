@@ -19,6 +19,23 @@ def _table(after, before):
     return README.split(after)[1].split(before)[0]
 
 
+def _workflows():
+    """Every workflow template, by file name. A template with no jobs is not one."""
+    found = {}
+    for path in sorted(TEMPLATES.glob("*.yml")):
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if isinstance(doc, dict) and "jobs" in doc:
+            found[path.name] = doc
+    return found
+
+
+WORKFLOWS = _workflows()
+
+
+def _runs(job):
+    return "\n".join(str(step.get("run", "")) for step in job["steps"])
+
+
 def test_codeowners_protects_every_path_the_readme_lists():
     """Control 5A is a table in prose; the template is the same table as a control."""
     template = (TEMPLATES / "CODEOWNERS").read_text(encoding="utf-8")
@@ -42,11 +59,10 @@ def test_codeowners_adds_only_what_it_explains():
 
 def test_every_placeholder_says_what_to_put_there():
     """A line the reader must edit is marked, and never left to be guessed."""
-    for name in sorted(p.name for p in TEMPLATES.iterdir()):
-        text = (TEMPLATES / name).read_text(encoding="utf-8")
-        for number, line in enumerate(text.splitlines(), start=1):
+    for path in sorted(p for p in TEMPLATES.iterdir() if p.is_file()):
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
             if "YOU:" in line:
-                assert len(line.split("YOU:")[1].split()) >= 4, "%s:%d" % (name, number)
+                assert len(line.split("YOU:")[1].split()) >= 4, "%s:%d" % (path.name, number)
 
 
 def test_agents_md_carries_the_eight_rules_and_their_mechanisms():
@@ -69,65 +85,152 @@ def test_agents_md_says_it_is_not_a_control():
         assert command in template
 
 
-def test_ci_yml_wires_the_three_commands_into_two_jobs():
-    """The job names are what branch protection lists; the commands are the gates."""
-    workflow = yaml.safe_load((TEMPLATES / "ci.yml").read_text(encoding="utf-8"))
-    assert sorted(workflow["jobs"]) == ["ci", "diff"]
-    assert workflow[True]["pull_request"]["types"] == [
-        "opened", "synchronize", "reopened", "ready_for_review"]
-    assert workflow["concurrency"]["cancel-in-progress"] is True
-    assert workflow["jobs"]["ci"]["timeout-minutes"] == 15  # Stage D: about 15 minutes
-    assert workflow["jobs"]["diff"]["needs"] == "ci"
-    steps = {"ci": "", "diff": ""}
-    for job in steps:
-        steps[job] = "\n".join(str(step.get("run", "")) for step in workflow["jobs"][job]["steps"])
-    # The commands run from the base branch's copy of tools/ (see below), so
-    # the path is the SLP variable that step sets, never tools/slp.py itself.
-    assert 'python "$SLP" check' in steps["ci"]
-    assert 'python "$SLP" gate' in steps["ci"]
-    assert 'python "$SLP" compare' in steps["diff"]
-    assert "python tools/slp.py" not in steps["ci"] + steps["diff"]
-    # The gate walks the commits of the pull request, so a shallow checkout breaks it.
-    for job in ("ci", "diff"):
-        checkout = workflow["jobs"][job]["steps"][0]
-        assert checkout["uses"].startswith("actions/checkout")
-        assert checkout["with"]["fetch-depth"] == 0
+def test_the_workflows_wire_the_three_commands_into_three_jobs():
+    """The job names are what branch protection lists; the commands are the gates.
+
+    ci.yml is the rung that needs no warehouse, ci-warehouse.yml the rest. A job
+    id is how a required check is addressed, so the ids must be unique across the
+    two files and no job may rename its check with `name:`.
+    """
+    assert sorted(WORKFLOWS) == ["ci-warehouse.yml", "ci.yml"]
+    assert sorted(WORKFLOWS["ci.yml"]["jobs"]) == ["ci"]
+    assert sorted(WORKFLOWS["ci-warehouse.yml"]["jobs"]) == ["build", "diff"]
+    assert sorted(j for w in WORKFLOWS.values() for j in w["jobs"]) == ["build", "ci", "diff"]
+    for name, workflow in WORKFLOWS.items():
+        for job_id, job in workflow["jobs"].items():
+            assert "name" not in job, "%s: %s renames its check" % (name, job_id)
 
 
-def test_ci_yml_pipes_the_gate_into_the_job_summary_without_losing_its_exit_code():
-    text = (TEMPLATES / "ci.yml").read_text(encoding="utf-8")
-    for line in text.splitlines():
-        if "tee -a" in line:
-            assert "GITHUB_STEP_SUMMARY" in line
-    assert text.count("shell: bash") == 3  # bash -eo pipefail on every piped step
+def test_the_workflows_trigger_alike_and_do_not_cancel_each_other():
+    """One run per pull request per workflow, and no workflow cancels the other.
+
+    A concurrency group is shared by every workflow in a repository. Two files
+    with one group cancel each other on every push, and the cancelled one reports
+    nothing at all - which branch protection reads as a check still running.
+    """
+    for name, workflow in WORKFLOWS.items():
+        assert workflow[True]["pull_request"]["types"] == [
+            "opened", "synchronize", "reopened", "ready_for_review"], name
+        assert workflow["concurrency"]["cancel-in-progress"] is True, name
+        assert "github.workflow" in workflow["concurrency"]["group"], name
+    # github.workflow is the workflow's own name, so distinct names are what make
+    # the one group expression evaluate to two groups.
+    names = [workflow["name"] for workflow in WORKFLOWS.values()]
+    assert len(set(names)) == len(names), names
 
 
-def test_ci_yml_fences_the_findings_so_the_job_summary_can_be_read():
+def test_every_job_finishes_inside_the_budget_the_readme_promises():
+    assert WORKFLOWS["ci.yml"]["jobs"]["ci"]["timeout-minutes"] == 5
+    warehouse = WORKFLOWS["ci-warehouse.yml"]["jobs"]
+    assert warehouse["build"]["timeout-minutes"] == 15  # Stage D: about 15 minutes
+    assert warehouse["diff"]["timeout-minutes"] == 60   # Stage E: one full build
+
+
+def test_the_diff_waits_for_the_build_it_measures():
+    """`diff` said `needs: ci` while both lived in one file.
+
+    GitHub has no dependency from one workflow to another, so the wait is on
+    `build`, which is in the same file. What was traded away is the gate's veto
+    over the hour: a pull request that trips `slp gate` now still pays for the
+    sample build. `diff` opens with a check of its own to keep the sixty-minute
+    job from being the place a broken spec is discovered.
+    """
+    diff = WORKFLOWS["ci-warehouse.yml"]["jobs"]["diff"]
+    assert diff["needs"] == "build"
+    runs = _runs(diff)
+    assert runs.index('python "$SLP" check') < runs.index('python "$SLP" compare')
+
+
+def test_the_commands_run_from_the_slp_the_base_branch_set():
+    """The path is the SLP variable that step sets, never tools/slp.py itself."""
+    ci = _runs(WORKFLOWS["ci.yml"]["jobs"]["ci"])
+    assert 'python "$SLP" check' in ci and 'python "$SLP" gate' in ci
+    assert 'python "$SLP" compare' in _runs(WORKFLOWS["ci-warehouse.yml"]["jobs"]["diff"])
+    for name, workflow in WORKFLOWS.items():
+        for job_id, job in workflow["jobs"].items():
+            assert "python tools/slp.py" not in _runs(job), "%s: %s" % (name, job_id)
+
+
+def test_every_job_checks_out_every_commit():
+    """The gate walks the commits of the pull request, so a shallow checkout breaks it."""
+    for name, workflow in WORKFLOWS.items():
+        for job_id, job in workflow["jobs"].items():
+            checkout = job["steps"][0]
+            where = "%s: %s" % (name, job_id)
+            assert checkout["uses"].startswith("actions/checkout"), where
+            assert checkout["with"]["fetch-depth"] == 0, where
+
+
+def test_the_first_workflow_needs_nothing_but_python():
+    """The bottom rung of the ladder: check and gate, and not one credential.
+
+    Twenty-one of the thirty rules and the whole of Control 5B run on yml, git
+    and one line of sql. If this file ever grows a warehouse step, an adopter's
+    first pull request is red again and the ladder loses the rung that makes
+    starting cheap.
+    """
+    runs = _runs(WORKFLOWS["ci.yml"]["jobs"]["ci"])
+    assert "exit 1" not in runs
+    assert "dbt" not in runs
+    installs = [line.strip() for line in runs.splitlines() if "pip install" in line]
+    assert installs == ['pip install "pyyaml" "jsonschema>=4"']
+
+
+def test_the_warehouse_workflow_fails_closed_until_it_is_edited():
+    """Every step that needs a credential or a decision of yours exits 1 saying so.
+
+    A template shipped unedited must not look like a pass: an empty Stage E that
+    reports green is the green badge on nothing the framework exists to prevent.
+    """
+    stubs = [step for job in WORKFLOWS["ci-warehouse.yml"]["jobs"].values()
+             for step in job["steps"] if "exit 1" in str(step.get("run", ""))]
+    assert [s["name"] for s in stubs] == [
+        "warehouse auth", "production artifacts",
+        "warehouse auth", "production artifacts",
+        "dbt build with full data", "produce the diff"]
+    for step in stubs:
+        assert ">&2" in step["run"], step["name"]
+
+
+def test_every_piped_step_sets_bash_so_tee_cannot_swallow_a_failure():
+    counts = {name: (TEMPLATES / name).read_text(encoding="utf-8").count("shell: bash")
+              for name in WORKFLOWS}
+    assert counts == {"ci.yml": 2, "ci-warehouse.yml": 1}
+
+
+def test_the_findings_are_fenced_so_the_job_summary_can_be_read():
     """A finding is tab separated; unfenced, the summary renders the lot as one paragraph."""
-    workflow = yaml.safe_load((TEMPLATES / "ci.yml").read_text(encoding="utf-8"))
-    piped = [step for job in workflow["jobs"].values() for step in job["steps"]
-             if "tee -a" in str(step.get("run", ""))]
+    piped = [step for workflow in WORKFLOWS.values() for job in workflow["jobs"].values()
+             for step in job["steps"] if "tee -a" in str(step.get("run", ""))]
     assert len(piped) == 3
     for step in piped:
         run = step["run"]
+        assert "GITHUB_STEP_SUMMARY" in run, step["name"]
         assert run.count("```") == 2, step["name"]
         # A trap, so the fence closes even when the command blocks and -e ends
         # the step - an unclosed fence swallows everything printed after it.
         assert "trap " in run and run.index("trap ") < run.index("tee -a"), step["name"]
 
 
-def test_ci_yml_hands_compare_every_diff_in_one_call():
+def test_the_workflow_hands_compare_every_diff_in_one_call():
     """C7 blocks on a pre-registered model with no diff, and only sees what it was given."""
-    workflow = yaml.safe_load((TEMPLATES / "ci.yml").read_text(encoding="utf-8"))
-    steps = "\n".join(str(s.get("run", "")) for s in workflow["jobs"]["diff"]["steps"])
+    steps = _runs(WORKFLOWS["ci-warehouse.yml"]["jobs"]["diff"])
     assert re.search(r'python "\$SLP" compare \\\n\s+--base .+ \\\n\s+diff/\*\.json', steps), steps
 
 
-def test_the_readme_and_the_workflow_ask_for_the_same_jsonschema():
+def test_the_readme_and_the_workflows_ask_for_the_same_jsonschema():
     """Draft 2020-12 needs jsonschema 4; a floor in one place and not the other
-    means the machine that installs from the README is not the machine CI is."""
-    workflow = (TEMPLATES / "ci.yml").read_text(encoding="utf-8")
-    assert workflow.count('"jsonschema>=4"') == 2
+    means the machine that installs from the README is not the machine CI is.
+
+    Every install path names both pins, so no job can reach a gate with whatever
+    an adapter happened to pull in.
+    """
+    for name in WORKFLOWS:
+        lines = [line for line in (TEMPLATES / name).read_text(encoding="utf-8").splitlines()
+                 if "pip install" in line and not line.strip().startswith("#")]
+        assert lines, name
+        for line in lines:
+            assert '"pyyaml"' in line and '"jsonschema>=4"' in line, "%s: %s" % (name, line)
     for name in ("README.md", "README.pt-br.md"):
         assert '"jsonschema>=4"' in (TOOLS / name).read_text(encoding="utf-8"), name
 
@@ -149,18 +252,26 @@ def test_the_rule_count_in_the_readmes_is_the_number_of_rules():
         (TOOLS / "README.pt-br.md").read_text(encoding="utf-8")
 
 
-def test_ci_yml_requires_the_gate_on_the_agents_pull_requests_and_fails_closed():
+def test_the_gate_and_its_flag_live_in_one_file():
     """Control 5B: required on the pull requests the bot opens; advisory where CODEOWNERS decides.
 
     The opener of a pull request is an identity the platform authenticates, unlike
     a commit's author. A variable nobody set must not make the gate optional, so
     an empty AGENT_LOGIN means required everywhere.
+
+    The flag and the steps that read it stay in one file. Copied into a second
+    workflow that has no env block, `env.AGENT_PR != 'true'` reads the empty
+    string as true: the advisory branch runs, continue-on-error applies, and the
+    required gate quietly never runs at all.
     """
-    workflow = yaml.safe_load((TEMPLATES / "ci.yml").read_text(encoding="utf-8"))
-    flag = workflow["env"]["AGENT_PR"]
+    assert [n for n, w in WORKFLOWS.items() if "AGENT_PR" in str(w.get("env", {}))] == ["ci.yml"]
+    assert {n for n, w in WORKFLOWS.items() for job in w["jobs"].values()
+            for s in job["steps"] if str(s.get("name", "")).startswith("slp gate")} == {"ci.yml"}
+    flag = WORKFLOWS["ci.yml"]["env"]["AGENT_PR"]
     assert "vars.AGENT_LOGIN == ''" in flag
     assert "github.event.pull_request.user.login == vars.AGENT_LOGIN" in flag
-    gates = [s for s in workflow["jobs"]["ci"]["steps"] if str(s.get("name", "")).startswith("slp gate")]
+    gates = [s for s in WORKFLOWS["ci.yml"]["jobs"]["ci"]["steps"]
+             if str(s.get("name", "")).startswith("slp gate")]
     assert [g["name"] for g in gates] == ["slp gate", "slp gate (advisory)"]
     required, advisory = gates
     assert required["if"] == "env.AGENT_PR == 'true'" and "continue-on-error" not in required
@@ -168,20 +279,32 @@ def test_ci_yml_requires_the_gate_on_the_agents_pull_requests_and_fails_closed()
     assert "advisory" in advisory["run"] and "CODEOWNERS decides" in advisory["run"]
 
 
-def test_ci_yml_runs_the_tools_from_the_base_branch():
-    """A pull request that edits tools/ must not be judged by its own edit."""
-    workflow = yaml.safe_load((TEMPLATES / "ci.yml").read_text(encoding="utf-8"))
-    for job in ("ci", "diff"):
-        steps = workflow["jobs"][job]["steps"]
-        base = [s for s in steps if s.get("name") == "the tools from the base branch"]
-        assert len(base) == 1, job
-        run = base[0]["run"]
-        assert "github.event.pull_request.base.sha" in run and "git archive" in run
-        assert 'echo "SLP=' in run and "GITHUB_ENV" in run
-        # It fails open only in the one case where there is nothing to fall back
-        # to, and says so on stderr.
-        assert "is not on the base branch yet" in run and ">&2" in run
-        # And it comes before the first command that uses it.
-        names = [s.get("name", "") for s in steps]
-        first = min(i for i, n in enumerate(names) if n.startswith("slp "))
-        assert names.index("the tools from the base branch") < first, job
+def test_the_tools_come_from_the_base_branch_everywhere_they_run():
+    """A pull request that edits tools/ must not be judged by its own edit.
+
+    The step is duplicated rather than extracted into a composite action, because
+    `uses: ./...` loads from the pull request's own tree - the exact boundary this
+    step exists to defend. Duplication that is not identical is drift, so the
+    copies are compared here.
+    """
+    copies = []
+    for name, workflow in WORKFLOWS.items():
+        for job_id, job in workflow["jobs"].items():
+            where = "%s: %s" % (name, job_id)
+            names = [s.get("name", "") for s in job["steps"]]
+            commands = [i for i, n in enumerate(names) if n.startswith("slp ")]
+            base = [s for s in job["steps"] if s.get("name") == "the tools from the base branch"]
+            if not commands:
+                assert not base, "%s fetches tools it never runs" % where
+                continue
+            assert len(base) == 1, where
+            run = base[0]["run"]
+            assert "github.event.pull_request.base.sha" in run and "git archive" in run, where
+            assert 'echo "SLP=' in run and "GITHUB_ENV" in run, where
+            # It fails open only in the one case where there is nothing to fall
+            # back to, and says so on stderr.
+            assert "is not on the base branch yet" in run and ">&2" in run, where
+            # And it comes before the first command that uses it.
+            assert names.index("the tools from the base branch") < min(commands), where
+            copies.append(run)
+    assert len(copies) == 2 and len(set(copies)) == 1
