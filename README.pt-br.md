@@ -45,7 +45,7 @@ O framework se resume em três fases:
 
 ## 0. Papéis — quem faz o quê
 
-Este framework define quatro papéis, cada um assume um papel por PR.
+Este framework define quatro papéis.
 
 <p align="center">
   <picture>
@@ -56,10 +56,10 @@ Este framework define quatro papéis, cada um assume um papel por PR.
 
 | Papel          | Quem é                   | O que faz                                                                                          |
 | -------------- | ------------------------ | ---------------------------------------------------------------------------------------------------- |
-| **Plataforma** | Time infra/plataforma    | Configura os controles do setup (seção 2) uma única vez. Depois só garante que continuem funcionando. |
-| **Autor**      | Um humano da equipe      | Escreve a spec do modelo. Aciona o agente. Lê o diff. É o responsável pelo PR.                      |
-| **Parceiro**   | Outro humano (≠ Autor)   | Aprova PRs de modelos críticos.                                                                     |
-| **Agente**     | A IA (LLM + ferramentas) | Escreve código, testes e o pré-registro numérico.                                                   |
+| **Plataforma** | Time infra/plataforma    | Configura os controles do setup (seção 2) uma única vez. Depois disso apenas devem garantir que continuem funcionando. |
+| **Autor**      | Um humano da equipe      | Escreve a spec do modelo, aciona o agente e lê o diff. É o responsável pelo PR.                      |
+| **Parceiro**   | Outro humano (≠ Autor)   | Deve ser convocado para aprovar PRs de modelos críticos.                                                                     |
+| **Agente**     | A IA (LLM + ferramentas) | Inicia escrevendo o pré-registro numérico, depois escreve os códigos e testes.                                                   |
 
 ---
 
@@ -76,15 +76,15 @@ _Por que_ o framework existe. Todas as regras decorrem deles.
 
 | # | Princípio | Por que se sustenta | O que decorre dele |
 |:-:|-----------|---------------------|--------------------|
-| **1** | **Em SQL, bug não dá erro**<br>Dá um número plausível — e errado. | Erre um `JOIN` em Python e o programa quebra. Erre em SQL e a query roda normalmente, devolve `16.894.203,11`, informa `1 linha · sem erro`, e nunca menciona as linhas que duplicou. | O humano **decide antes**, escrevendo a spec, e **confere depois**, lendo o diff numérico.<br>Entre esses dois momentos o humano não faz nada — o agente trabalha sozinho no meio. |
-| **2** | **Limites devem ser configurados na infraestrutura**<br>Não escritos e torcidos para dar certo. | "Não acesse dados sensíveis" num `AGENTS.md` é uma _instrução_, não um controle — o agente pode ignorar, esquecer ou interpretar diferente. `REVOKE USAGE ON SCHEMA raw` é um controle. | Controle de verdade é **negar permissões no banco**, um **resource monitor** que desliga o warehouse, uma **branch protection** que impede push em `main`.<br>Se o agente tentar violar, o sistema bloqueia — independentemente do que o prompt diz. |
-| **3** | **As verificações devem ser determinísticas**<br>A mesma entrada, sempre o mesmo resultado. | LLMs são estocásticos por natureza, e tudo bem enquanto _geram_ código — o mesmo prompt devolve três joins diferentes. Não está tudo bem enquanto _julgam_. | Todo gate de verificação — testes, diffs, reconciliações — é determinístico.<br>Um LLM nunca é o juiz final de "o código está correto?". Quem julga são **testes automatizados, diffs numéricos e olhos humanos**. |
+| **1** | **Em SQL, bug não dá erro**<br>Ele devolve um número plausível, e errado. | Erre um `JOIN` em Python e o programa quebra. Erre em SQL e a query roda normalmente, devolve `16.894.203,11`, informa `1 linha · sem erro`, e nunca menciona as linhas que duplicou. | O humano **decide antes**, escrevendo a spec, e **confere depois**, lendo o diff numérico.<br>Entre esses dois momentos o humano não faz nada — o agente trabalha sozinho no meio. |
+| **2** | **Limites devem ser configurados na infraestrutura**<br>Não escritos, e com esperança de que funcionem. | "Não acesse dados sensíveis" num `AGENTS.md` é uma _instrução_, não um controle — o agente pode ignorar, esquecer ou interpretar diferente. `REVOKE USAGE ON SCHEMA raw` é um controle. | Controle de verdade é **negar permissões no banco**, um **resource monitor** que desliga o warehouse, uma **branch protection** que impede push em `main`.<br>Se o agente tentar violar, o sistema bloqueia — independentemente do que o prompt diz. |
+| **3** | **As verificações devem ser determinísticas**<br>As mesmas entradas devem gerar sempre os mesmos resultados. | LLMs são estocásticos por natureza, e tudo bem enquanto _geram_ código — o mesmo prompt devolve três joins diferentes. Não está tudo bem enquanto _julgam_. | Todo gate de verificação — testes, diffs, reconciliações — é determinístico.<br>Um LLM nunca é o juiz final de "o código está correto?". Quem julga são **testes automatizados, diffs numéricos e olhos humanos**. |
 
 ---
 
 ## 2. Construindo a trava — 5 controles obrigatórios
 
-Esta seção é o framework inteiro. Você não está escrevendo regras para o agente obedecer — está construindo um ambiente em que as regras não podem ser quebradas. Uma vez que estes cinco controles estejam no lugar, o agente pode ser solto dentro deles e deixado para trabalhar sozinho: ele não consegue gastar dinheiro que não recebeu, ler dados que não lhe foram mostrados, nem mergear código que ninguém leu. É isso que compra a liberdade de parar de revisar o SQL dele linha por linha.
+Você não está escrevendo regras para o agente obedecer — está construindo um ambiente em que as regras não podem ser quebradas. Uma vez que estes cinco controles estejam no lugar, o agente pode ser solto dentro deles e deixado para trabalhar sozinho, pois ele não consegue gastar dinheiro que não recebeu, ler dados que não lhe foram mostrados, nem mergear código que ninguém leu. Assim podemos reduzir o trabalho e esforço humano de revisar modelos SQL linha a linha.
 
 **Quem executa:** Plataforma. **Quando:** Uma única vez, antes do primeiro PR com agente.
 
@@ -159,7 +159,7 @@ Em toda branch (um ruleset que mira `*`, ou o equivalente):
 
 Masking de colunas sensíveis:
 
-- No `.yml` de cada modelo dbt, toda coluna sensível deve ter `meta: {sensivel: true}`, ou mecanismo análogo.
+- No `.yml` de cada modelo dbt, toda coluna sensível deve ter `meta: {sensitive: true}`, ou mecanismo análogo.
 - O masking é aplicado automaticamente pela role `agent_ci` ao consultar essas colunas.
 - Implementação por plataforma:
     - **Snowflake:** use o pacote `dbt-snow-mask`.
@@ -204,16 +204,16 @@ Crie um job semanal que:
     - Contagem total de linhas.
     - Percentual de nulos.
     - Cardinalidade (quantidade de valores distintos).
-    - Top 20 valores **apenas** em colunas marcadas com `meta: {categorica: true}` no `.yml` do modelo. Colunas sem essa tag não exibem valores individuais.
+    - Top 20 valores **apenas** em colunas marcadas com `meta: {categorical: true}` no `.yml` do modelo. Colunas sem essa tag não exibem valores individuais.
 4. O perfil **não contém**: valores mínimos, valores máximos, amostras de dados, exemplos de linhas.
 
 ```yaml
 # docs/profile/fct_orders.yml — regerado semanalmente, lido pelo agente
-order_id:       {linhas: 1284003, nulos: 0.0%, distintos: 1284003}
-customer_id:    {linhas: 1284003, nulos: 0.0%, distintos: 84120}
-status:         {linhas: 1284003, nulos: 0.0%, distintos: 6,
-                 top: [shipped, delivered, cancelled, ...]}   # categorica: true
-customer_email: {linhas: 1284003, nulos: 1.2%, distintos: 83904}
+order_id:       {rows: 1284003, nulls: 0.0%, distinct: 1284003}
+customer_id:    {rows: 1284003, nulls: 0.0%, distinct: 84120}
+status:         {rows: 1284003, nulls: 0.0%, distinct: 6,
+                 top: [shipped, delivered, cancelled, ...]}   # categorical: true
+customer_email: {rows: 1284003, nulls: 1.2%, distinct: 83904}
 # sem mínimos, sem máximos, sem amostras, sem exemplos de linhas
 ```
 
@@ -467,7 +467,7 @@ pre-commit run --all-files
 
 O pre-commit executa:
 
-- **JSON Schema:** valida que a spec, o campo `sensivel`, o pré-registro e os testes obrigatórios existem e estão no formato correto.
+- **JSON Schema:** valida que a spec, o campo `sensitive`, o pré-registro e os testes obrigatórios existem e estão no formato correto.
 - **Gitleaks:** detecta segredos vazados, incluindo regras customizadas para e-mail e CPF.
 - **Gate anti-fraude:** o script do Controle 5B roda sobre os commits do bot.
 
@@ -493,7 +493,7 @@ O build inclui:
 
 **O que é:** Um `dbt build` completo (sem amostra) seguido de um diff numérico entre a versão nova e a produção atual. Roda quando o PR é marcado como ready-for-review, e de novo a cada push depois disso — o Controle 1 descarta uma aprovação a cada push, e um diff de um código que mudou desde então vale o mesmo. Enquanto o PR é rascunho ele não roda, e é por isso que o agente abre o PR como rascunho e o marca como pronto quando a etapa C termina.
 
-**O diff é produzido pela automação, de forma determinística** — o mesmo build, a mesma janela fechada de `event_time`, a mesma comparação, todas as vezes. Nem um humano nem o agente monta esse diff ad hoc, e nenhum dos dois escolhe quais números aparecem. O trabalho do humano nesta etapa é inteiramente _ler_.
+**O diff é produzido pela automação, de forma determinística** — o mesmo build, a mesma janela fechada de `event_time`, a mesma comparação, todas as vezes. Nem um humano nem o agente monta esse diff ad hoc, e nenhum dos dois escolhe quais números aparecem. O trabalho do humano nesta etapa deve ser apenas _ler_ o diff.
 
 <p align="center">
   <picture>

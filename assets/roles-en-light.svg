@@ -12,7 +12,7 @@
 
 <g fill="none" stroke="#0B62B8" stroke-width="2">
 <rect x="1" y="76" width="256" height="84"/><rect x="685" y="76" width="256" height="84"/>
-<path d="M257 118h44M641 118h44"/><path d="M293 113l8 5-8 5M677 113l8 5-8 5"/></g>
+<path d="M273 118h28M641 118h28"/><path d="M293 113l8 5-8 5M661 113l8 5-8 5"/></g>
 
 <text x="129" y="108" text-anchor="middle" font-size="19" font-weight="600" letter-spacing="1.4" fill="#0B62B8">HUMAN</text>
 <text x="129" y="131" text-anchor="middle" font-size="13" fill="#0B62B8">Author</text>
