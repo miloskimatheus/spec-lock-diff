@@ -52,6 +52,18 @@ Adoption is a ladder, not a cliff: `check` and `gate` are twenty-one of the thir
 2. [Building the lock — 5 mandatory controls](#2-building-the-lock--5-mandatory-controls)
 3. [The development process (routine) — 5 stages](#3-the-development-process-routine--5-stages)
 
+**Seven words this document uses before it defines them**, so you can read straight through:
+
+| Word | In one line | Defined in |
+| --- | --- | --- |
+| **Spec** | What the model must do, written by a human into the model's yml before any code exists. Six mandatory fields. | [Stage A](#3-the-development-process-routine--5-stages) |
+| **Pre-registration** | The agent's numeric prediction — how many rows will move, how far each metric may drift — committed before it writes SQL and before it can see any result. The term is borrowed from clinical trials, and so is the reason. | [Stage B](#3-the-development-process-routine--5-stages) |
+| **Diff** | The measured difference between production and the pull request's build, read as numbers rather than rows. | [Stage E](#3-the-development-process-routine--5-stages) |
+| **Gate** | A deterministic check that blocks a pull request. Never an LLM: the same input gives the same verdict every time. | [Control 5](#2-building-the-lock--5-mandatory-controls) |
+| **Critical model** | One that feeds business decisions, financial reports or executive dashboards. It owes more than a standard model: a second reviewer, a reconciliation, a rebuild of everything downstream. | [Stage A](#3-the-development-process-routine--5-stages) |
+| **Reconciliation** | The model compared against something that is *not* the model — a closing spreadsheet, a source system — inside a tolerance the spec declares. | [Stage E](#3-the-development-process-routine--5-stages) |
+| **Protected path** | A file the agent may not touch, enforced by CODEOWNERS and a gate rule, because editing it would let the agent change the rules that judge it. | [Control 5](#2-building-the-lock--5-mandatory-controls) |
+
 ---
 
 ## 0. Roles — who does what

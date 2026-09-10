@@ -52,6 +52,18 @@ Adotar é uma escada, não um penhasco: o `check` e o `gate` são vinte e uma da
 2. [Construindo a trava — 5 controles obrigatórios](#2-construindo-a-trava--5-controles-obrigat%C3%B3rios)
 3. [O processo de desenvolvimento (rotina) — 5 etapas](#3-o-processo-de-desenvolvimento-rotina--5-etapas)
 
+**Sete palavras que este documento usa antes de definir**, para você poder ler direto:
+
+| Palavra | Em uma linha | Definida em |
+| --- | --- | --- |
+| **Spec** | O que o modelo deve fazer, escrito por um humano no yml do modelo antes de existir qualquer código. Seis campos obrigatórios. | [Etapa A](#3-o-processo-de-desenvolvimento-rotina--5-etapas) |
+| **Pré-registro** | A previsão numérica do agente — quantas linhas vão se mexer, quanto cada métrica pode variar — registrada antes de ele escrever SQL e antes de poder ver qualquer resultado. O termo vem dos ensaios clínicos, e o motivo também. | [Etapa B](#3-o-processo-de-desenvolvimento-rotina--5-etapas) |
+| **Diff** | A diferença medida entre a produção e o build do PR, lida como números, não como linhas. | [Etapa E](#3-o-processo-de-desenvolvimento-rotina--5-etapas) |
+| **Gate** (portão) | Uma verificação determinística que bloqueia o PR. Nunca um LLM: a mesma entrada dá o mesmo veredicto toda vez. | [Controle 5](#2-construindo-a-trava--5-controles-obrigat%C3%B3rios) |
+| **Modelo crítico** | O que alimenta decisões de negócio, relatórios financeiros ou dashboards de diretoria. Deve mais que um modelo padrão: um segundo revisor, uma reconciliação, um rebuild de tudo que vem depois dele. | [Etapa A](#3-o-processo-de-desenvolvimento-rotina--5-etapas) |
+| **Reconciliação** | O modelo comparado com algo que *não* é o modelo — uma planilha de fechamento, um sistema de origem — dentro de uma tolerância que a spec declara. | [Etapa E](#3-o-processo-de-desenvolvimento-rotina--5-etapas) |
+| **Caminho protegido** | Um arquivo em que o agente não pode mexer, garantido por CODEOWNERS e por uma regra do gate, porque editá-lo deixaria o agente mudar as regras que o julgam. | [Controle 5](#2-construindo-a-trava--5-controles-obrigat%C3%B3rios) |
+
 ---
 
 ## 0. Papéis — quem faz o quê
