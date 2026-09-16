@@ -34,7 +34,6 @@ Stdlib only, and it never opens a socket: the same two promises slp.py makes.
 import argparse
 import csv
 import json
-import re
 import sys
 
 SUFFIXES = ("_delta_pct", "_changed", "_value")
@@ -67,7 +66,7 @@ def number(value, name):
     try:
         return float(value)
     except (TypeError, ValueError):
-        raise SystemExit("diff_to_json: %s is %r, which is not a number" % (name, value))
+        raise SystemExit("diff_to_json: %s is %r, which is not a number" % (name, value)) from None
 
 
 def whole(value, name):
@@ -123,14 +122,16 @@ def build(row, model):
             "external_value": number(row[RECONCILIATION[1]], RECONCILIATION[1]),
         }
     if all(key in row for key in WINDOW):
-        diff["window"] = {"column": str(row["window_column"]),
-                          "start": str(row["window_start"]), "end": str(row["window_end"])}
+        diff["window"] = {
+            "column": str(row["window_column"]),
+            "start": str(row["window_start"]),
+            "end": str(row["window_end"]),
+        }
     return diff
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(
-        prog="diff_to_json", description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(prog="diff_to_json", description=__doc__.splitlines()[0])
     parser.add_argument("row", nargs="?", help="one row of csv or json (default: stdin)")
     parser.add_argument("--model", required=True, help="the dbt model these numbers are of")
     parser.add_argument("--out", help="where to write (default: stdout)")

@@ -20,7 +20,7 @@ so the 100 percent is what says every branch was looked at. Neither number
 moves: one is the extremum, the other a published constant, and M9 in
 test_meta.py bans the comments that would exempt a line from either.
 
-    coverage run --branch --include='tools/slp.py' -m pytest tools/tests -q
+    coverage run --branch --source=tools/spec_lock_diff -m pytest tools/tests -q
     python tools/tests/crap.py        # reads the .coverage file the run wrote
 
 Exit 0 when both hold, 1 when either does not, 2 when there is nothing to read.
@@ -34,8 +34,17 @@ import sys
 import tempfile
 
 COVERAGE, CRAP = 100.0, 30.0
-BRANCHES = (ast.If, ast.For, ast.While, ast.IfExp, ast.ExceptHandler, ast.With,
-            ast.Assert, ast.AsyncFor, ast.AsyncWith)
+BRANCHES = (
+    ast.If,
+    ast.For,
+    ast.While,
+    ast.IfExp,
+    ast.ExceptHandler,
+    ast.With,
+    ast.Assert,
+    ast.AsyncFor,
+    ast.AsyncWith,
+)
 
 
 def complexity(node):
@@ -56,7 +65,7 @@ def report():
     try:
         import coverage
     except ImportError:
-        raise SystemExit("crap: coverage.py is not installed (pip install -e '.[dev]')")
+        raise SystemExit("crap: coverage.py is not installed (pip install -e '.[dev]')") from None
     cov = coverage.Coverage()
     cov.load()
     with tempfile.TemporaryDirectory() as folder:
@@ -93,20 +102,26 @@ def main():
         percent = files[path]["summary"]["percent_covered"]
         if percent < COVERAGE:
             blocks += 1
-            print("BLOCK\t%s\t\tcoverage is %.1f percent of statements and branches, and the "
-                  "floor is %g\t[COVERAGE]" % (path, percent, COVERAGE))
+            print(
+                "BLOCK\t%s\t\tcoverage is %.1f percent of statements and branches, and the "
+                "floor is %g\t[COVERAGE]" % (path, percent, COVERAGE)
+            )
         for crap, cc, covered, name in scores(path, files[path]):
             functions += 1
             top = max(top, (crap, name))
             if crap > CRAP:
                 blocks += 1
-                print("BLOCK\t%s\t%s\tCRAP %.1f: complexity %d at %.0f percent coverage, and "
-                      "the cap is %g\t[CRAP]" % (path, name, crap, cc, covered * 100, CRAP))
+                print(
+                    "BLOCK\t%s\t%s\tCRAP %.1f: complexity %d at %.0f percent coverage, and "
+                    "the cap is %g\t[CRAP]" % (path, name, crap, cc, covered * 100, CRAP)
+                )
     if blocks:
         print("crap: %d block%s - BLOCKED" % (blocks, "" if blocks == 1 else "s"))
         return 1
-    print("crap: OK (%d functions in %d file%s, the highest CRAP is %.1f in %s)"
-          % (functions, len(files), "" if len(files) == 1 else "s", top[0], top[1]))
+    print(
+        "crap: OK (%d functions in %d file%s, the highest CRAP is %.1f in %s)"
+        % (functions, len(files), "" if len(files) == 1 else "s", top[0], top[1])
+    )
     return 0
 
 

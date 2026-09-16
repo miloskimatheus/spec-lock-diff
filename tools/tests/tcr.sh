@@ -11,7 +11,7 @@ set -u
 message=${1:?usage: tools/tests/tcr.sh "commit message"}
 cd "$(git rev-parse --show-toplevel)" || exit 2
 export COVERAGE_FILE="${TMPDIR:-/tmp}/slp-tcr.coverage"
-if coverage run --branch --include='tools/slp.py' -m pytest tools/tests -q -p no:cacheprovider \
+if coverage run --branch --source=tools/spec_lock_diff -m pytest tools/tests -q -p no:cacheprovider \
     && python tools/tests/crap.py; then
   git add -A && git commit -q -m "$message" && echo "tcr: committed $(git rev-parse --short HEAD)"
 else

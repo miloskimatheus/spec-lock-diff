@@ -6,9 +6,10 @@ happen, so adding a rule means adding a folder - never editing this file.
 """
 
 import pytest
-
-import slp
 from conftest import FIXTURES, assert_expected, cases, git, make_repo, run_slp
+
+import spec_lock_diff as slp
+from spec_lock_diff import gitread
 
 TREES = ("before", "mid", "after")
 # The plumbing tests need a repository, not a rule: this one changes nothing.
@@ -28,7 +29,9 @@ def test_gate_case(case, tmp_path):
 
 
 def test_replacing_mains_pre_registration_is_not_an_edit(tmp_path):
-    """README §3 Stage B: a pre-registration belongs to one pull request. I1 counts this PR's edits."""
+    """README §3 Stage B: a pre-registration belongs to one pull request. I1 counts this PR's
+    edits.
+    """
     repo = build(FIXTURES / "gate" / "I1_stale_replaced_then_edited", tmp_path)
     _, out, _ = run_slp(["gate", "--base", "base"], repo)
     assert "pre-registration was modified 1 time after it was first written" in out, out
@@ -39,7 +42,8 @@ def test_a_spec_first_written_on_the_branch_is_pointed_at(tmp_path):
     repo = build(FIXTURES / "gate" / "I4_spec_first_written_on_branch", tmp_path)
     second = git(repo, "rev-parse", "--short", "HEAD").strip()
     _, out, _ = run_slp(["gate", "--base", "base"], repo)
-    assert "meta.spec was first written on this branch, in commit %s by Fixture;" % second in out, out
+    said = "meta.spec was first written on this branch, in commit %s by Fixture;" % second
+    assert said in out, out
 
 
 def test_nothing_changed_says_so(tmp_path):
@@ -101,7 +105,8 @@ def test_a_merge_commit_in_the_range_is_walked_first_parent(tmp_path):
     repo = build(QUIET, tmp_path)
     git(repo, "checkout", "-q", "-b", "side", "base")
     (repo / "models" / "marts" / "side.yml").write_text(
-        "models:\n  - name: fct_side\n", encoding="utf-8")
+        "models:\n  - name: fct_side\n", encoding="utf-8"
+    )
     git(repo, "add", "-A")
     git(repo, "commit", "-q", "-m", "side commit")
     git(repo, "checkout", "-q", "main")
@@ -143,13 +148,15 @@ def test_every_file_at_one_commit_is_read_in_one_git_process(tmp_path, monkeypat
     repo = build(QUIET, tmp_path)
     for n in range(12):
         (repo / "models" / "marts" / ("m%02d.yml" % n)).write_text(
-            "models:\n  - name: fct_m%02d\n" % n, encoding="utf-8")
+            "models:\n  - name: fct_m%02d\n" % n, encoding="utf-8"
+        )
     git(repo, "add", "-A")
     git(repo, "commit", "-q", "-m", "twelve more models")
     calls = []
-    real = slp.subprocess.run
-    monkeypatch.setattr(slp.subprocess, "run",
-                        lambda *a, **k: (calls.append(a[0][3]), real(*a, **k))[1])
+    real = gitread.subprocess.run
+    monkeypatch.setattr(
+        gitread.subprocess, "run", lambda *a, **k: (calls.append(a[0][3]), real(*a, **k))[1]
+    )
     slp.inventory(repo, "HEAD")
     # ls-tree, then one cat-file for the thirteen yml and the one sql.
     assert calls == ["ls-tree", "cat-file"], calls
@@ -159,10 +166,11 @@ def test_a_file_with_multibyte_characters_is_read_whole(tmp_path):
     """cat-file sizes blobs in bytes; splitting the stream by characters loses them."""
     repo = build(QUIET, tmp_path)
     (repo / "models" / "marts" / "acentos.yml").write_text(
-        'models:\n  - name: fct_reconciliação\n    description: "não é ascii"\n',
-        encoding="utf-8")
+        'models:\n  - name: fct_reconciliação\n    description: "não é ascii"\n', encoding="utf-8"
+    )
     (repo / "models" / "marts" / "after.yml").write_text(
-        "models:\n  - name: fct_after\n", encoding="utf-8")
+        "models:\n  - name: fct_after\n", encoding="utf-8"
+    )
     git(repo, "add", "-A")
     git(repo, "commit", "-q", "-m", "accents")
     inv = slp.inventory(repo, "HEAD")
@@ -179,7 +187,9 @@ def test_a_blob_is_read_whole_and_unchanged(tmp_path):
 
 
 def test_a_path_the_commit_does_not_have_is_an_error(tmp_path):
-    """The header of a missing object has two words, not three; that is exit 2, not an empty file."""
+    """The header of a missing object has two words, not three; that is exit 2, not an empty
+    file.
+    """
     repo = build(QUIET, tmp_path)
     head = git(repo, "rev-parse", "HEAD").strip()
     with pytest.raises(slp.SlpError, match="cannot read no/such.yml at %s:" % head[:8]):
@@ -207,15 +217,18 @@ def test_the_filter_finding_names_the_column_it_was_put_on(tmp_path):
     """R7: the G2 line says model.column, and the mutation probe showed nothing held it to that."""
     repo = build(FIXTURES / "gate" / "G2_where_added", tmp_path)
     _, out, _ = run_slp(["gate", "--base", "base"], repo)
-    assert "test 'unique' on fct_orders.order_id now skips rows with where: status != 'cancelled'" in out, out
+    said = "test 'unique' on fct_orders.order_id now skips rows with where: status != 'cancelled'"
+    assert said in out, out
 
 
 def test_a_yml_that_does_not_parse_names_the_commit(tmp_path):
     """R3 and R7: exit 2 for the life of the branch, and the message says at which commit."""
     repo = build(QUIET, tmp_path)
-    (repo / "models" / "marts" / "broken.yml").write_text("models:\n\t- name: x\n", encoding="utf-8")
+    broken = repo / "models" / "marts" / "broken.yml"
+    broken.write_text("models:\n\t- name: x\n", encoding="utf-8")
     git(repo, "add", "-A")
     git(repo, "commit", "-q", "-m", "a tab where yml wants spaces")
     head = git(repo, "rev-parse", "HEAD").strip()
-    with pytest.raises(slp.SlpError, match="cannot parse models/marts/broken.yml at %s:" % head[:8]):
+    said = "cannot parse models/marts/broken.yml at %s:" % head[:8]
+    with pytest.raises(slp.SlpError, match=said):
         slp.inventory(repo, head)

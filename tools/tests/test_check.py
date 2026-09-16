@@ -5,7 +5,6 @@ adding a folder - never editing this file.
 """
 
 import pytest
-
 from conftest import FIXTURES, assert_expected, cases, run_slp
 
 
@@ -25,7 +24,8 @@ def test_the_lines_say_what_is_wrong_and_where():
         " names customer_email, but that column is not marked meta.sensitive: true\t[S3]\n"
         "BLOCK\tmodels/marts/dim_customers.yml\tdim_customers\tcolumn customer_document"
         " is marked meta.sensitive: true but is not in spec.sensitive_columns\t[S3]\n"
-        "slp check: 2 blocks - BLOCKED\n")
+        "slp check: 2 blocks - BLOCKED\n"
+    )
 
 
 def test_a_missing_spec_points_at_the_readme():

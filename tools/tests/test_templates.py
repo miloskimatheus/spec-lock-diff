@@ -11,9 +11,9 @@ import re
 import jsonschema
 import pytest
 import yaml
-
-import slp
 from conftest import TOOLS
+
+import spec_lock_diff as slp
 
 README = (TOOLS.parent / "README.md").read_text(encoding="utf-8")
 TEMPLATES = TOOLS / "templates"
@@ -57,8 +57,14 @@ def test_codeowners_adds_only_what_it_explains():
     # looks for CODEOWNERS, the other two files that pin dependencies, and the
     # file that pins the gate's own version when it is installed rather than
     # vendored - a package pin by another name.
-    extra = {"/tools/", "/CODEOWNERS", "/.github/CODEOWNERS",
-             "/package-lock.yml", "/dependencies.yml", "/.slp-version"}
+    extra = {
+        "/tools/",
+        "/CODEOWNERS",
+        "/.github/CODEOWNERS",
+        "/package-lock.yml",
+        "/dependencies.yml",
+        "/.slp-version",
+    }
     for path in owned:
         assert path in extra or path.strip("/").split("*")[0] in README, path
 
@@ -86,8 +92,13 @@ def test_agents_md_carries_the_eight_rules_and_their_mechanisms():
 def test_agents_md_says_it_is_not_a_control():
     template = (TEMPLATES / "AGENTS.md").read_text(encoding="utf-8")
     assert "Nothing in this file is a control" in template.split("\n\n")[1]
-    for command in ("python tools/slp.py check", "python tools/slp.py gate --base",
-                    "dbt compile", "dbt test --select test_type:unit", "dbt build"):
+    for command in (
+        "python tools/slp.py check",
+        "python tools/slp.py gate --base",
+        "dbt compile",
+        "dbt test --select test_type:unit",
+        "dbt build",
+    ):
         assert command in template
 
 
@@ -116,7 +127,11 @@ def test_the_workflows_trigger_alike_and_do_not_cancel_each_other():
     """
     for name, workflow in WORKFLOWS.items():
         assert workflow[True]["pull_request"]["types"] == [
-            "opened", "synchronize", "reopened", "ready_for_review"], name
+            "opened",
+            "synchronize",
+            "reopened",
+            "ready_for_review",
+        ], name
         assert workflow["concurrency"]["cancel-in-progress"] is True, name
         assert "github.workflow" in workflow["concurrency"]["group"], name
     # github.workflow is the workflow's own name, so distinct names are what make
@@ -129,7 +144,7 @@ def test_every_job_finishes_inside_the_budget_the_readme_promises():
     assert WORKFLOWS["ci.yml"]["jobs"]["ci"]["timeout-minutes"] == 5
     warehouse = WORKFLOWS["ci-warehouse.yml"]["jobs"]
     assert warehouse["build"]["timeout-minutes"] == 15  # Stage D: about 15 minutes
-    assert warehouse["diff"]["timeout-minutes"] == 60   # Stage E: one full build
+    assert warehouse["diff"]["timeout-minutes"] == 60  # Stage E: one full build
 
 
 def test_the_diff_waits_for_the_build_it_measures():
@@ -178,12 +193,17 @@ def test_the_first_workflow_needs_nothing_but_python():
     runs = _runs(WORKFLOWS["ci.yml"]["jobs"]["ci"])
     assert "exit 1" not in runs
     assert "dbt" not in runs
-    installs = [line.strip() for line in runs.splitlines()
-                if "pip install" in line and not line.strip().startswith("#")]
+    installs = [
+        line.strip()
+        for line in runs.splitlines()
+        if "pip install" in line and not line.strip().startswith("#")
+    ]
     # Two, and both are the gate: its dependencies, and - when the base branch
     # pins a version rather than vendoring tools/ - the gate itself.
-    assert installs == ['pip install "pyyaml" "jsonschema>=4"',
-                        'pip install --quiet "spec-lock-diff==$version"']
+    assert installs == [
+        'pip install "pyyaml" "jsonschema>=4"',
+        'pip install --quiet "spec-lock-diff==$version"',
+    ]
 
 
 def test_the_warehouse_workflow_fails_closed_until_it_is_edited():
@@ -192,26 +212,41 @@ def test_the_warehouse_workflow_fails_closed_until_it_is_edited():
     A template shipped unedited must not look like a pass: an empty Stage E that
     reports green is the green badge on nothing the framework exists to prevent.
     """
-    stubs = [step for job in WORKFLOWS["ci-warehouse.yml"]["jobs"].values()
-             for step in job["steps"] if "exit 1" in str(step.get("run", ""))]
+    stubs = [
+        step
+        for job in WORKFLOWS["ci-warehouse.yml"]["jobs"].values()
+        for step in job["steps"]
+        if "exit 1" in str(step.get("run", ""))
+    ]
     assert [s["name"] for s in stubs] == [
-        "warehouse auth", "production artifacts",
-        "warehouse auth", "production artifacts",
-        "dbt build with full data", "produce the diff"]
+        "warehouse auth",
+        "production artifacts",
+        "warehouse auth",
+        "production artifacts",
+        "dbt build with full data",
+        "produce the diff",
+    ]
     for step in stubs:
         assert ">&2" in step["run"], step["name"]
 
 
 def test_every_piped_step_sets_bash_so_tee_cannot_swallow_a_failure():
-    counts = {name: (TEMPLATES / name).read_text(encoding="utf-8").count("shell: bash")
-              for name in WORKFLOWS}
+    counts = {
+        name: (TEMPLATES / name).read_text(encoding="utf-8").count("shell: bash")
+        for name in WORKFLOWS
+    }
     assert counts == {"ci.yml": 2, "ci-warehouse.yml": 1}
 
 
 def test_the_findings_are_fenced_so_the_job_summary_can_be_read():
     """A finding is tab separated; unfenced, the summary renders the lot as one paragraph."""
-    piped = [step for workflow in WORKFLOWS.values() for job in workflow["jobs"].values()
-             for step in job["steps"] if "tee -a" in str(step.get("run", ""))]
+    piped = [
+        step
+        for workflow in WORKFLOWS.values()
+        for job in workflow["jobs"].values()
+        for step in job["steps"]
+        if "tee -a" in str(step.get("run", ""))
+    ]
     assert len(piped) == 3
     for step in piped:
         run = step["run"]
@@ -236,8 +271,11 @@ def test_the_readme_and_the_workflows_ask_for_the_same_jsonschema():
     an adapter happened to pull in.
     """
     for name in WORKFLOWS:
-        lines = [line for line in (TEMPLATES / name).read_text(encoding="utf-8").splitlines()
-                 if "pip install" in line and not line.strip().startswith("#")]
+        lines = [
+            line
+            for line in (TEMPLATES / name).read_text(encoding="utf-8").splitlines()
+            if "pip install" in line and not line.strip().startswith("#")
+        ]
         # The gate installed by version carries the two pins in its own metadata,
         # which test_packaging holds to the same allowlist. Every other install
         # names them here, so no job can reach a gate with whatever an adapter
@@ -252,19 +290,33 @@ def test_the_readme_and_the_workflows_ask_for_the_same_jsonschema():
 
 def test_the_rule_count_in_the_readmes_is_the_number_of_rules():
     """A count nobody checks is a count that drifts the first time a rule lands."""
-    import slp
-    said = {7: "seven", 24: "twenty-four", 25: "twenty-five", 26: "twenty-six",
-            27: "twenty-seven", 28: "twenty-eight", 29: "twenty-nine", 30: "thirty",
-            31: "thirty-one", 32: "thirty-two"}
-    words = {"twenty-four": "vinte e quatro", "twenty-five": "vinte e cinco",
-             "twenty-six": "vinte e seis", "twenty-seven": "vinte e sete",
-             "twenty-eight": "vinte e oito", "twenty-nine": "vinte e nove",
-             "thirty": "trinta", "thirty-one": "trinta e uma", "thirty-two": "trinta e duas"}
+    said = {
+        7: "seven",
+        24: "twenty-four",
+        25: "twenty-five",
+        26: "twenty-six",
+        27: "twenty-seven",
+        28: "twenty-eight",
+        29: "twenty-nine",
+        30: "thirty",
+        31: "thirty-one",
+        32: "thirty-two",
+    }
+    words = {
+        "twenty-four": "vinte e quatro",
+        "twenty-five": "vinte e cinco",
+        "twenty-six": "vinte e seis",
+        "twenty-seven": "vinte e sete",
+        "twenty-eight": "vinte e oito",
+        "twenty-nine": "vinte e nove",
+        "thirty": "trinta",
+        "thirty-one": "trinta e uma",
+        "thirty-two": "trinta e duas",
+    }
     english = said.get(len(slp.RULE_IDS))
     assert english, "no word for %d rules; add it here" % len(slp.RULE_IDS)
     assert "%s rules" % english in (TOOLS / "README.md").read_text(encoding="utf-8")
-    assert "%s regras" % words[english] in \
-        (TOOLS / "README.pt-br.md").read_text(encoding="utf-8")
+    assert "%s regras" % words[english] in (TOOLS / "README.pt-br.md").read_text(encoding="utf-8")
 
 
 def test_the_gate_and_its_flag_live_in_one_file():
@@ -280,13 +332,21 @@ def test_the_gate_and_its_flag_live_in_one_file():
     required gate quietly never runs at all.
     """
     assert [n for n, w in WORKFLOWS.items() if "AGENT_PR" in str(w.get("env", {}))] == ["ci.yml"]
-    assert {n for n, w in WORKFLOWS.items() for job in w["jobs"].values()
-            for s in job["steps"] if str(s.get("name", "")).startswith("slp gate")} == {"ci.yml"}
+    assert {
+        n
+        for n, w in WORKFLOWS.items()
+        for job in w["jobs"].values()
+        for s in job["steps"]
+        if str(s.get("name", "")).startswith("slp gate")
+    } == {"ci.yml"}
     flag = WORKFLOWS["ci.yml"]["env"]["AGENT_PR"]
     assert "vars.AGENT_LOGIN == ''" in flag
     assert "github.event.pull_request.user.login == vars.AGENT_LOGIN" in flag
-    gates = [s for s in WORKFLOWS["ci.yml"]["jobs"]["ci"]["steps"]
-             if str(s.get("name", "")).startswith("slp gate")]
+    gates = [
+        s
+        for s in WORKFLOWS["ci.yml"]["jobs"]["ci"]["steps"]
+        if str(s.get("name", "")).startswith("slp gate")
+    ]
     assert [g["name"] for g in gates] == ["slp gate", "slp gate (advisory)"]
     required, advisory = gates
     assert required["if"] == "env.AGENT_PR == 'true'" and "continue-on-error" not in required
@@ -334,13 +394,16 @@ def _converter():
     return module
 
 
-ONE_ROW = ("row_delta,removed_pks,gross_revenue_changed,gross_revenue_delta_pct,"
-           "window_column,window_start,window_end\n"
-           "8400,0,17,0.42,order_date,2025-01-01,2025-02-01\n")
+ONE_ROW = (
+    "row_delta,removed_pks,gross_revenue_changed,gross_revenue_delta_pct,"
+    "window_column,window_start,window_end\n"
+    "8400,0,17,0.42,order_date,2025-01-01,2025-02-01\n"
+)
 
 
 def _built(text, model="fct_orders"):
     import io
+
     convert = _converter()
     return convert.build(convert.read_row(io.StringIO(text)), model)
 
@@ -355,7 +418,7 @@ def test_the_converter_writes_what_the_schema_demands():
     """
     diff = _built(ONE_ROW)
     jsonschema.Draft202012Validator(
-        json.loads((TOOLS / "schemas" / "diff.schema.json").read_text(encoding="utf-8"))
+        json.loads((slp.SCHEMA_DIR / "diff.schema.json").read_text(encoding="utf-8"))
     ).validate(diff)
     assert diff["altered_columns"] == ["gross_revenue"]
     assert diff["metrics"] == {"gross_revenue": {"delta_pct": 0.42}}
@@ -387,27 +450,39 @@ def test_a_model_production_does_not_have_carries_its_value():
 
 def test_json_and_csv_are_read_the_same_way():
     """Whatever your warehouse client writes, the row is the row."""
-    as_json = json.dumps({"row_delta": 8400, "removed_pks": 0,
-                          "gross_revenue_changed": 17, "gross_revenue_delta_pct": 0.42,
-                          "window_column": "order_date", "window_start": "2025-01-01",
-                          "window_end": "2025-02-01"})
+    as_json = json.dumps(
+        {
+            "row_delta": 8400,
+            "removed_pks": 0,
+            "gross_revenue_changed": 17,
+            "gross_revenue_delta_pct": 0.42,
+            "window_column": "order_date",
+            "window_start": "2025-01-01",
+            "window_end": "2025-02-01",
+        }
+    )
     assert _built(as_json) == _built(ONE_ROW)
 
 
 def test_a_critical_models_two_numbers_travel_together():
-    diff = _built("row_delta,removed_pks,reconciliation_model_value,"
-                  "reconciliation_external_value\n312,0,1000000.0,1000200.0\n",
-                  "fct_invoices")
+    diff = _built(
+        "row_delta,removed_pks,reconciliation_model_value,"
+        "reconciliation_external_value\n312,0,1000000.0,1000200.0\n",
+        "fct_invoices",
+    )
     assert diff["reconciliation"] == {"model_value": 1000000.0, "external_value": 1000200.0}
 
 
-@pytest.mark.parametrize("row", [
-    "",
-    "row_delta\n8400\n",                                   # no removed_pks
-    "row_delta,removed_pks\n8400,-1\n",                    # keys cannot un-remove
-    "row_delta,removed_pks\nplenty,0\n",                   # not a number
-    "row_delta,removed_pks\n8400,0\n8401,0\n",            # two rows, one model
-])
+@pytest.mark.parametrize(
+    "row",
+    [
+        "",
+        "row_delta\n8400\n",  # no removed_pks
+        "row_delta,removed_pks\n8400,-1\n",  # keys cannot un-remove
+        "row_delta,removed_pks\nplenty,0\n",  # not a number
+        "row_delta,removed_pks\n8400,0\n8401,0\n",  # two rows, one model
+    ],
+)
 def test_what_it_cannot_convert_it_refuses(row):
     """Fail closed, as slp does: a diff nobody could write is not an empty diff."""
     with pytest.raises(SystemExit):
@@ -420,12 +495,22 @@ def test_the_converter_output_is_a_diff_compare_accepts(tmp_path):
     (project / "models" / "marts").mkdir(parents=True)
     (project / "models" / "marts" / "fct_orders.sql").write_text("select 1", encoding="utf-8")
     (project / "models" / "marts" / "fct_orders.yml").write_text(
-        (TOOLS / "tests" / "fixtures" / "check" / "prereg_ok"
-         / "models" / "marts" / "fct_orders.yml").read_text(encoding="utf-8"), encoding="utf-8")
+        (
+            TOOLS
+            / "tests"
+            / "fixtures"
+            / "check"
+            / "prereg_ok"
+            / "models"
+            / "marts"
+            / "fct_orders.yml"
+        ).read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
     diff = tmp_path / "fct_orders.json"
     diff.write_text(json.dumps(_built(ONE_ROW)), encoding="utf-8")
     from conftest import run_slp
+
     code, out, err = run_slp(["compare", "--project-dir", str(project), str(diff)], tmp_path)
     assert code == 0, out + err
     assert "row_delta 8400, declared 0..12000" in out
-

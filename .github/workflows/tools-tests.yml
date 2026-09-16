@@ -39,8 +39,15 @@ jobs:
       - if: matrix.python-version == '3.12'
         run: |
           pip install "coverage>=7,<8"
-          coverage run --branch --include='tools/slp.py' -m pytest tools/tests -q
+          coverage run --branch --source=tools/spec_lock_diff -m pytest tools/tests -q
           python tools/tests/crap.py
+      # ruff's two defaults, a cyclomatic complexity of 10 per function and 100
+      # columns per line, and its formatter; the configuration is in pyproject.
+      - if: matrix.python-version == '3.12'
+        run: |
+          pip install "ruff>=0.16,<1"
+          ruff check tools
+          ruff format --check tools
 
   # Every commit of a pull request is green on its own: test && commit ||
   # revert, applied to this repository. A red commit in the middle of a branch
@@ -85,8 +92,8 @@ jobs:
       - run: pip install pyyaml "jsonschema>=4" pytest
       - run: |
           base=${{ github.event.pull_request.base.sha }}
-          if [ -n "$base" ] && git diff --quiet "$base" HEAD -- tools/slp.py tools/schemas tools/tests; then
-            echo "nothing to mutate: tools/slp.py, tools/schemas and tools/tests are as the base branch has them"
+          if [ -n "$base" ] && git diff --quiet "$base" HEAD -- tools/slp.py tools/spec_lock_diff tools/tests; then
+            echo "nothing to mutate: the tool and its tests are as the base branch has them"
           else
             python tools/tests/mutants.py --jobs 4
           fi

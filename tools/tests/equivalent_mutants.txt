@@ -4,7 +4,7 @@
 # for a mutant the suite kills, or that no longer exists, fails the run.
 int/git_blobs/2        the offset skips the first byte of a sha that nothing reads
 int/inventory/1        rsplit's last element is the same at maxsplit 1 or 2
-int/gate_test_removed/2  counts every declaration twice, on both sides of one comparison
+int/_live/1            counts every declaration twice, on both sides of one comparison
 true/stale_preregs/1   a full inventory carries the same pre-registrations as a light one
 true/cmd_gate/1        a full inventory per commit walks the same specs and pre-registrations
 true/cmd_compare/1     ok is set again before any rule reads it

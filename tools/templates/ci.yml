@@ -99,7 +99,7 @@ jobs:
             # Installed, and pinned by the branch being targeted: a pull request
             # that edits .slp-version does not change the version that judges it.
             pip install --quiet "spec-lock-diff==$version"
-            echo "SLP=$(python -c 'import spec_lock_diff.slp as m; print(m.__file__)')" >> "$GITHUB_ENV"
+            echo "SLP=$(python -c 'import spec_lock_diff.__main__ as m; print(m.__file__)')" >> "$GITHUB_ENV"
           elif git cat-file -e "$base:tools/slp.py" 2>/dev/null; then
             git archive "$base" tools | tar -x -C "$RUNNER_TEMP"
             mv "$RUNNER_TEMP/tools" "$RUNNER_TEMP/base-tools"

@@ -40,7 +40,7 @@ import subprocess
 import sys
 
 TOOLS = pathlib.Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(TOOLS))  # so a test can import slp and read one schema
+sys.path.insert(0, str(TOOLS))  # so a test can import the package and read one schema
 SLP = TOOLS / "slp.py"
 FIXTURES = pathlib.Path(__file__).resolve().parent / "fixtures"
 # The runnable example. Absent from a vendored tools/, which is why the tests
@@ -50,8 +50,10 @@ EXAMPLES = TOOLS.parent / "examples"
 # One author, one email, one date: two runs of the suite build the same repository
 # and therefore produce the same output (R4). The email is synthetic (R9).
 GIT_ENV = {
-    "GIT_AUTHOR_NAME": "Fixture", "GIT_AUTHOR_EMAIL": "fixture@example.com",
-    "GIT_COMMITTER_NAME": "Fixture", "GIT_COMMITTER_EMAIL": "fixture@example.com",
+    "GIT_AUTHOR_NAME": "Fixture",
+    "GIT_AUTHOR_EMAIL": "fixture@example.com",
+    "GIT_COMMITTER_NAME": "Fixture",
+    "GIT_COMMITTER_EMAIL": "fixture@example.com",
     "GIT_AUTHOR_DATE": "2025-01-01T00:00:00+00:00",
     "GIT_COMMITTER_DATE": "2025-01-01T00:00:00+00:00",
 }
@@ -65,17 +67,19 @@ def run_slp(args, cwd, as_subprocess=False):
     real command line, which is what CI runs; test_cli.py proves the two agree.
     """
     if as_subprocess:
-        done = subprocess.run([sys.executable, str(SLP)] + list(args), cwd=str(cwd),
-                              capture_output=True, text=True)
+        done = subprocess.run(
+            [sys.executable, str(SLP)] + list(args), cwd=str(cwd), capture_output=True, text=True
+        )
         return done.returncode, done.stdout, done.stderr
-    import slp
+    from spec_lock_diff.cli import main
+
     out, err = io.StringIO(), io.StringIO()
     here = os.getcwd()
     os.chdir(str(cwd))
     try:
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             try:
-                code = slp.main(list(args))
+                code = main(list(args))
             except SystemExit as exc:  # argparse exits on a bad command line
                 code = exc.code if isinstance(exc.code, int) else 2
     finally:
@@ -87,9 +91,14 @@ def git(repo, *args):
     """Run one git command in repo with the fixed identity. Raises if it fails."""
     env = dict(os.environ)
     env.update(GIT_ENV)
-    return subprocess.run(["git", "-C", str(repo), "-c", "commit.gpgsign=false",
-                           "-c", "core.hooksPath=/dev/null"] + list(args),
-                          capture_output=True, text=True, env=env, check=True).stdout
+    return subprocess.run(
+        ["git", "-C", str(repo), "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"]
+        + list(args),
+        capture_output=True,
+        text=True,
+        env=env,
+        check=True,
+    ).stdout
 
 
 def make_repo(tmp_path, *trees):
