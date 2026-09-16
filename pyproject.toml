@@ -23,7 +23,7 @@ name = "spec-lock-diff"
 version = "0.6.0"
 description = "Deterministic gates for dbt models written by AI agents: a spec, a pre-registration, and a diff held against it."
 readme = "tools/README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {file = "LICENSE"}
 authors = [{name = "Matheus Miloski"}]
 keywords = ["dbt", "analytics-engineering", "data-quality", "ai-agents", "ci"]
@@ -72,7 +72,7 @@ spec_lock_diff = ["schemas/*.json"]
 # printf-style rule (UP031) is off on purpose: every finding is a sentence with
 # slots, and "%s" formatting keeps the sentence readable as one string.
 [tool.ruff]
-target-version = "py39"
+target-version = "py310"
 line-length = 100
 extend-exclude = ["tools/tests/fixtures", "examples"]
 
@@ -88,8 +88,9 @@ known-first-party = ["spec_lock_diff"]
 
 # Strict: every function annotated, nothing implicitly Any, and the two
 # libraries typed through their stub packages in the dev extra.
-# mypy 2 analyses 3.10 and up; the suite still runs on 3.9, and ruff targets it, so
-# nothing 3.10-only can slip in.
+# mypy 2 analyses 3.10 and up, and 3.10 is the floor: the oldest leg the suite
+# runs on, what the wheel declares, and what ruff targets. 3.9 reached its end
+# of life in October 2025.
 [tool.mypy]
 python_version = "3.10"
 strict = true

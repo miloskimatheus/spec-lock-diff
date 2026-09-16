@@ -4,7 +4,7 @@
 
 <p align="center">
   <img alt="built for dbt" src="https://img.shields.io/badge/built%20for-dbt-A34F2E">
-  <img alt="python 3.9+" src="https://img.shields.io/badge/python-3.9%2B-444d56">
+  <img alt="python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-444d56">
   <img alt="no network, no warehouse" src="https://img.shields.io/badge/no%20network-no%20warehouse-0F6B4F">
   <img alt="docs in EN and pt-BR" src="https://img.shields.io/badge/docs-EN%20%C2%B7%20pt--BR-8A5A0B">
 </p>
@@ -55,7 +55,7 @@ slp gate: 1 block - BLOCKED
 
 ## 1. Install
 
-**You need** Python 3.9+ and git 2.20+. Then one of two ways in.
+**You need** Python 3.10+ and git 2.20+. Then one of two ways in.
 
 | | How | What it buys, and what it costs |
 | --- | --- | --- |

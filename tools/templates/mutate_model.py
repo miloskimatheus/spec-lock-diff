@@ -146,7 +146,7 @@ def _predicates(m: str, sql: str, start: int, end: int) -> list[tuple[int, int]]
             cuts += [start + t.start(), start + t.end()]
     cuts.append(end)
     spans = []
-    for a, b in zip(cuts[0::2], cuts[1::2]):
+    for a, b in zip(cuts[0::2], cuts[1::2], strict=True):  # start, pairs of cuts, end
         piece = sql[a:b]
         left, right = len(piece) - len(piece.lstrip()), len(piece) - len(piece.rstrip())
         if piece.strip():

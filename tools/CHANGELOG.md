@@ -95,6 +95,9 @@ has a place to hold.
   complexity of 10 and every line to 100 columns, both its own defaults, and
   `mypy --strict` holds every annotation. `inventory` and `read_doc` were the
   two functions over the complexity line, and each is two now.
+- **Python 3.10 is the floor.** 3.9 reached its end of life in October 2025,
+  and the wheel, the CI matrix, ruff's target and mypy's version now agree on
+  one number instead of two.
 
 ## 0.5.0 — the ladder
 
