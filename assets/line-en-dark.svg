@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 942 176" width="942" height="176" role="img" aria-label="One finding line: BLOCK, the file, the model, what is wrong in one sentence, and the rule in brackets; then the summary line, which carries the exit code" font-family='"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace'>
+<title>One finding line: BLOCK, the file, the model, what is wrong in one sentence, and the rule in brackets; then the summary line, which carries the exit code</title>
+<rect width="942" height="176" fill="#0d1117"/>
+
+<text x="1" y="12" font-size="10" letter-spacing="2" fill="#e6edf3" opacity=".55">ONE LINE PER FINDING, FIVE FIELDS, A TAB BETWEEN THEM</text>
+<g fill="none" stroke="#e6edf3" stroke-width="1.4" opacity=".6"><rect x="1" y="26" width="940" height="118"/><path d="M1 104h940"/></g>
+<text x="19" y="54" font-size="11.5" font-weight="600" fill="#E58174">BLOCK</text><path d="M20 62v12" fill="none" stroke="#8b949e" stroke-width="1"/><text x="19" y="88" font-size="9" letter-spacing="1.2" fill="#8b949e">KIND</text>
+<text x="82" y="54" font-size="11.5" opacity=".85" fill="#e6edf3">models/marts/fct_orders.yml</text><path d="M83 62v12" fill="none" stroke="#8b949e" stroke-width="1"/><text x="82" y="88" font-size="9" letter-spacing="1.2" fill="#8b949e">FILE</text>
+<text x="297" y="54" font-size="11.5" opacity=".85" fill="#e6edf3">fct_orders</text><path d="M298 62v12" fill="none" stroke="#8b949e" stroke-width="1"/><text x="297" y="88" font-size="9" letter-spacing="1.2" fill="#8b949e">MODEL</text>
+<text x="394" y="54" font-size="11.5" opacity=".85" fill="#e6edf3">test 'unique' on order_id exists on main but not here</text><path d="M395 62v12" fill="none" stroke="#8b949e" stroke-width="1"/><text x="394" y="88" font-size="9" letter-spacing="1.2" fill="#8b949e">WHAT IS WRONG, IN ONE SENTENCE</text>
+<text x="789" y="54" font-size="11.5" font-weight="600" fill="#E08BA8">[G1]</text><path d="M790 62v12" fill="none" stroke="#8b949e" stroke-width="1"/><text x="789" y="88" font-size="9" letter-spacing="1.2" fill="#8b949e">RULE</text>
+<text x="19" y="128" font-size="11.5" fill="#e6edf3" opacity=".85">slp gate: 1 block - BLOCKED</text>
+<text x="922" y="128" text-anchor="end" font-size="11.5" font-weight="600" fill="#E58174">→ exit 1</text>
+<text x="1" y="168" font-size="9.5" fill="#8b949e">left to right: what happened, where, to which model, why, and which rule says so · the last line is the verdict, and BLOCK means exit 1</text>
+</svg>

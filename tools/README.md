@@ -76,6 +76,13 @@ Then climb. Each rung below is green on its own and worth something on its own,
 and no rule on a rung you have reached is weaker for the rungs you have not.
 Stop where the value stops.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../assets/ladder-en-dark.svg">
+    <img src="../assets/ladder-en-light.svg" alt="Five rungs, each green on its own: check on your machine; check and gate in CI; the paths nobody may quietly edit; the controls that are not code; Stage E, the diff" width="900">
+  </picture>
+</p>
+
 ### Rung 1 — `check`, on your machine
 
 ```bash
@@ -448,6 +455,13 @@ tests cloned on, so one `dbt test` invocation covers all of them. Copy it to
 of it, the way the tools run, so a pull request that edits it is not judged
 by its own edit.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../assets/mutants-en-dark.svg">
+    <img src="../assets/mutants-en-light.svg" alt="The changed model is mutated one operator at a time; its unit tests run once against every mutant; a mutant a unit test fails on is killed, a survivor blocks the pull request, and one a human listed as equivalent informs" width="900">
+  </picture>
+</p>
+
 **Runs at** Stage D, on every push, after the sample build. On your machine,
 `--dry-run` lists what it would try and runs nothing:
 
@@ -503,6 +517,13 @@ one invocation rather than one each.
 
 One line per finding, tab-separated, then one summary line. Everything on stdout;
 errors that stop the tool go to stderr.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../assets/line-en-dark.svg">
+    <img src="../assets/line-en-light.svg" alt="One finding line: BLOCK, the file, the model, what is wrong in one sentence, and the rule in brackets; then the summary line, which carries the exit code" width="900">
+  </picture>
+</p>
 
 ```
 BLOCK	models/marts/fct_orders.yml	fct_orders	test 'unique' on fct_orders.order_id exists on main but not in this PR	[G1]
@@ -570,6 +591,13 @@ One row per rule: what it blocks, where the framework asks for it, and the two
 fixtures the meta-tests hold it to — one where it fires, one where it stays
 silent. **M2** fails if a rule has no row, or a row names a fixture that does not
 do what it says.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../assets/rules-en-dark.svg">
+    <img src="../assets/rules-en-light.svg" alt="The 35 rules as squares under the command that prints them, by family: filled when the rule blocks, outlined when it informs" width="900">
+  </picture>
+</p>
 
 Tags: `§1 P`*n* a principle, `§2 C`*n* a control, `§3 C R`*n* an agent rule,
 `§3 A`–`§3 E` a stage. **Five rules only ever inform** and never change the exit

@@ -15,6 +15,8 @@ mismatch into a light card on a dark page, which still reads.
 
 import io
 import os
+import re
+import textwrap
 
 # Beside this file, so a clone can regenerate the drawings without editing it.
 OUT = os.path.dirname(os.path.abspath(__file__))
@@ -89,9 +91,43 @@ L = {
         "proc_alt": "Stage A is human, stages B C and D run locked inside the platform, stage E returns to a human who only reads the automated diff",
 
         "cmds_head": "WHICH COMMAND RUNS WHEN",
-        "cmds_key": "bar = the stages it runs in  ·  dotted = the same command, run again",
-        "bar_check_a": "on the spec", "bar_check_cd": "on every commit, then in CI",
-        "bar_gate": "in CI, against the base branch", "bar_compare": "on the diff.json",
+        "cell_check": ["the spec · S1 to S5", None,
+                       "the pre-registration and the tests · P1, P2, T1 to T3", "again, on every push", None],
+        "cell_gate": [None, None, "every step of the agent's loop",
+                      "against the base · G1 to G10, required on the agent's pull requests", None],
+        "cell_compare": [None, None, None, None, "the diff.json, against the pre-registration · C0 to C7"],
+        "who": "WHO ACTS", "who_human": "A HUMAN", "who_agent": "THE AGENT", "who_platform": "THE PLATFORM",
+        "prints_a": "each prints one line per finding · ", "prints_b": " exit 1 · ", "prints_c": " exit 0",
+        "filled": "a filled cell is where the command runs, and what it reads there",
+
+        "lad_head": "ADOPTION IS A LADDER, NOT A CLIFF", "rung": "RUNG",
+        "rungs": [("check, on your machine", "Python and two libraries"),
+                  ("check and gate in CI", "one file, one variable"),
+                  ("the paths nobody may quietly edit", "CODEOWNERS, AGENTS.md, tcr.sh and branch protection"),
+                  ("the controls that are not code", "the platform: identity, access, caps, profiles"),
+                  ("Stage E, the diff", "a warehouse and the diff query, yours to write")],
+        "lad_foot": "each rung is green on its own · stop where the value stops",
+        "mut_head": "STAGE D · THE MUTATION CHECK",
+        "mut_model_sub": "the sql this pull request changed",
+        "mut_ops": "MUTATED, ONE OPERATOR AT A TIME",
+        "mut_tests": "the unit tests", "mut_tests_sub": "run once on given rows, reading no table",
+        "mut_killed": "a unit test failed on it: killed", "mut_survived": "every unit test passed: survived",
+        "mut_listed": "listed as equivalent: informs",
+        "mut_why": "one survivor blocks; a changed model with no unit test blocks too",
+        "mut_foot": "nothing is scanned: every input is mocked, so the compiled query reads no table",
+        "line_head": "ONE LINE PER FINDING, FIVE FIELDS, A TAB BETWEEN THEM",
+        "line_kind": "KIND", "line_file": "FILE", "line_model": "MODEL",
+        "line_what": "WHAT IS WRONG, IN ONE SENTENCE", "line_rule": "RULE",
+        "line_sentence": "test 'unique' on order_id exists on main but not here",
+        "line_summary": "slp gate: 1 block - BLOCKED", "line_exit": "→ exit 1",
+        "line_foot": "left to right: what happened, where, to which model, why, and which rule says so · the last line is the verdict, and BLOCK means exit 1",
+        "rules_head": "{n} RULES, BY THE COMMAND THAT PRINTS THEM",
+        "rules_blocks": "blocks · exit 1", "rules_informs": "informs · exit 0",
+        "rules_families": "S the spec · P the pre-registration · T the tests · G the branch · C the numbers · I a reading for a human",
+        "rules_alt": "The {n} rules as squares under the command that prints them, by family: filled when the rule blocks, outlined when it informs",
+        "line_alt": "One finding line: BLOCK, the file, the model, what is wrong in one sentence, and the rule in brackets; then the summary line, which carries the exit code",
+        "mut_alt": "The changed model is mutated one operator at a time; its unit tests run once against every mutant; a mutant a unit test fails on is killed, a survivor blocks the pull request, and one a human listed as equivalent informs",
+        "lad_alt": "Five rungs, each green on its own: check on your machine; check and gate in CI; the paths nobody may quietly edit; the controls that are not code; Stage E, the diff",
         "q_check": "is there a spec, and can its test fail?",
         "q_gate": "did this branch weaken anything that judges the code?",
         "q_compare": "do the numbers match what was promised?",
@@ -167,9 +203,43 @@ L = {
         "proc_alt": "A etapa A é humana, as etapas B C e D rodam trancadas dentro da plataforma, a etapa E volta para um humano que apenas lê o diff automático",
 
         "cmds_head": "QUAL COMANDO RODA QUANDO",
-        "cmds_key": "barra = etapas em que roda  ·  pontilhado = o mesmo comando, de novo",
-        "bar_check_a": "na spec", "bar_check_cd": "a cada commit, depois no CI",
-        "bar_gate": "no CI, contra o branch base", "bar_compare": "sobre o diff.json",
+        "cell_check": ["a spec · S1 a S5", None,
+                       "o pré-registro e os testes · P1, P2, T1 a T3", "de novo, a cada push", None],
+        "cell_gate": [None, None, "cada passo do loop do agente",
+                      "contra a base · G1 a G10, obrigatório nos pull requests do agente", None],
+        "cell_compare": [None, None, None, None, "o diff.json, contra o pré-registro · C0 a C7"],
+        "who": "QUEM AGE", "who_human": "UM HUMANO", "who_agent": "O AGENTE", "who_platform": "A PLATAFORMA",
+        "prints_a": "cada um imprime uma linha por achado · ", "prints_b": " exit 1 · ", "prints_c": " exit 0",
+        "filled": "uma célula preenchida é onde o comando roda, e o que ele lê ali",
+
+        "lad_head": "ADOTAR É UMA ESCADA, NÃO UM PENHASCO", "rung": "DEGRAU",
+        "rungs": [("check, na sua máquina", "Python e duas bibliotecas"),
+                  ("check e gate no CI", "um arquivo, uma variável"),
+                  ("os caminhos que ninguém edita caladinho", "CODEOWNERS, AGENTS.md, tcr.sh e branch protection"),
+                  ("os controles que não são código", "a plataforma: identidade, acesso, teto, perfis"),
+                  ("Etapa E, o diff", "um warehouse e a query do diff, que é sua")],
+        "lad_foot": "cada degrau fica verde sozinho · pare onde o valor parar",
+        "mut_head": "ETAPA D · O MUTATION CHECK",
+        "mut_model_sub": "o sql que este pull request alterou",
+        "mut_ops": "MUTADO, UM OPERADOR POR VEZ",
+        "mut_tests": "os unit tests", "mut_tests_sub": "rodam uma vez sobre o given, sem ler tabela",
+        "mut_killed": "um unit test falhou nele: morto", "mut_survived": "todo unit test passou: sobreviveu",
+        "mut_listed": "listado como equivalente: informa",
+        "mut_why": "um sobrevivente bloqueia; um modelo alterado sem unit test também bloqueia",
+        "mut_foot": "nada é escaneado: toda entrada é simulada, então a query compilada não lê tabela",
+        "line_head": "UMA LINHA POR ACHADO, CINCO CAMPOS, UM TAB ENTRE ELES",
+        "line_kind": "TIPO", "line_file": "ARQUIVO", "line_model": "MODELO",
+        "line_what": "O QUE ESTÁ ERRADO, NUMA FRASE", "line_rule": "REGRA",
+        "line_sentence": "test 'unique' on order_id exists on main but not here",
+        "line_summary": "slp gate: 1 block - BLOCKED", "line_exit": "→ exit 1",
+        "line_foot": "da esquerda para a direita: o que houve, onde, em que modelo, por quê, e que regra diz isso · a última linha é o veredito, e BLOCK quer dizer exit 1",
+        "rules_head": "{n} REGRAS, PELO COMANDO QUE AS IMPRIME",
+        "rules_blocks": "bloqueia · exit 1", "rules_informs": "informa · exit 0",
+        "rules_families": "S a spec · P o pré-registro · T os testes · G o branch · C os números · I uma leitura para um humano",
+        "rules_alt": "As {n} regras como quadrados sob o comando que as imprime, por família: preenchido quando a regra bloqueia, contornado quando informa",
+        "line_alt": "Uma linha de achado: BLOCK, o arquivo, o modelo, o que está errado numa frase, e a regra entre colchetes; depois a linha de resumo, que carrega o exit code",
+        "mut_alt": "O modelo alterado é mutado um operador por vez; seus unit tests rodam uma vez contra todo mutante; um mutante em que um unit test falha morre, um sobrevivente bloqueia o pull request, e um que um humano listou como equivalente informa",
+        "lad_alt": "Cinco degraus, cada um verde sozinho: check na sua máquina; check e gate no CI; os caminhos que ninguém edita caladinho; os controles que não são código; Etapa E, o diff",
         "q_check": "existe spec, e o teste dela pode falhar?",
         "q_gate": "este branch enfraqueceu algo que julga o código?",
         "q_compare": "os números batem com o que foi prometido?",
@@ -401,45 +471,221 @@ def process(t, s):
 
 
 # ── which command runs at which stage ───────────────────────────────────────
+def _lines(x, y, texts, size, fill, lh, anchor="start", weight=None):
+    """One <text> per line, the block centred on y."""
+    top = y - (len(texts) - 1) * lh / 2
+    w = f' font-weight="{weight}"' if weight else ""
+    return "".join(f'<text x="{x}" y="{top + k * lh:.1f}" text-anchor="{anchor}" font-size="{size}"{w}'
+                   f' fill="{fill}">{line}</text>' for k, line in enumerate(texts))
+
+
 def commands(t, s):
-    """The three commands over the five stages, on process()'s own x geometry."""
-    i, m = t["ink"], t["muted"]
-    stages = ((1, 146, "A", s["sA"]), (207, 144, "B", s["sB"]), (377, 144, "C", s["sC"]),
-              (547, 144, "D", s["sD"]), (751, 190, "E", s["sE"]))
-    head = "".join(
-        f'<rect x="{x}" y="24" width="{w}" height="52" fill="none" stroke="{i}"'
-        f' stroke-width="1.4" opacity=".5"/>'
-        f'<text x="{x + w // 2}" y="47" text-anchor="middle" font-size="18"'
-        f' font-weight="600" fill="{i}" opacity=".8">{letter}</text>'
-        f'<text x="{x + w // 2}" y="66" text-anchor="middle" font-size="10"'
-        f' fill="{m}">{name}</text>\n'
-        for x, w, letter, name in stages)
-    # A bar per command, over the stages it runs in. check runs at A and again at
-    # C and D, so its bar is two segments and a dotted line saying they are one
-    # command, not two.
-    rows = ((110, t["c1"], "check", s["q_check"],
-             ((1, 146, s["bar_check_a"]), (377, 314, s["bar_check_cd"])), (149, 375)),
-            (164, t["c5"], "gate", s["q_gate"], ((377, 314, s["bar_gate"]),), None),
-            (218, t["c4"], "compare", s["q_compare"], ((751, 190, s["bar_compare"]),), None))
-    body = ""
-    for y, col, name, question, bars, link in rows:
-        body += (f'<text x="1" y="{y}" font-size="13" font-weight="600" fill="{col}">'
-                 f'{name}</text>'
-                 f'<text x="104" y="{y}" font-size="10.5" fill="{m}">{question}</text>')
-        body += "".join(f'<rect x="{x}" y="{y + 8}" width="{w}" height="18" fill="{col}"'
-                        f' fill-opacity=".15" stroke="{col}" stroke-width="1.6"/>'
-                        f'<text x="{x + 7}" y="{y + 21}" font-size="9.5" fill="{col}">'
-                        f'{label}</text>'
-                        for x, w, label in bars)
-        if link:
-            body += (f'<path d="M{link[0]} {y + 17}h{link[1] - link[0]}" fill="none"'
-                     f' stroke="{col}" stroke-width="1.4" stroke-dasharray="3 4"'
-                     f' opacity=".55"/>')
+    """A matrix: the three commands by the five stages, a filled cell where one runs.
+
+    The stage boxes take the process drawing's styles - the two human stages solid,
+    the three inside the platform dashed and framed - and the columns are one grid
+    the cells share, so nothing is aligned by eye.
+    """
+    i, m, f, h, a = t["ink"], t["muted"], t["faint"], t["hum"], t["mac"]
+    label, gap, cgap, col = 220, 8, 12, 133
+    xs = [label + gap + k * (col + cgap) for k in range(5)]
+    head_y, head_h, row_h = 36, 52, 80
+    rows_y = [head_y + head_h + gap + k * (row_h + gap) for k in range(3)]
+    frame_x, frame_r = (xs[0] + col + xs[1]) / 2, (xs[3] + col + xs[4]) / 2
+    frame_y, frame_b = head_y - 22, rows_y[2] + row_h + 6
+    stages = (("A", s["sA"], h, ""), ("B", s["sB"], a, ' stroke-dasharray="5 3"'),
+              ("C", s["sC"], a, ' stroke-dasharray="5 3"'), ("D", s["sD"], a, ' stroke-dasharray="5 3"'),
+              ("E", s["sE"], h, ""))
+    body = (f'<rect x="{frame_x}" y="{frame_y}" width="{frame_r - frame_x}" height="{frame_b - frame_y}"'
+            f' fill="none" stroke="{i}" stroke-width="2" opacity=".75"/>'
+            f'<text x="{(frame_x + frame_r) / 2}" y="{frame_y + 13}" text-anchor="middle" font-size="10"'
+            f' letter-spacing="2" fill="{i}" opacity=".6">{s["locked"]}</text>\n')
+    for x, (letter, name, color, dash) in zip(xs, stages, strict=True):
+        body += (f'<rect x="{x}" y="{head_y}" width="{col}" height="{head_h}" fill="none" stroke="{color}"'
+                 f' stroke-width="2"{dash}/>'
+                 f'<text x="{x + col / 2}" y="{head_y + 25}" text-anchor="middle" font-size="18"'
+                 f' font-weight="600" fill="{color}">{letter}</text>'
+                 f'<text x="{x + col / 2}" y="{head_y + 42}" text-anchor="middle" font-size="10"'
+                 f' fill="{color}">{name}</text>\n')
+    rows = (("check", t["c1"], s["q_check"], s["cell_check"]),
+            ("gate", t["c5"], s["q_gate"], s["cell_gate"]),
+            ("compare", t["c4"], s["q_compare"], s["cell_compare"]))
+    for y, (name, color, question, cells) in zip(rows_y, rows, strict=True):
+        body += (f'<text x="1" y="{y + 27}" font-size="13" font-weight="600" fill="{color}">{name}</text>'
+                 + _lines(1, y + 48, textwrap.wrap(question, 34), 10.5, m, 14.7))
+        for x, text in zip(xs, cells, strict=True):
+            if text is None:
+                body += (f'<rect x="{x}" y="{y}" width="{col}" height="{row_h}" fill="none" stroke="{f}"'
+                         f' stroke-width="1" stroke-dasharray="3 3" opacity=".5"/>')
+            else:
+                body += (f'<rect x="{x}" y="{y}" width="{col}" height="{row_h}" fill="{color}"'
+                         f' fill-opacity=".15" stroke="{color}" stroke-width="1.6"/>'
+                         + _lines(x + 10, y + row_h / 2 + 3.5, textwrap.wrap(text, 18), 10, color, 13.5))
         body += "\n"
-    return svg(t, 942, 252, s["cmds_alt"], f'''
+    who_y = rows_y[2] + row_h + gap + 14
+    actors = ((s["who_human"], h), (s["who_agent"], a), (s["who_agent"], a), (s["who_platform"], m),
+              (s["who_human"], h))
+    body += f'<text x="1" y="{who_y}" font-size="10" letter-spacing="1.6" fill="{m}">{s["who"]}</text>'
+    body += "".join(f'<text x="{x + col / 2}" y="{who_y}" text-anchor="middle" font-size="10"'
+                    f' letter-spacing="1.2" fill="{color}">{who}</text>'
+                    for x, (who, color) in zip(xs, actors, strict=True))
+    foot_y = who_y + 22
+    body += (f'\n<text x="1" y="{foot_y}" font-size="9.5" fill="{m}">{s["prints_a"]}'
+             f'<tspan font-weight="600" fill="{t["blk"]}">BLOCK</tspan>{s["prints_b"]}'
+             f'<tspan font-weight="600">INFO</tspan>{s["prints_c"]}</text>'
+             f'<text x="941" y="{foot_y}" text-anchor="end" font-size="9.5" fill="{m}">{s["filled"]}</text>')
+    return svg(t, 942, foot_y + 6, s["cmds_alt"], f'''
 <text x="1" y="12" font-size="10" letter-spacing="2" fill="{i}" opacity=".55">{s["cmds_head"]}</text>
-<text x="941" y="12" text-anchor="end" font-size="9.5" fill="{m}">{s["cmds_key"]}</text>
-{head}{body}''')
+{body}''')
+
+
+# ── the ladder of section 1 ─────────────────────────────────────────────────
+def ladder(t, s):
+    """Five rungs from bottom left to top right: each one's name, and the one thing it needs."""
+    i, m, p = t["ink"], t["muted"], t["pas"]
+    w, h, dx, dy = 176, 100, 188, 38
+    body, floor = "", ""
+    for k, (name, needs) in enumerate(s["rungs"]):
+        x, y = 1 + k * dx, 1 + (4 - k) * dy
+        body += (f'<rect x="{x}" y="{y}" width="{w}" height="{h}" fill="none" stroke="{p}" stroke-width="1.6"/>'
+                 f'<text x="{x + 10}" y="{y + 16}" font-size="10" letter-spacing="1.6" fill="{p}">'
+                 f'{s["rung"]} {k + 1}</text>'
+                 + _lines(x + 10, y + 41, textwrap.wrap(name, 24), 11.5, i, 14.5, weight="600")
+                 + _lines(x + 10, y + 79, textwrap.wrap(needs, 28), 9.5, m, 13.5) + "\n")
+        floor += f'{"M" if k == 0 else "H"}{x} {y + h}' if k == 0 else f'H{x}V{y + h}'
+        floor += f'H{x + w}'
+    return svg(t, 942, 282, s["lad_alt"], f'''
+<text x="1" y="12" font-size="10" letter-spacing="2" fill="{i}" opacity=".55">{s["lad_head"]}</text>
+<path d="{floor}" fill="none" stroke="{m}" stroke-width="1" opacity=".35"/>
+{body}<text x="1" y="275" font-size="9.5" fill="{m}">{s["lad_foot"]}</text>''')
+
+
+# ── the mutation check of section 6 ─────────────────────────────────────────
+def _arrow(x, y, m):
+    return (f'<path d="M{x} {y}h26M{x + 20} {y - 6}l6 6-6 6" fill="none" stroke="{m}" stroke-width="1.4"'
+            f' stroke-linecap="round" stroke-linejoin="round"/>')
+
+
+def mutants(t, s):
+    """The changed model, its mutants, the unit tests run once, and the three verdicts."""
+    i, m, a, p, b = t["ink"], t["muted"], t["amb"], t["pas"], t["blk"]
+    ops = ("cmp", "where", "agg", "join", "coalesce", "distinct", "literal", "not")
+    grid = "".join(
+        f'<rect x="{193 + (k % 4) * 68}" y="{56 + (k // 4) * 32}" width="62" height="24" fill="none"'
+        f' stroke="{a}" stroke-width="1.4" stroke-dasharray="4 3"/>'
+        f'<text x="{224 + (k % 4) * 68}" y="{72 + (k // 4) * 32}" text-anchor="middle" font-size="10"'
+        f' fill="{a}">{op}</text>' for k, op in enumerate(ops))
+
+    def box(x, title, sub):
+        lines = "".join(f'<text x="{x + 12}" y="{92 + k * 13}" font-size="9.5" fill="{m}">{line}</text>'
+                        for k, line in enumerate(textwrap.wrap(sub, 22)))
+        return (f'<rect x="{x}" y="48" width="150" height="72" fill="none" stroke="{i}" stroke-width="1.6"'
+                f' opacity=".8"/><text x="{x + 12}" y="72" font-size="12.5" font-weight="600" fill="{i}">'
+                f'{title}</text>{lines}')
+
+    verdicts = (
+        f'<path d="M693 61l4 4 8-9" fill="none" stroke="{p}" stroke-width="2" stroke-linecap="round"'
+        f' stroke-linejoin="round"/><text x="713" y="66" font-size="10.5" fill="{p}">{s["mut_killed"]}</text>'
+        f'<path d="M694 79l10 10M704 79l-10 10" fill="none" stroke="{b}" stroke-width="2" stroke-linecap="round"/>'
+        f'<text x="713" y="88" font-size="10.5" fill="{b}">{s["mut_survived"]}</text>'
+        f'<path d="M693 106h11" fill="none" stroke="{m}" stroke-width="2" stroke-linecap="round"/>'
+        f'<text x="713" y="110" font-size="10.5" fill="{m}">{s["mut_listed"]}</text>')
+    return svg(t, 942, 198, s["mut_alt"], f'''
+<text x="1" y="12" font-size="10" letter-spacing="2" fill="{i}" opacity=".55">{s["mut_head"]}</text>
+{box(1, "fct_orders", s["mut_model_sub"])}
+{_arrow(159, 84, m)}
+<text x="193" y="44" font-size="9.5" letter-spacing="1.4" fill="{a}">{s["mut_ops"]}</text>
+{grid}
+{_arrow(467, 84, m)}
+{box(501, s["mut_tests"], s["mut_tests_sub"])}
+{_arrow(659, 84, m)}
+{verdicts}
+<rect x="1" y="140" width="124" height="26" fill="none" stroke="{b}" stroke-width="1.6"/>
+<text x="63" y="158" text-anchor="middle" font-size="11.5" font-weight="600" letter-spacing="1.2" fill="{b}">{s["blocked"]}</text>
+<text x="143" y="158" font-size="10.5" fill="{i}" opacity=".75">{s["mut_why"]}</text>
+<text x="1" y="190" font-size="9.5" fill="{m}">{s["mut_foot"]}</text>''')
+
+
+# ── one finding line, of section 7 ──────────────────────────────────────────
+def line(t, s):
+    """One BLOCK line in an output box, a callout under each of its five fields, the summary under it."""
+    i, m, b, g = t["ink"], t["muted"], t["blk"], t["c5"]
+    fields = (("BLOCK", b, "600", s["line_kind"]),
+              ("models/marts/fct_orders.yml", i, None, s["line_file"]),
+              ("fct_orders", i, None, s["line_model"]),
+              (s["line_sentence"], i, None, s["line_what"]),
+              ("[G1]", g, "600", s["line_rule"]))
+    x, body = 19, ""
+    for text, color, weight, caption in fields:
+        w = f' font-weight="{weight}"' if weight else ' opacity=".85"'
+        body += (f'<text x="{x}" y="54" font-size="11.5"{w} fill="{color}">{text}</text>'
+                 f'<path d="M{x + 1} 62v12" fill="none" stroke="{m}" stroke-width="1"/>'
+                 f'<text x="{x}" y="88" font-size="9" letter-spacing="1.2" fill="{m}">{caption}</text>\n')
+        x += round(len(text) * 6.92) + 28
+    return svg(t, 942, 176, s["line_alt"], f'''
+<text x="1" y="12" font-size="10" letter-spacing="2" fill="{i}" opacity=".55">{s["line_head"]}</text>
+<g fill="none" stroke="{i}" stroke-width="1.4" opacity=".6"><rect x="1" y="26" width="940" height="118"/><path d="M1 104h940"/></g>
+{body}<text x="19" y="128" font-size="11.5" fill="{i}" opacity=".85">{s["line_summary"]}</text>
+<text x="922" y="128" text-anchor="end" font-size="11.5" font-weight="600" fill="{b}">{s["line_exit"]}</text>
+<text x="1" y="168" font-size="9.5" fill="{m}">{s["line_foot"]}</text>''')
+
+
+# ── the rules of section 8, as an index ─────────────────────────────────────
+# Which command prints which family. The ids themselves are read from the
+# registry, and the drawing refuses to be written if this map and the registry
+# disagree, so a rule added to the code is a rule missing from the map until
+# somebody puts it here.
+FAMILIES = (
+    ("check", "c1", 1, (("S", ("S1", "S2", "S3", "S4", "S5")), ("P", ("P1", "P2")),
+                        ("T", ("T1", "T2", "T3")), ("I", ("I5", "I7")))),
+    ("gate", "c5", 200, (("G", tuple("G%d" % n for n in range(1, 11))), ("I", ("I1", "I3", "I4", "I6")))),
+    ("compare", "c4", 520, (("C", tuple("C%d" % n for n in range(8))), ("I", ("I2",)))),
+)
+
+
+def _registry():
+    """RULE_IDS and INFO_RULES, read from the tool's own registry without importing it."""
+    text = io.open(os.path.join(OUT, "..", "tools", "spec_lock_diff", "rules", "__init__.py"),
+                   encoding="utf-8").read()
+    ids = re.findall(r'"([A-Z]\d+)"', text[text.index("RULE_IDS = ("):text.index("INFO_RULES = (")])
+    infos = re.findall(r'"([A-Z]\d+)"', text[text.index("INFO_RULES = ("):].split(")")[0])
+    return ids, set(infos)
+
+
+def rules(t, s):
+    """Every rule as a square under the command that prints it: filled blocks, outlined informs."""
+    ids, infos = _registry()
+    drawn = [r for _, _, _, fams in FAMILIES for _, rs in fams for r in rs]
+    assert sorted(drawn) == sorted(ids) and len(drawn) == len(set(drawn)), sorted(set(ids) ^ set(drawn))
+    i, m, bg = t["ink"], t["muted"], t["bg"]
+    body = ""
+    for name, key, x, fams in FAMILIES:
+        color = t[key]
+        count = sum(len(rs) for _, rs in fams)
+        body += (f'<text x="{x}" y="44" font-size="13" font-weight="600" fill="{color}">{name}</text>'
+                 f'<text x="{x + len(name) * 7.8 + 8:.0f}" y="44" font-size="10" fill="{m}">· {count}</text>\n')
+        for row, (family, rs) in enumerate(fams):
+            y = 60 + row * 28
+            body += f'<text x="{x}" y="{y + 14}" font-size="9.5" fill="{m}">{family}</text>'
+            for k, rule in enumerate(rs):
+                sx = x + 18 + k * 24
+                if rule in infos:
+                    body += (f'<rect x="{sx}" y="{y}" width="20" height="20" fill="none" stroke="{color}"'
+                             f' stroke-width="1.4"/><text x="{sx + 10}" y="{y + 14}" text-anchor="middle"'
+                             f' font-size="8" fill="{color}">{rule}</text>')
+                else:
+                    body += (f'<rect x="{sx}" y="{y}" width="20" height="20" fill="{color}"/>'
+                             f'<text x="{sx + 10}" y="{y + 14}" text-anchor="middle" font-size="8"'
+                             f' font-weight="600" fill="{bg}">{rule}</text>')
+            body += "\n"
+    n = str(len(ids))
+    return svg(t, 942, 214, s["rules_alt"].replace("{n}", n), f'''
+<text x="1" y="12" font-size="10" letter-spacing="2" fill="{i}" opacity=".55">{s["rules_head"].replace("{n}", n)}</text>
+{body}<rect x="1" y="176" width="12" height="12" fill="{m}"/>
+<text x="19" y="186" font-size="9.5" fill="{m}">{s["rules_blocks"]}</text>
+<rect x="141" y="176" width="12" height="12" fill="none" stroke="{m}" stroke-width="1.4"/>
+<text x="159" y="186" font-size="9.5" fill="{m}">{s["rules_informs"]}</text>
+<text x="1" y="207" font-size="9.5" fill="{m}">{s["rules_families"]}</text>''')
 
 
 # ── pre-registration interval ───────────────────────────────────────────────
@@ -506,7 +752,8 @@ def heading_icon(n):
 DRAWINGS = {
     "risks": risks, "roles": roles, "manifesto": manifesto, "controls": controls,
     "permissions": permissions, "process": process,
-    "pre-registration": prereg, "diff": diff, "commands": commands,
+    "pre-registration": prereg, "diff": diff, "commands": commands, "ladder": ladder,
+    "mutants": mutants, "line": line, "rules": rules,
 }
 
 os.makedirs(OUT, exist_ok=True)

@@ -77,6 +77,13 @@ Depois suba. Cada degrau abaixo fica verde sozinho e vale alguma coisa sozinho,
 e nenhuma regra de um degrau que você alcançou fica mais fraca por causa dos
 degraus que você ainda não alcançou. Pare onde o valor parar.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../assets/ladder-pt-dark.svg">
+    <img src="../assets/ladder-pt-light.svg" alt="Cinco degraus, cada um verde sozinho: check na sua máquina; check e gate no CI; os caminhos que ninguém edita caladinho; os controles que não são código; Etapa E, o diff" width="900">
+  </picture>
+</p>
+
 ### Degrau 1 — `check`, na sua máquina
 
 ```bash
@@ -456,6 +463,13 @@ do `ci-warehouse.yml` roda depois do build amostrado — a cópia dele no
 branch base, como as ferramentas rodam, para que um pull request que o edite
 não seja julgado pela própria edição.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../assets/mutants-pt-dark.svg">
+    <img src="../assets/mutants-pt-light.svg" alt="O modelo alterado é mutado um operador por vez; seus unit tests rodam uma vez contra todo mutante; um mutante em que um unit test falha morre, um sobrevivente bloqueia o pull request, e um que um humano listou como equivalente informa" width="900">
+  </picture>
+</p>
+
 **Roda na** Etapa D, a cada push, depois do build amostrado. Na sua máquina,
 `--dry-run` lista o que ele tentaria e não roda nada:
 
@@ -511,6 +525,13 @@ numa invocação só, e não um por vez.
 
 Uma linha por achado, separada por tabulação, e depois uma linha de resumo. Tudo
 no stdout; erros que param a ferramenta vão para o stderr.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../assets/line-pt-dark.svg">
+    <img src="../assets/line-pt-light.svg" alt="Uma linha de achado: BLOCK, o arquivo, o modelo, o que está errado numa frase, e a regra entre colchetes; depois a linha de resumo, que carrega o exit code" width="900">
+  </picture>
+</p>
 
 ```
 BLOCK	models/marts/fct_orders.yml	fct_orders	test 'unique' on fct_orders.order_id exists on main but not in this PR	[G1]
@@ -581,6 +602,13 @@ Uma linha por regra: o que ela bloqueia, onde o framework pede isso, e as duas
 fixtures a que os meta-testes a prendem — uma em que ela dispara, outra em que
 fica calada. O **M2** falha se uma regra não tem linha, ou se uma linha aponta
 para uma fixture que não faz o que a linha diz.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../assets/rules-pt-dark.svg">
+    <img src="../assets/rules-pt-light.svg" alt="As 35 regras como quadrados sob o comando que as imprime, por família: preenchido quando a regra bloqueia, contornado quando informa" width="900">
+  </picture>
+</p>
 
 Marcações: `§1 P`*n* um princípio, `§2 C`*n* um controle, `§3 C R`*n* uma regra do
 agente, `§3 A`–`§3 E` uma etapa. **Cinco regras só informam** e nunca mudam o
