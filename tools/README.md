@@ -9,7 +9,7 @@
   <img alt="docs in EN and pt-BR" src="https://img.shields.io/badge/docs-EN%20%C2%B7%20pt--BR-8A5A0B">
 </p>
 
-Three commands, thirty rules, one package.
+Three commands, thirty-four rules, one package.
 
 <p align="center">
   <picture>
@@ -106,8 +106,8 @@ python tools/slp.py check --project-dir examples/quickstart
 | --- | --- | --- |
 | `tools/templates/ci.yml` | `.github/workflows/ci.yml` | Nothing, to begin with. Set the repository variable `AGENT_LOGIN` to the agent's bot user, so the gate is required on the pull requests it opens and advisory on yours. |
 
-Twenty-one of the thirty rules and the whole of Control 5B, for one file and one
-variable. It installs Python and two libraries — no adapter, no credential, and
+Twenty-five of the thirty-four rules and the whole of Control 5B, for one file and
+one variable. It installs Python and two libraries — no adapter, no credential, and
 not one `exit 1` — so the first run is green. List `ci` as a required check.
 
 ### Rung 3 — the paths nobody may quietly edit
@@ -154,16 +154,18 @@ pip install pytest && pytest tools/tests -q
 ## 2. Stage A and C — `check`
 
 `check` asks one question of every model in `models/marts/`: does it have a
-complete spec, a valid pre-registration if it has one at all, and a uniqueness
-test on its primary key that could actually fail? It reads yml and one line of
-sql, never calls git, and never touches the warehouse.
+complete spec, a valid pre-registration if it has one at all, a uniqueness
+test on its primary key that could actually fail, and a unit test naming each
+of its known edges, with every input the model reads mocked? It reads yml and
+the sql of the model, never calls git, and never touches the warehouse.
 
 **Runs at** Stage A while the Author writes the spec, Stage C before the agent
 commits, and Stage D in CI on every push.
 
 ```
 $ python tools/slp.py check
-slp check: OK (1 model in models/marts/, of 1 model read)
+INFO	models/marts/fct_orders.yml	fct_orders	edge 'status='cancelled' -> row excluded' is proven by unit test 'cancelled_orders_are_excluded', given 2 rows and expecting 1; the third reading of Stage E asks whether the expect says what the edge says	[I5]
+slp check: 1 info - OK (1 model in models/marts/, of 1 model read)
 
 $ python tools/slp.py check
 BLOCK	models/marts/fct_orders.yml	fct_orders	the uniqueness test on primary key [order_id] cannot fail the build: it sets where	[T1]
@@ -308,7 +310,7 @@ INFO	diff.json	fct_orders	removed_pks 0, declared at most 0	[I2]
 INFO	diff.json	fct_orders	metric gross_revenue moved 0.42 percent, declared 0.0..0.8 (a band 0.8 wide)	[I2]
 INFO	diff.json	fct_orders	altered columns measured [gross_revenue], declared [gross_revenue]	[I2]
 INFO	diff.json	fct_orders	this diff declares no window; README §3 Stage E step 2 asks for a closed event_time window identical on both sides, and nothing here can check that	[I2]
-slp compare: 6 infos - OK
+slp compare: 6 infos - OK (1 file)
 ```
 
 Nothing blocked, and `I2` printed every number anyway. That is the point of it:
@@ -514,6 +516,9 @@ the source so none can quietly grow a `BLOCK`.
 | A pre-registration with an open interval or a missing field — §3 B, §3 C R6 | `P1` | `check/prereg_open_interval` | `check/prereg_ok` |
 | A `min` above its `max`, or metrics that are not the spec's — §3 B | `P2` | `check/prereg_min_gt_max` | `check/prereg_ok` |
 | No uniqueness test on the spec's `primary_key`, or one that cannot fail — §3 C R2 | `T1` | `check/pk_single_missing` | `check/pk_single_unique` |
+| An edge no unit test names in `config.meta.edge`, or a unit test naming an edge the spec does not have — §3 C R2 | `T2` | `check/T2_edge_without_unit_test` | `check/T2_ok_every_edge_tested` |
+| A unit test with no `given` rows for a `ref` or `source` its model reads — §3 C R2 | `T3` | `check/T3_input_not_mocked` | `check/T3_ok_all_inputs_given` |
+| Informs: per edge, the unit test that names it and how many rows it is given and expects — §3 E5 | `I5` | `check/T2_ok_every_edge_tested` | `check/T2_edge_without_unit_test` |
 
 ### `gate`
 
@@ -532,6 +537,7 @@ the source so none can quietly grow a `BLOCK`.
 | Informs: times the pre-registration changed after it was written — §3 B | `I1` | `gate/I1_two_edits` | `gate/I1_ok_written_once` |
 | Informs: a `where` on a test this branch adds — §2 C5B | `I3` | `gate/I3_new_test_with_where` | `gate/I3_ok_new_test_plain` |
 | Informs: the commit that first wrote a spec new on this branch — §3 A | `I4` | `gate/I4_spec_first_written_on_branch` | `gate/I4_ok_spec_from_main` |
+| Informs: a commit on the branch whose spec or pre-registration the schema rejects — §3 C R5 | `I6` | `gate/I6_red_commit_in_the_walk` | `gate/I6_ok_every_commit_green` |
 
 ### `compare`
 
@@ -587,9 +593,14 @@ can be a green about nothing.
   `config` — because `G8` is scoped to the `.sql`. And Stage B's *order*: the
   pre-registration is checked as present at the end of the branch, not as
   written before the code along it.
-- Whether a spec edge became a unit test, and whether a tolerance or an anchor
-  can fail at all: `reconciliation_tolerance: "999%"` and
-  `external_validation: "TODO"` satisfy the schema.
+- Whether a tolerance or an anchor can fail at all:
+  `reconciliation_tolerance: "999%"` and `external_validation: "TODO"` satisfy
+  the schema. And whether a unit test's `expect` says what its edge says: `T2`
+  holds the name, `I5` prints the counts, and the sentence is the human's third
+  reading.
+- `T3` reads `ref` and `source` from the sql with a pattern, not with dbt: a ref
+  built by a macro or a variable is not seen, and a unit test that leaves it
+  unmocked is not blocked.
 - `compare` re-validates the pre-registration and not the spec, so a misspelled
   `tier` skips `C6`; `check` catches it in the same CI run.
 - `T1` refuses a uniqueness test *stronger* than the primary key, and the minimum

@@ -13,8 +13,16 @@ From the root of this repository:
 
 ```
 $ python tools/slp.py check --project-dir examples/quickstart
-slp check: OK (2 models in models/marts/, of 4 models read)
+INFO	models/marts/fct_orders.yml	fct_orders	edge 'status='cancelled' -> row excluded' is proven by unit test 'cancelled_orders_are_excluded', given 2 rows and expecting 1; the third reading of Stage E asks whether the expect says what the edge says	[I5]
+INFO	models/marts/finance/fct_invoices.yml	fct_invoices	edge 'a cancelled invoice keeps its row, with invoice_total 0' is proven by unit test 'a_cancelled_invoice_keeps_its_row', given 2 rows and expecting 2; the third reading of Stage E asks whether the expect says what the edge says	[I5]
+slp check: 2 infos - OK (2 models in models/marts/, of 4 models read)
 ```
+
+The two `I5` lines are Rule 2 made visible: each edge the spec knows, the
+unit test that names it in `config.meta.edge`, and how many rows that test was
+given and expects. `T2` blocks an edge nobody named, and `T3` a unit test that
+leaves a `ref` of its model without `given` rows - which is why the unit tests
+in this project read no table at all.
 
 Two numbers, and only the first is coverage: two models are held to the
 framework because their sql is under `models/marts/`, and four were read in all
@@ -37,7 +45,7 @@ INFO	examples/quickstart/diff/fct_orders.json	fct_orders	row_delta 8400, declare
 INFO	examples/quickstart/diff/fct_orders.json	fct_orders	removed_pks 0, declared at most 0	[I2]
 INFO	examples/quickstart/diff/fct_orders.json	fct_orders	metric gross_revenue moved 0.42 percent, declared 0.0..0.8 (a band 0.8 wide)	[I2]
 INFO	examples/quickstart/diff/fct_orders.json	fct_orders	altered columns measured [gross_revenue], declared [gross_revenue]	[I2]
-slp compare: 13 infos - OK
+slp compare: 13 infos - OK (2 files)
 ```
 
 Nothing blocks, and thirteen lines say why. Those `I2` lines are the point of

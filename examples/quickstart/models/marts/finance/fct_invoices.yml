@@ -35,3 +35,19 @@ models:
         meta:
           sensitive: true
       - name: invoice_total
+
+unit_tests:
+  - name: a_cancelled_invoice_keeps_its_row
+    model: fct_invoices
+    config:
+      meta:
+        edge: "a cancelled invoice keeps its row, with invoice_total 0"
+    given:
+      - input: ref('stg_invoices')
+        rows:
+          - {invoice_id: 1, customer_document: DOC-0001, invoice_total: 400.00, invoice_date: 2025-01-31}
+          - {invoice_id: 2, customer_document: DOC-0002, invoice_total: 0.00, invoice_date: 2025-01-31}
+    expect:
+      rows:
+        - {invoice_id: 1, customer_document: DOC-0001, invoice_date: 2025-01-31, invoice_total: 400.00}
+        - {invoice_id: 2, customer_document: DOC-0002, invoice_date: 2025-01-31, invoice_total: 0.00}

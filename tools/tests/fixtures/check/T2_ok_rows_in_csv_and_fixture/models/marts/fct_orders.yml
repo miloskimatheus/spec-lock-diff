@@ -1,0 +1,48 @@
+version: 2
+
+models:
+  - name: fct_orders
+    meta:
+      spec:
+        grain: "one row per order"
+        primary_key: [order_id]
+        tier: standard
+        metrics: {}
+        known_edges: 
+          - "status='cancelled' -> row excluded"
+        sensitive_columns: []
+    columns:
+      - name: order_id
+        tests:
+          - unique
+
+unit_tests:
+  - name: cancelled_orders_are_excluded_csv
+    model: fct_orders
+    config:
+      meta:
+        edge: "status='cancelled' -> row excluded"
+    given:
+      - input: ref('stg_orders')
+        format: csv
+        rows: |
+          order_id,status
+          1,shipped
+          3,cancelled
+    expect:
+      format: csv
+      rows: |
+        order_id
+        1
+  - name: cancelled_orders_are_excluded_from_a_file
+    model: fct_orders
+    config:
+      meta:
+        edge: "status='cancelled' -> row excluded"
+    given:
+      - input: ref('stg_orders')
+        format: csv
+        fixture: orders_with_a_cancelled_one
+    expect:
+      format: csv
+      fixture: orders_without_the_cancelled_one

@@ -41,7 +41,7 @@ pip install "pyyaml" "jsonschema>=4"
 python tools/slp.py check --project-dir examples/quickstart
 ```
 
-Adotar é uma escada, não um penhasco: o `check` e o `gate` são vinte e uma das trinta regras e não precisam de warehouse nenhum. [A seção de instalação](tools/README.pt-br.md#1-instalação) tem os cinco degraus, cada um verde por si.
+Adotar é uma escada, não um penhasco: o `check` e o `gate` são vinte e cinco das trinta e quatro regras e não precisam de warehouse nenhum. [A seção de instalação](tools/README.pt-br.md#1-instalação) tem os cinco degraus, cada um verde por si.
 
 ---
 
@@ -115,7 +115,7 @@ Você não está escrevendo regras para o agente obedecer — está construindo 
 > [!IMPORTANT]
 > Não solte um agente no repositório antes destes cinco estarem no lugar. São eles que fazem todo o resto valer como controle, e não como recomendação.
 >
-> Eles **não** são pré-requisito para rodar os portões. O `check` e o `gate` — vinte e uma das trinta regras em [`tools/`](tools/README.pt-br.md#1-instalação) — não precisam de warehouse, nem de identidade, nem de teto de gasto, e já valem a pena num repositório em que nenhum agente encostou ainda. Adotar é uma escada; esta seção é o quarto degrau.
+> Eles **não** são pré-requisito para rodar os portões. O `check` e o `gate` — vinte e cinco das trinta e quatro regras em [`tools/`](tools/README.pt-br.md#1-instalação) — não precisam de warehouse, nem de identidade, nem de teto de gasto, e já valem a pena num repositório em que nenhum agente encostou ainda. Adotar é uma escada; esta seção é o quarto degrau.
 
 <p align="center">
   <picture>

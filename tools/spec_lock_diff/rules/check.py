@@ -5,10 +5,12 @@
 from __future__ import annotations
 
 import json
+import re
+from typing import Any
 
-from ..findings import Finding, block
+from ..findings import Finding, block, info
 from ..owners import CODEOWNERS_FILES, _incremental, _owner_rules, _owners
-from ..project import Project
+from ..project import Model, Project, UnitTest
 from ..readers import schema_errors
 from .common import _blocks, _by, _interval, _muted, _sorted_models, _strings
 
@@ -291,4 +293,156 @@ def check_pk_test(project: Project) -> list[Finding]:
                 "T1",
             )
         )
+    return out
+
+
+# --- check: each edge is a unit test, and a unit test mocks every input (README §3 C, Rule 2) ---
+
+_QUOTED = re.compile(r"""['"]([^'"]*)['"]""")
+
+
+def _inputs(text: str) -> set[str]:
+    """Every ref() and source() in a sql, or in a unit test's input, as dbt spells them.
+
+    Comments are left out. A ref is named by its last quoted argument, so
+    ref('pkg', 'model') and ref('model', v=2) both read as ref('model'). A ref
+    built by a macro or a variable has no quoted name and is not seen.
+    """
+    text = re.sub(r"\{#.*?#\}|/\*.*?\*/", " ", text, flags=re.S)
+    text = re.sub(r"--[^\n]*", " ", text)
+    found = set()
+    for kind, args in re.findall(r"\b(ref|source)\(([^()]*)\)", text):
+        names = _QUOTED.findall(args)
+        if kind == "ref" and names:
+            found.add("ref('%s')" % names[-1])
+        if kind == "source" and len(names) >= 2:
+            found.add("source('%s', '%s')" % (names[0], names[1]))
+    return found
+
+
+def _edge(unit: UnitTest) -> str | None:
+    """The edge a unit test names in config.meta.edge, with its spacing normalised, or None."""
+    config = unit.body.get("config")
+    meta = config.get("meta") if isinstance(config, dict) else None
+    edge = meta.get("edge") if isinstance(meta, dict) else None
+    return " ".join(str(edge).split()) if edge is not None else None
+
+
+def _units_of(project: Project, model: Model) -> list[UnitTest]:
+    """The unit tests declared for one model, in the order the yml files were read."""
+    return [unit for unit in project.unit_tests if unit.model == model.name]
+
+
+def _edges_of(model: Model) -> list[str] | None:
+    """The known edges of a marts model's spec, or None when there is nothing to hold it to."""
+    spec = model.spec if isinstance(model.spec, dict) else {}
+    return _strings(spec.get("known_edges")) if model.is_marts else None
+
+
+def check_edges_tested(project: Project) -> list[Finding]:
+    """README §3 Stage C Rule 2 — each spec edge becomes a unit test "that names its edge
+    verbatim in config.meta.edge"."""
+    out: list[Finding] = []
+    for model in _sorted_models(project):
+        edges = _edges_of(model)
+        if edges is None:
+            continue
+        wanted = {" ".join(edge.split()): edge for edge in edges}
+        named = {_edge(unit) for unit in _units_of(project, model)}
+        out += [
+            block(
+                model.file,
+                model.name,
+                "no unit test names the edge '%s' in config.meta.edge; each edge becomes a unit "
+                "test, and the name is what lets a machine tell which (README §3 Stage C Rule 2)"
+                % edge,
+                "T2",
+            )
+            for key, edge in wanted.items()
+            if key not in named
+        ]
+        for unit in _units_of(project, model):
+            claim = _edge(unit)
+            if claim is not None and claim not in wanted:
+                out.append(
+                    block(
+                        unit.file,
+                        model.name,
+                        "unit test '%s' names an edge the spec does not have: '%s'"
+                        % (unit.name, claim),
+                        "T2",
+                    )
+                )
+    return out
+
+
+def check_inputs_mocked(project: Project) -> list[Finding]:
+    """README §3 Stage C Rule 2 — a unit test "mocks in given every ref and source the model
+    reads"."""
+    out: list[Finding] = []
+    for model in _sorted_models(project):
+        sql = project.files.get(model.name)
+        if not model.is_marts or sql is None:
+            continue
+        reads = _inputs((project.dir / sql).read_text(encoding="utf-8", errors="replace"))
+        for unit in _units_of(project, model):
+            given = unit.body.get("given")
+            mocked: set[str] = set()
+            for item in given if isinstance(given, list) else []:
+                mocked |= _inputs(str(item.get("input", ""))) if isinstance(item, dict) else set()
+            out += [
+                block(
+                    unit.file,
+                    model.name,
+                    "unit test '%s' has no given rows for %s, which the model reads; dbt has "
+                    "nothing to mock it with, and a unit test that reads a relation is not a "
+                    "unit test (README §3 Stage C Rule 2)" % (unit.name, missing),
+                    "T3",
+                )
+                for missing in sorted(reads - mocked)
+            ]
+    return out
+
+
+def _rows(value: Any) -> str:
+    """How many rows a given or an expect holds, as the yml carries them; ? for a fixture file."""
+    if isinstance(value, list):
+        return str(len(value))
+    if isinstance(value, str):  # csv, with a header line
+        return str(max(0, len([line for line in value.splitlines() if line.strip()]) - 1))
+    return "?"
+
+
+def check_edge_readout(project: Project) -> list[Finding]:
+    """README §3 Stage E step 5 — "CI prints one line per edge of the spec: the unit test that
+    names it, and how many rows it is given and expects"."""
+    out: list[Finding] = []
+    for model in _sorted_models(project):
+        edges = _edges_of(model) or []
+        wanted = {" ".join(edge.split()) for edge in edges}
+        for unit in _units_of(project, model):
+            claim = _edge(unit)
+            if claim not in wanted:
+                continue
+            given, expect = unit.body.get("given"), unit.body.get("expect")
+            rows = (
+                [_rows(item.get("rows")) for item in given if isinstance(item, dict)]
+                if isinstance(given, list)
+                else []
+            )
+            out.append(
+                info(
+                    unit.file,
+                    model.name,
+                    "edge '%s' is proven by unit test '%s', given %s rows and expecting %s; the "
+                    "third reading of Stage E asks whether the expect says what the edge says"
+                    % (
+                        claim,
+                        unit.name,
+                        " + ".join(rows) or "no",
+                        _rows(expect.get("rows") if isinstance(expect, dict) else None),
+                    ),
+                    "I5",
+                )
+            )
     return out

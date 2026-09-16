@@ -10,6 +10,23 @@ tool is now judged by numbers nobody negotiates, the way it judges a pull
 request, and it is a package rather than a file so that each of those numbers
 has a place to hold.
 
+### New rules
+
+| Rule | What it blocks |
+| --- | --- |
+| `T2` | an **edge no unit test names**. Rule 2 says each spec edge becomes a unit test, and until now nothing could tell which unit test proved which edge, so a spec with five edges and one unit test looked complete. A unit test names its edge verbatim in `config.meta.edge` - the agent writes the key, the Author writes nothing new, and `config` is part of the body `G4` compares, so an existing unit test cannot be re-pointed at a new edge. A unit test naming an edge the spec does not have blocks too |
+| `T3` | a **unit test that leaves a `ref` or `source` of its model without `given` rows**. dbt builds the unit-test manifest from the `given` inputs and nothing else, so an input it does not mock is at best an error and at worst a read of a real relation - and the mutation check of Stage D runs through unit tests precisely because they read no table. `ref` and `source` are read from the sql with a pattern, so a ref built by a macro or a variable is not seen |
+| `I5` | nothing. Per edge of a spec, the unit test that names it and how many rows it is given and expects, printed for the third reading of Stage E |
+| `I6` | nothing. A commit on the branch whose spec or pre-registration the schema rejects: Rule 5 commits only green steps, and the gate says which step was not |
+
+### Changed behaviour
+
+- **The summary line keeps its note when there is something to read.**
+  `slp check: 1 info - OK (3 models in models/marts/, of 40 models read)`: the
+  count of models held to the framework used to vanish the moment a rule
+  informed, which `I5` now does on every spec with an edge. A `BLOCKED` line
+  carries no note, as before.
+
 ### The tool, by numbers that do not move
 
 - **100 percent of its statements and branches covered, and every function at

@@ -1,6 +1,6 @@
 # Spec-Lock-Diff - the gates that need no warehouse. Copy to .github/workflows/ci.yml.
 #
-# This is the first rung. It runs `check` and `gate` - twenty-one of the thirty
+# This is the first rung. It runs `check` and `gate` - twenty-five of the thirty-four
 # rules, and the whole of Control 5B - with Python and git and nothing else. No
 # adapter, no credentials, no production artifacts. Copy it, set one repository
 # variable, and the first run is green.

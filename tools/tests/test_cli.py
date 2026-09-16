@@ -60,7 +60,9 @@ def test_no_command_prints_usage():
 def test_valid_project_passes_with_a_model_count():
     code, out, err = run_slp(["check"], CLI / "valid")
     assert (code, err) == (0, "")
-    assert out.strip().endswith("slp check: OK (1 model in models/marts/, of 1 model read)")
+    assert out.strip().endswith(
+        "slp check: 1 info - OK (1 model in models/marts/, of 1 model read)"
+    )
 
 
 def test_the_summary_counts_what_was_checked_apart_from_what_was_read():

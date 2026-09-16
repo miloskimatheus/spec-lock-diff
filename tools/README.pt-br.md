@@ -9,7 +9,7 @@
   <img alt="docs em EN e pt-BR" src="https://img.shields.io/badge/docs-EN%20%C2%B7%20pt--BR-8A5A0B">
 </p>
 
-Três comandos, trinta regras, um pacote.
+Três comandos, trinta e quatro regras, um pacote.
 
 <p align="center">
   <picture>
@@ -107,8 +107,8 @@ python tools/slp.py check --project-dir examples/quickstart
 | --- | --- | --- |
 | `tools/templates/ci.yml` | `.github/workflows/ci.yml` | Nada, para começar. Defina a variável de repositório `AGENT_LOGIN` com o usuário-bot do agente, para o gate ser obrigatório nos PRs que ele abre e consultivo nos seus. |
 
-Vinte e uma das trinta regras e o Controle 5B inteiro, por um arquivo e uma
-variável. Ele instala Python e duas bibliotecas — sem adapter, sem credencial e
+Vinte e cinco das trinta e quatro regras e o Controle 5B inteiro, por um arquivo
+e uma variável. Ele instala Python e duas bibliotecas — sem adapter, sem credencial e
 sem um `exit 1` sequer — então a primeira execução já fica verde. Liste `ci`
 como check obrigatório.
 
@@ -157,16 +157,18 @@ pip install pytest && pytest tools/tests -q
 ## 2. Etapas A e C — `check`
 
 O `check` faz uma pergunta a cada modelo em `models/marts/`: ele tem uma spec
-completa, um pré-registro válido se tiver algum, e um teste de unicidade na
-primary key que de fato consiga falhar? Ele lê yml e uma linha de sql, nunca
-chama o git e nunca toca no warehouse.
+completa, um pré-registro válido se tiver algum, um teste de unicidade na
+primary key que de fato consiga falhar, e um unit test nomeando cada borda
+conhecida, com toda entrada que o modelo lê simulada? Ele lê yml e o sql do
+modelo, nunca chama o git e nunca toca no warehouse.
 
 **Roda na** Etapa A, enquanto o Autor escreve a spec; na Etapa C, antes de o
 agente commitar; e na Etapa D, no CI, a cada push.
 
 ```
 $ python tools/slp.py check
-slp check: OK (1 model in models/marts/, of 1 model read)
+INFO	models/marts/fct_orders.yml	fct_orders	edge 'status='cancelled' -> row excluded' is proven by unit test 'cancelled_orders_are_excluded', given 2 rows and expecting 1; the third reading of Stage E asks whether the expect says what the edge says	[I5]
+slp check: 1 info - OK (1 model in models/marts/, of 1 model read)
 
 $ python tools/slp.py check
 BLOCK	models/marts/fct_orders.yml	fct_orders	the uniqueness test on primary key [order_id] cannot fail the build: it sets where	[T1]
@@ -313,7 +315,7 @@ INFO	diff.json	fct_orders	removed_pks 0, declared at most 0	[I2]
 INFO	diff.json	fct_orders	metric gross_revenue moved 0.42 percent, declared 0.0..0.8 (a band 0.8 wide)	[I2]
 INFO	diff.json	fct_orders	altered columns measured [gross_revenue], declared [gross_revenue]	[I2]
 INFO	diff.json	fct_orders	this diff declares no window; README §3 Stage E step 2 asks for a closed event_time window identical on both sides, and nothing here can check that	[I2]
-slp compare: 6 infos - OK
+slp compare: 6 infos - OK (1 file)
 ```
 
 Nada bloqueou, e ainda assim a `I2` imprimiu cada número. É exatamente esse o
@@ -524,6 +526,9 @@ código-fonte, para que nenhuma delas ganhe um `BLOCK` em silêncio.
 | Um pré-registro com intervalo aberto ou campo faltando — §3 B, §3 C R6 | `P1` | `check/prereg_open_interval` | `check/prereg_ok` |
 | Um `min` acima do `max`, ou métricas que não são as da spec — §3 B | `P2` | `check/prereg_min_gt_max` | `check/prereg_ok` |
 | Nenhum teste de unicidade na `primary_key` da spec, ou um que não pode falhar — §3 C R2 | `T1` | `check/pk_single_missing` | `check/pk_single_unique` |
+| Uma borda que nenhum unit test nomeia em `config.meta.edge`, ou um unit test que nomeia uma borda que a spec não tem — §3 C R2 | `T2` | `check/T2_edge_without_unit_test` | `check/T2_ok_every_edge_tested` |
+| Um unit test sem linhas em `given` para um `ref` ou `source` que o modelo lê — §3 C R2 | `T3` | `check/T3_input_not_mocked` | `check/T3_ok_all_inputs_given` |
+| Informa: por borda, o unit test que a nomeia e quantas linhas ele recebe e espera — §3 E5 | `I5` | `check/T2_ok_every_edge_tested` | `check/T2_edge_without_unit_test` |
 
 ### `gate`
 
@@ -542,6 +547,7 @@ código-fonte, para que nenhuma delas ganhe um `BLOCK` em silêncio.
 | Informa: quantas vezes o pré-registro mudou depois de escrito — §3 B | `I1` | `gate/I1_two_edits` | `gate/I1_ok_written_once` |
 | Informa: um `where` num teste que esta branch adiciona — §2 C5B | `I3` | `gate/I3_new_test_with_where` | `gate/I3_ok_new_test_plain` |
 | Informa: o commit que escreveu primeiro uma spec nova nesta branch — §3 A | `I4` | `gate/I4_spec_first_written_on_branch` | `gate/I4_ok_spec_from_main` |
+| Informa: um commit da branch cuja spec ou pré-registro o schema rejeita — §3 C R5 | `I6` | `gate/I6_red_commit_in_the_walk` | `gate/I6_ok_every_commit_green` |
 
 ### `compare`
 
@@ -597,9 +603,14 @@ maneiras de um verde ser um verde sobre nada.
   materialização, um `config` — porque o `G8` é escopado ao `.sql`. E a *ordem*
   da Etapa B: o pré-registro é conferido como presente no fim da branch, não como
   escrito antes do código ao longo dela.
-- Se cada known_edge da spec virou unit test, e se uma tolerância ou uma âncora
-  conseguem falhar: `reconciliation_tolerance: "999%"` e
-  `external_validation: "TODO"` satisfazem o schema.
+- Se uma tolerância ou uma âncora conseguem falhar:
+  `reconciliation_tolerance: "999%"` e `external_validation: "TODO"` satisfazem
+  o schema. E se o `expect` de um unit test diz o que a borda dele diz: o `T2`
+  segura o nome, o `I5` imprime as contagens, e a frase é a terceira leitura do
+  humano.
+- O `T3` lê `ref` e `source` do sql com um padrão, não com o dbt: um ref montado
+  por macro ou por variável não é visto, e um unit test que o deixa sem simular
+  não é bloqueado.
 - O `compare` revalida o pré-registro e não a spec, então um `tier` escrito
   errado pula o `C6`; o `check` pega isso na mesma execução de CI.
 - O `T1` recusa um teste de unicidade *mais forte* que a primary key, e o teste

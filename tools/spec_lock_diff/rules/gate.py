@@ -11,6 +11,7 @@ from typing import Any
 from ..findings import Finding, _count, block, info
 from ..gitread import Gate, Inventory, _canon
 from ..project import _dirs
+from ..readers import schema_errors
 from .common import DEAD_KEYS, _inherited, _muted
 
 
@@ -468,4 +469,31 @@ def gate_prereg_counter(ctx: Gate) -> list[Finding]:
                     "I1",
                 )
             )
+    return out
+
+
+def gate_red_commits(ctx: Gate) -> list[Finding]:
+    """README §3 Stage C Rule 5 — "All green: it commits. Anything red: it reverts the working
+    tree to the last commit": the gate shows the Author every commit on the branch at which
+    check would have blocked, here a spec or a pre-registration its schema rejects."""
+    out: list[Finding] = []
+    for at, inv in enumerate(ctx.walk[1:], start=1):  # walk[0] is the merge-base, main's doing
+        for model in sorted(inv["specs"]):
+            if not _in_marts(ctx, model):
+                continue
+            held = (
+                ("spec", "meta.spec", inv["specs"][model]),
+                ("pre_registration", "meta.pre_registration", inv["preregs"].get(model)),
+            )
+            for kind, name, value in held:
+                out += [
+                    info(
+                        _file(ctx, model),
+                        model,
+                        "commit %s carries a %s the schema rejects: %s; Rule 5 commits only "
+                        "green steps, and this one was not" % (ctx.commits[at], name, message),
+                        "I6",
+                    )
+                    for message in (schema_errors(value, kind, name) if value is not None else [])
+                ]
     return out

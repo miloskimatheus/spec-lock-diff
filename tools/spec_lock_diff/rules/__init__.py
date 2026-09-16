@@ -6,6 +6,9 @@ the compare run as a whole a Run.
 """
 
 from .check import (
+    check_edge_readout,
+    check_edges_tested,
+    check_inputs_mocked,
     check_model_declared,
     check_owned,
     check_pk_test,
@@ -32,6 +35,7 @@ from .gate import (
     gate_prereg_present,
     gate_protected_paths,
     gate_recon_with_model,
+    gate_red_commits,
     gate_singular_born_muted,
     gate_spec_changed,
     gate_spec_first_written,
@@ -53,6 +57,9 @@ RULE_IDS = (
     "P1",
     "P2",
     "T1",
+    "T2",
+    "T3",
+    "I5",
     "G1",
     "G2",
     "G3",
@@ -66,6 +73,7 @@ RULE_IDS = (
     "I1",
     "I3",
     "I4",
+    "I6",
     "C0",
     "C1",
     "C2",
@@ -83,7 +91,7 @@ RULE_IDS = (
 # because a refactoring's intervals are pinned to zero by the schema, so C1 to
 # C4 already refuse every number it could catch; if that stops being true, this
 # tuple is where C5 goes back to blocking.
-INFO_RULES = ("I1", "I2", "I3", "I4", "C5")
+INFO_RULES = ("I1", "I2", "I3", "I4", "I5", "I6", "C5")
 
 CHECK_RULES = [
     check_spec_present,
@@ -94,6 +102,9 @@ CHECK_RULES = [
     check_prereg_schema,
     check_prereg_consistency,
     check_pk_test,
+    check_edges_tested,
+    check_inputs_mocked,
+    check_edge_readout,
 ]
 
 GATE_RULES = [
@@ -110,6 +121,7 @@ GATE_RULES = [
     gate_spec_first_written,
     gate_prereg_present,
     gate_prereg_counter,
+    gate_red_commits,
 ]
 
 COMPARE_RULES = [

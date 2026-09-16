@@ -52,7 +52,10 @@ def report(findings: list[Finding], command: str, ok_note: str = "") -> int:
     blocks = sum(1 for f in findings if f.severity == "BLOCK")
     counts = [c for c in (_count(blocks, "block"), _count(len(findings) - blocks, "info")) if c]
     if counts:
-        print("slp %s: %s - %s" % (command, ", ".join(counts), "BLOCKED" if blocks else "OK"))
+        note = " (%s)" % ok_note if ok_note and not blocks else ""
+        print(
+            "slp %s: %s - %s%s" % (command, ", ".join(counts), "BLOCKED" if blocks else "OK", note)
+        )
     else:
         print("slp %s: OK%s" % (command, " (%s)" % ok_note if ok_note else ""))
     return 1 if blocks else 0

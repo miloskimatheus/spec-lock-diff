@@ -73,7 +73,9 @@ def test_the_quickstart_has_something_to_check():
     """A pass on nothing reads exactly like a pass. Both numbers are asserted."""
     code, stdout, _ = run_slp(["check", "--project-dir", str(QUICKSTART)], ROOT)
     assert code == 0, stdout
-    assert stdout.strip() == "slp check: OK (2 models in models/marts/, of 4 models read)"
+    assert stdout.strip().endswith(
+        "slp check: 2 infos - OK (2 models in models/marts/, of 4 models read)"
+    )
 
 
 @needs_examples

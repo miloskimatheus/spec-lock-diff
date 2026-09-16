@@ -301,6 +301,8 @@ def test_the_rule_count_in_the_readmes_is_the_number_of_rules():
         30: "thirty",
         31: "thirty-one",
         32: "thirty-two",
+        33: "thirty-three",
+        34: "thirty-four",
     }
     words = {
         "twenty-four": "vinte e quatro",
@@ -312,6 +314,8 @@ def test_the_rule_count_in_the_readmes_is_the_number_of_rules():
         "thirty": "trinta",
         "thirty-one": "trinta e uma",
         "thirty-two": "trinta e duas",
+        "thirty-three": "trinta e três",
+        "thirty-four": "trinta e quatro",
     }
     english = said.get(len(slp.RULE_IDS))
     assert english, "no word for %d rules; add it here" % len(slp.RULE_IDS)
