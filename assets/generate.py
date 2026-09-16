@@ -114,6 +114,13 @@ L = {
         "mut_listed": "listed as equivalent: informs",
         "mut_why": "one survivor blocks; a changed model with no unit test blocks too",
         "mut_foot": "nothing is scanned: every input is mocked, so the compiled query reads no table",
+        "line_head": "ONE LINE PER FINDING, FIVE FIELDS, A TAB BETWEEN THEM",
+        "line_kind": "KIND", "line_file": "FILE", "line_model": "MODEL",
+        "line_what": "WHAT IS WRONG, IN ONE SENTENCE", "line_rule": "RULE",
+        "line_sentence": "test 'unique' on order_id exists on main but not here",
+        "line_summary": "slp gate: 1 block - BLOCKED", "line_exit": "→ exit 1",
+        "line_foot": "left to right: what happened, where, to which model, why, and which rule says so · the last line is the verdict, and BLOCK means exit 1",
+        "line_alt": "One finding line: BLOCK, the file, the model, what is wrong in one sentence, and the rule in brackets; then the summary line, which carries the exit code",
         "mut_alt": "The changed model is mutated one operator at a time; its unit tests run once against every mutant; a mutant a unit test fails on is killed, a survivor blocks the pull request, and one a human listed as equivalent informs",
         "lad_alt": "Five rungs, each green on its own: check on your machine; check and gate in CI; the paths nobody may quietly edit; the controls that are not code; Stage E, the diff",
         "q_check": "is there a spec, and can its test fail?",
@@ -215,6 +222,13 @@ L = {
         "mut_listed": "listado como equivalente: informa",
         "mut_why": "um sobrevivente bloqueia; um modelo alterado sem unit test também bloqueia",
         "mut_foot": "nada é escaneado: toda entrada é simulada, então a query compilada não lê tabela",
+        "line_head": "UMA LINHA POR ACHADO, CINCO CAMPOS, UM TAB ENTRE ELES",
+        "line_kind": "TIPO", "line_file": "ARQUIVO", "line_model": "MODELO",
+        "line_what": "O QUE ESTÁ ERRADO, NUMA FRASE", "line_rule": "REGRA",
+        "line_sentence": "test 'unique' on order_id exists on main but not here",
+        "line_summary": "slp gate: 1 block - BLOCKED", "line_exit": "→ exit 1",
+        "line_foot": "da esquerda para a direita: o que houve, onde, em que modelo, por quê, e que regra diz isso · a última linha é o veredito, e BLOCK quer dizer exit 1",
+        "line_alt": "Uma linha de achado: BLOCK, o arquivo, o modelo, o que está errado numa frase, e a regra entre colchetes; depois a linha de resumo, que carrega o exit code",
         "mut_alt": "O modelo alterado é mutado um operador por vez; seus unit tests rodam uma vez contra todo mutante; um mutante em que um unit test falha morre, um sobrevivente bloqueia o pull request, e um que um humano listou como equivalente informa",
         "lad_alt": "Cinco degraus, cada um verde sozinho: check na sua máquina; check e gate no CI; os caminhos que ninguém edita caladinho; os controles que não são código; Etapa E, o diff",
         "q_check": "existe spec, e o teste dela pode falhar?",
@@ -583,6 +597,30 @@ def mutants(t, s):
 <text x="1" y="190" font-size="9.5" fill="{m}">{s["mut_foot"]}</text>''')
 
 
+# ── one finding line, of section 7 ──────────────────────────────────────────
+def line(t, s):
+    """One BLOCK line in an output box, a callout under each of its five fields, the summary under it."""
+    i, m, b, g = t["ink"], t["muted"], t["blk"], t["c5"]
+    fields = (("BLOCK", b, "600", s["line_kind"]),
+              ("models/marts/fct_orders.yml", i, None, s["line_file"]),
+              ("fct_orders", i, None, s["line_model"]),
+              (s["line_sentence"], i, None, s["line_what"]),
+              ("[G1]", g, "600", s["line_rule"]))
+    x, body = 19, ""
+    for text, color, weight, caption in fields:
+        w = f' font-weight="{weight}"' if weight else ' opacity=".85"'
+        body += (f'<text x="{x}" y="54" font-size="11.5"{w} fill="{color}">{text}</text>'
+                 f'<path d="M{x + 1} 62v12" fill="none" stroke="{m}" stroke-width="1"/>'
+                 f'<text x="{x}" y="88" font-size="9" letter-spacing="1.2" fill="{m}">{caption}</text>\n')
+        x += round(len(text) * 6.92) + 28
+    return svg(t, 942, 176, s["line_alt"], f'''
+<text x="1" y="12" font-size="10" letter-spacing="2" fill="{i}" opacity=".55">{s["line_head"]}</text>
+<g fill="none" stroke="{i}" stroke-width="1.4" opacity=".6"><rect x="1" y="26" width="940" height="118"/><path d="M1 104h940"/></g>
+{body}<text x="19" y="128" font-size="11.5" fill="{i}" opacity=".85">{s["line_summary"]}</text>
+<text x="922" y="128" text-anchor="end" font-size="11.5" font-weight="600" fill="{b}">{s["line_exit"]}</text>
+<text x="1" y="168" font-size="9.5" fill="{m}">{s["line_foot"]}</text>''')
+
+
 # ── pre-registration interval ───────────────────────────────────────────────
 def prereg(t, s):
     i, p, b = t["ink"], t["pas"], t["blk"]
@@ -648,7 +686,7 @@ DRAWINGS = {
     "risks": risks, "roles": roles, "manifesto": manifesto, "controls": controls,
     "permissions": permissions, "process": process,
     "pre-registration": prereg, "diff": diff, "commands": commands, "ladder": ladder,
-    "mutants": mutants,
+    "mutants": mutants, "line": line,
 }
 
 os.makedirs(OUT, exist_ok=True)

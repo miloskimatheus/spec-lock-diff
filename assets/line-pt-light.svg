@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 942 176" width="942" height="176" role="img" aria-label="Uma linha de achado: BLOCK, o arquivo, o modelo, o que está errado numa frase, e a regra entre colchetes; depois a linha de resumo, que carrega o exit code" font-family='"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace'>
+<title>Uma linha de achado: BLOCK, o arquivo, o modelo, o que está errado numa frase, e a regra entre colchetes; depois a linha de resumo, que carrega o exit code</title>
+<rect width="942" height="176" fill="#ffffff"/>
+
+<text x="1" y="12" font-size="10" letter-spacing="2" fill="#1f2328" opacity=".55">UMA LINHA POR ACHADO, CINCO CAMPOS, UM TAB ENTRE ELES</text>
+<g fill="none" stroke="#1f2328" stroke-width="1.4" opacity=".6"><rect x="1" y="26" width="940" height="118"/><path d="M1 104h940"/></g>
+<text x="19" y="54" font-size="11.5" font-weight="600" fill="#A3231A">BLOCK</text><path d="M20 62v12" fill="none" stroke="#59636e" stroke-width="1"/><text x="19" y="88" font-size="9" letter-spacing="1.2" fill="#59636e">TIPO</text>
+<text x="82" y="54" font-size="11.5" opacity=".85" fill="#1f2328">models/marts/fct_orders.yml</text><path d="M83 62v12" fill="none" stroke="#59636e" stroke-width="1"/><text x="82" y="88" font-size="9" letter-spacing="1.2" fill="#59636e">ARQUIVO</text>
+<text x="297" y="54" font-size="11.5" opacity=".85" fill="#1f2328">fct_orders</text><path d="M298 62v12" fill="none" stroke="#59636e" stroke-width="1"/><text x="297" y="88" font-size="9" letter-spacing="1.2" fill="#59636e">MODELO</text>
+<text x="394" y="54" font-size="11.5" opacity=".85" fill="#1f2328">test 'unique' on order_id exists on main but not here</text><path d="M395 62v12" fill="none" stroke="#59636e" stroke-width="1"/><text x="394" y="88" font-size="9" letter-spacing="1.2" fill="#59636e">O QUE ESTÁ ERRADO, NUMA FRASE</text>
+<text x="789" y="54" font-size="11.5" font-weight="600" fill="#8C3357">[G1]</text><path d="M790 62v12" fill="none" stroke="#59636e" stroke-width="1"/><text x="789" y="88" font-size="9" letter-spacing="1.2" fill="#59636e">REGRA</text>
+<text x="19" y="128" font-size="11.5" fill="#1f2328" opacity=".85">slp gate: 1 block - BLOCKED</text>
+<text x="922" y="128" text-anchor="end" font-size="11.5" font-weight="600" fill="#A3231A">→ exit 1</text>
+<text x="1" y="168" font-size="9.5" fill="#59636e">da esquerda para a direita: o que houve, onde, em que modelo, por quê, e que regra diz isso · a última linha é o veredito, e BLOCK quer dizer exit 1</text>
+</svg>

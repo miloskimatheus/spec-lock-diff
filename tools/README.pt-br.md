@@ -526,6 +526,13 @@ numa invocação só, e não um por vez.
 Uma linha por achado, separada por tabulação, e depois uma linha de resumo. Tudo
 no stdout; erros que param a ferramenta vão para o stderr.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../assets/line-pt-dark.svg">
+    <img src="../assets/line-pt-light.svg" alt="Uma linha de achado: BLOCK, o arquivo, o modelo, o que está errado numa frase, e a regra entre colchetes; depois a linha de resumo, que carrega o exit code" width="900">
+  </picture>
+</p>
+
 ```
 BLOCK	models/marts/fct_orders.yml	fct_orders	test 'unique' on fct_orders.order_id exists on main but not in this PR	[G1]
 INFO	models/marts/fct_orders.yml	fct_orders	pre-registration was modified 1 time after it was first written	[I1]

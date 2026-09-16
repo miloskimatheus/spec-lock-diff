@@ -518,6 +518,13 @@ one invocation rather than one each.
 One line per finding, tab-separated, then one summary line. Everything on stdout;
 errors that stop the tool go to stderr.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../assets/line-en-dark.svg">
+    <img src="../assets/line-en-light.svg" alt="One finding line: BLOCK, the file, the model, what is wrong in one sentence, and the rule in brackets; then the summary line, which carries the exit code" width="900">
+  </picture>
+</p>
+
 ```
 BLOCK	models/marts/fct_orders.yml	fct_orders	test 'unique' on fct_orders.order_id exists on main but not in this PR	[G1]
 INFO	models/marts/fct_orders.yml	fct_orders	pre-registration was modified 1 time after it was first written	[I1]
