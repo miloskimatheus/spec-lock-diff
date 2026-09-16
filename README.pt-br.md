@@ -52,6 +52,7 @@ Adotar é uma escada, não um penhasco: o `check` e o `gate` são vinte e cinco 
 2. [Construindo a trava — 5 controles obrigatórios](#2-construindo-a-trava--5-controles-obrigat%C3%B3rios)
 3. [O processo de desenvolvimento (rotina) — 5 etapas](#3-o-processo-de-desenvolvimento-rotina--5-etapas)
 4. [Rotinas — três passo a passos](#4-rotinas--tr%C3%AAs-passo-a-passos)
+5. [Referências — de onde vêm estas ideias](#5-refer%C3%AAncias--de-onde-v%C3%AAm-estas-ideias)
 
 **Sete palavras que este documento usa antes de definir**, para você poder ler direto:
 
@@ -622,6 +623,25 @@ Uma spec, uma reconciliação e os testes que codificam uma regra antiga mudam n
 ### O loop do agente
 
 `tcr.sh "mensagem"` roda `check`, `gate` e os unit tests. Verde: a alteração vira commit. Vermelho: a árvore de trabalho volta ao último commit e um strike é contado; um passo verde zera a contagem; o quinto strike seguido para o agente com uma mensagem que manda chamar um humano. Os unit tests não leem tabela nenhuma (toda entrada é simulada), então o loop não custa nada no warehouse, rode quantas vezes rodar; o build roda uma vez, no CI. Nada que o agente faça dentro do loop enfraquece um teste: o `gate` está dentro dele, e a Regra 3 diz que o código é o que muda.
+
+---
+
+## 5. Referências — de onde vêm estas ideias
+
+Nenhuma delas é sobre dbt ou agentes. O framework é o que elas viram quando apontadas para os dois.
+
+| Ideia neste documento | Fonte |
+| --- | --- |
+| Uma previsão escrita antes de o resultado ser visto (Etapa B, o pré-registro) | Nosek, Ebersole, DeHaven, Mellor, "The preregistration revolution", *PNAS*, 2018 |
+| Um teste que não consegue falhar não é um teste; cada borda como um teste, antes do código (Regras 2 e 3) | Beck, *Test-Driven Development: By Example*, 2002 |
+| Um passo de cada vez: testa, então commita, senão reverte (Regra 5) | Beck, "test && commit \|\| revert", 2018 |
+| Os testes notariam um resultado errado e plausível? (o mutation check, Etapa D) | DeMillo, Lipton, Sayward, "Hints on Test Data Selection: Help for the Practicing Programmer", *IEEE Computer*, 1978 |
+| Uma borda escrita como o que é dado e o que decorre (`known_edges`; o `given` e o `expect` de um unit test) | North, "Introducing BDD", 2006; Gherkin, a linguagem do Cucumber, 2008 |
+| Risco de mudança como complexidade vezes o que os testes nunca exercitam (os portões sobre as próprias ferramentas) | Savoia, C.R.A.P., Change Risk Anti-Patterns, crap4j, 2007; McCabe, "A Complexity Measure", *IEEE TSE*, 1976 |
+| Limites na infraestrutura, o menor acesso que faz o trabalho, uma verificação que falha fechada (Princípio 2, Controles 1 a 3, exit 2) | Saltzer, Schroeder, "The Protection of Information in Computer Systems", *Proc. IEEE*, 1975: menor privilégio e padrões à prova de falha |
+| Juízes que nunca variam (Princípio 3) | Fowler, "Eradicating Non-Determinism in Tests", 2011 |
+| Unit tests sobre linhas inventadas; o diff de um modelo como agregados (Regra 2, Etapa E) | dbt Labs, dbt Core 1.8, unit tests, 2024; Recce e dbt-audit-helper, para os números de um diff |
+| Quem aprova o quê, como controle e não como regra (Controle 5A) | GitHub, code owners e branch protection |
 
 ---
 
