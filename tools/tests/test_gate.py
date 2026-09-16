@@ -169,3 +169,40 @@ def test_a_file_with_multibyte_characters_is_read_whole(tmp_path):
     # The file after the multibyte one still parses, which it cannot if the
     # stream was cut in the wrong place.
     assert "fct_reconciliação" in inv["where"] and "fct_after" in inv["where"]
+
+
+def test_a_blob_is_read_whole_and_unchanged(tmp_path):
+    """cat-file sizes in bytes and the reader trusts the size: one byte off is a corrupted yml."""
+    repo = build(QUIET, tmp_path)
+    path = "models/marts/fct_orders.yml"
+    assert slp.git_blobs(repo, "HEAD", [path])[path] == (repo / path).read_text(encoding="utf-8")
+
+
+def test_a_path_the_commit_does_not_have_is_an_error(tmp_path):
+    """The header of a missing object has two words, not three; that is exit 2, not an empty file."""
+    repo = build(QUIET, tmp_path)
+    with pytest.raises(slp.SlpError, match="cannot read no/such.yml at HEAD"):
+        slp.git_blobs(repo, "HEAD", ["no/such.yml"])
+
+
+def test_cat_file_outside_a_repository_is_an_error(tmp_path):
+    with pytest.raises(slp.SlpError, match="git cat-file"):
+        slp.git_blobs(tmp_path, "HEAD", ["a"])
+
+
+def test_a_file_that_is_not_text_is_an_error_not_a_hash(tmp_path):
+    """R3: a binary under tests/ cannot be compared as text, and the tool says so."""
+    repo = build(QUIET, tmp_path)
+    (repo / "tests").mkdir()
+    (repo / "tests" / "blob.sql").write_bytes(b"select 1 -- \xff\xfe")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "a file that is not text")
+    with pytest.raises(slp.SlpError, match="cannot read tests/blob.sql"):
+        slp.inventory(repo, "HEAD")
+
+
+def test_the_filter_finding_names_the_column_it_was_put_on(tmp_path):
+    """R7: the G2 line says model.column, and the mutation probe showed nothing held it to that."""
+    repo = build(FIXTURES / "gate" / "G2_where_added", tmp_path)
+    _, out, _ = run_slp(["gate", "--base", "base"], repo)
+    assert "test 'unique' on fct_orders.order_id now skips rows with where: status != 'cancelled'" in out, out

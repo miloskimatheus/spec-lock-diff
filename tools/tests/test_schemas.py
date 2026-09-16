@@ -7,6 +7,7 @@ wrong reason when the schema changes.
 
 import json
 
+import jsonschema
 import pytest
 import yaml
 
@@ -66,3 +67,9 @@ def test_messages_name_the_field_and_what_it_should_be():
     assert slp.schema_errors(bad, "spec", "spec") == [
         'spec.tier: must be "critical" or "standard"; critical means the model feeds'
         ' business decisions, financial reports or executive dashboards (got "crítical")']
+
+
+def test_a_field_no_schema_describes_says_what_the_keyword_wanted():
+    """R7: when there is no sentence to borrow, the keyword and its value are the sentence."""
+    error = next(jsonschema.Draft202012Validator({"type": "integer"}).iter_errors("x"))
+    assert slp._why(error) == '"integer" (got "x")'

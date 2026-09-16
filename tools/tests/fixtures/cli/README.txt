@@ -11,3 +11,13 @@ Projects that exercise the entry point itself, not a rule:
   arguments_twice a test that gives its arguments on the test and under
                   arguments: - exit 2, the tool does not guess which dbt reads
   where_twice     a where on the test and another under config - exit 2
+  models_not_a_list       models: is a mapping, not a list of entries - exit 2
+  tests_twice             tests: and data_tests: on the same column - exit 2
+  tests_not_a_list        tests: is a string - exit 2
+  test_two_keys           one list item that names two tests - exit 2
+  arguments_not_a_mapping arguments: is a list - exit 2
+  yml_is_a_list           the yml document is a list, not a mapping - exit 2
+  model_without_name      a model entry with no name - exit 2
+  column_without_name     a column entry with no name - exit 2
+  unit_test_without_name  a unit test whose name is empty - exit 2
+  model_declared_twice    two yml files declare the same model - exit 2

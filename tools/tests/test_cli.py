@@ -4,12 +4,16 @@ Every case here is about the machinery all three commands share, so it keeps
 working no matter which rules are registered.
 """
 
+import io
 import os
+import pathlib
+import runpy
 import subprocess
 import sys
 
 import pytest
 
+import slp
 from conftest import FIXTURES, SLP, run_slp
 
 CLI = FIXTURES / "cli"
@@ -84,6 +88,16 @@ def test_more_than_one_marts_path_is_read_as_one_set():
     ("arguments_twice", "ambiguous"),
     ("where_twice", "ambiguous"),
     ("jinja_yml", "contains jinja, which these tools do not render"),
+    ("models_not_a_list", "must be a list of entries"),
+    ("tests_twice", "ambiguous: tests defined twice"),
+    ("tests_not_a_list", "must be a list"),
+    ("test_two_keys", "cannot read a test"),
+    ("arguments_not_a_mapping", "must be a mapping"),
+    ("yml_is_a_list", "is not a yml mapping"),
+    ("model_without_name", "a model without a name"),
+    ("column_without_name", "a column without a name"),
+    ("unit_test_without_name", "a unit test without a name"),
+    ("model_declared_twice", "is declared twice"),
 ])
 def test_what_cannot_be_read_is_never_a_pass(case, expected):
     """R3, fail closed: an unreadable project is exit 2, not exit 0."""
@@ -100,3 +114,47 @@ def test_what_cannot_be_read_is_never_a_pass(case, expected):
 def test_the_shipped_command_line_agrees_with_the_one_the_tests_call(case, args):
     """The suite runs slp in process for speed; CI runs `python tools/slp.py`."""
     assert run_slp(args, CLI / case) == run_slp(args, CLI / case, as_subprocess=True)
+
+
+def test_a_file_the_system_will_not_hand_over_is_an_error(monkeypatch):
+    """R3: a yml that exists and cannot be read is exit 2, not a project with one file fewer."""
+    def refuse(self, *args, **kwargs):
+        raise OSError("permission denied")
+    monkeypatch.setattr(pathlib.Path, "read_text", refuse)
+    code, _, err = run_slp(["check"], CLI / "valid")
+    assert code == 2 and err.startswith("ERROR cannot read") and "permission denied" in err
+
+
+def test_a_diff_file_that_is_not_there_is_an_error():
+    """R3: compare on a missing diff.json cannot have compared anything."""
+    code, _, err = run_slp(["compare", "no_such.json"], FIXTURES / "compare" / "C1_inside")
+    assert code == 2 and err.startswith("ERROR cannot read no_such.json")
+
+
+def test_an_unexpected_error_is_exit_2_and_never_a_pass(monkeypatch):
+    """R3, the last line of main: a bug in a rule must not read as a run that found nothing."""
+    def boom(project):
+        raise RuntimeError("kaboom")
+    monkeypatch.setattr(slp, "CHECK_RULES", [boom])
+    code, out, err = run_slp(["check"], CLI / "valid")
+    assert code == 2 and out == ""
+    assert err == "ERROR unexpected RuntimeError: kaboom\n"
+
+
+def test_a_console_that_can_be_reconfigured_is(monkeypatch):
+    """The escape for a console that cannot encode a character is set on the real stream."""
+    out = io.TextIOWrapper(io.BytesIO(), encoding="ascii")
+    monkeypatch.setattr(sys, "stdout", out)
+    with pytest.raises(SystemExit) as done:
+        slp.main(["--version"])
+    assert done.value.code == 0 and out.errors == "backslashreplace"
+    out.flush()
+    assert out.buffer.getvalue().decode("ascii").strip()[0].isdigit()
+
+
+def test_the_file_runs_as_a_script(monkeypatch):
+    """`python tools/slp.py` reaches main through the module's last line."""
+    monkeypatch.setattr(sys, "argv", ["slp", "--version"])
+    with pytest.raises(SystemExit) as done:
+        runpy.run_path(str(SLP), run_name="__main__")
+    assert done.value.code == 0
