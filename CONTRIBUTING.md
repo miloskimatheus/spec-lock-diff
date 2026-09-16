@@ -53,6 +53,7 @@ tools, this is what it will ask of you:
 | change the tools README | the same change in `README.pt-br.md` — **R10** checks section numbering, rule order, and every line the tool itself prints |
 | write more code | room under **M8**, which caps the shared machinery, any one rule, and the file. Raising a number is allowed; the pull request has to say what was bought with it |
 | write a branch | the tool at 100% of statements and branches and every function at CRAP ≤ 30: `coverage run --branch --include='tools/slp.py' -m pytest tools/tests -q && python tools/tests/crap.py`. Neither number moves, and **M9** bans the comment that would exempt a line from them; a function over the cap is two functions |
+| change the tool | every mutant of it killed: `python tools/tests/mutants.py --jobs 4` (a quarter of an hour on four cores; `--only <function>` while you work). A survivor is a test to write, or, when the change alters no verdict, a line in `tools/tests/equivalent_mutants.txt` with its id and a reason of at least four words; a listed mutant the suite kills, or that no longer exists, fails the run |
 | push a pull request | every commit of it green on its own: the `commits` job replays the suite at each one. `tools/tests/tcr.sh "message"` is the loop that guarantees it, commit by commit |
 | release | `__version__`, the `## <version>` heading in `CHANGELOG.md`, and the version in `pyproject.toml`, held together by one test |
 

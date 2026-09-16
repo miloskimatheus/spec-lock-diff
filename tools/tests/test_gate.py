@@ -198,8 +198,9 @@ def test_a_file_that_is_not_text_is_an_error_not_a_hash(tmp_path):
     (repo / "tests" / "blob.sql").write_bytes(b"select 1 -- \xff\xfe")
     git(repo, "add", "-A")
     git(repo, "commit", "-q", "-m", "a file that is not text")
-    with pytest.raises(slp.SlpError, match="cannot read tests/blob.sql"):
-        slp.inventory(repo, "HEAD")
+    head = git(repo, "rev-parse", "HEAD").strip()
+    with pytest.raises(slp.SlpError, match="cannot read tests/blob.sql at %s:" % head[:8]):
+        slp.inventory(repo, head)
 
 
 def test_the_filter_finding_names_the_column_it_was_put_on(tmp_path):
