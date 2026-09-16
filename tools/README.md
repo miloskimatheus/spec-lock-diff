@@ -45,10 +45,11 @@ slp gate: 1 block - BLOCKED
 3. [Stage C and D — `gate`](#3-stage-c-and-d--gate)
 4. [Stage E — `compare`](#4-stage-e--compare)
 5. [The `diff.json` contract](#5-the-diffjson-contract)
-6. [Reading a run](#6-reading-a-run)
-7. [The rules](#7-the-rules)
-8. [What v0 does not do](#8-what-v0-does-not-do)
-9. [Contributing](#9-contributing)
+6. [Stage D — the mutation check](#6-stage-d--the-mutation-check)
+7. [Reading a run](#7-reading-a-run)
+8. [The rules](#8-the-rules)
+9. [What v0 does not do](#9-what-v0-does-not-do)
+10. [Contributing](#10-contributing)
 
 ---
 
@@ -116,6 +117,7 @@ not one `exit 1` — so the first run is green. List `ci` as a required check.
 | --- | --- | --- |
 | `tools/templates/CODEOWNERS` | `.github/CODEOWNERS` | Replace `@your-org/data-platform`; list your incremental models and critical directories. It follows the framework's protected-path table row by row. |
 | `tools/templates/AGENTS.md` | `AGENTS.md` | Keep its protected-path list identical to your CODEOWNERS. Nothing in it is a control — it tells the agent what the machines will do, so it does not spend a pull request finding out. |
+| `tools/templates/tcr.sh` | `tcr.sh` | Set `SLP_BASE` if pull requests do not target `main`, and `--marts-path` if your marts live elsewhere. It is the loop of Rule 5 and the only commit path AGENTS.md gives the agent: `check`, `gate`, the unit tests, then commit or revert; the fifth revert in a row stops it. No build in it. |
 
 **Turn on branch protection** for `main`: require pull requests, require review
 from Code Owners, and block force-push on every branch — three gate rules read
@@ -129,11 +131,17 @@ profiles instead of rows. Nothing in `tools/` enforces these and nothing here
 could — they are permissions, monitors and masks, not a script. This is the rung
 that makes the numbers on the next one worth reading.
 
+One file belongs here: `tools/templates/spec_draft.sql` is the aggregate-only
+queries Control 4 lets the agent run to draft a spec, cheapest first — the
+storage view that costs nothing, then one partition. Nothing enforces it; it
+is what the agent is handed instead of a `select *`.
+
 ### Rung 5 — Stage E, the diff
 
 | Copy | To | Then edit |
 | --- | --- | --- |
 | `tools/templates/ci-warehouse.yml` | `.github/workflows/ci-warehouse.yml` | Write your adapter, warehouse auth, production artifacts, the sample build, the full build and the diff. **Six steps exit 1 until you do** — a template shipped unedited fails closed. |
+| `tools/templates/mutate_model.py` | `.github/mutate_model.py` | Nothing: the workflow hands it the base and the artifacts. It is the mutation check of Stage D ([section 6](#6-stage-d--the-mutation-check)), and `ci-warehouse.yml` runs it after the sample build. |
 
 Add `build` and `diff` to the required checks. The largest of those steps is the
 diff itself, and it is the one thing these tools do not do for you:
@@ -426,7 +434,70 @@ and a diff artifact is read by everyone who opens the pull request.
 
 ---
 
-## 6. Reading a run
+## 6. Stage D — the mutation check
+
+`tools/templates/mutate_model.py` is the one template that runs dbt, and it is
+the framework's mutation check: for every marts model whose sql the pull
+request changed, the sql is mutated in a fixed list of ways and the model's
+unit tests must fail on every mutant. It runs through unit tests only, on
+their `given` rows, so it reads no table — `T3` is what makes that true — and
+it writes every mutant of a model as a temporary model with the unit tests
+cloned on, so one `dbt test` invocation covers all of them. Copy it to
+`.github/mutate_model.py`, a protected path, and the `build` job of
+`ci-warehouse.yml` runs it after the sample build.
+
+**Runs at** Stage D, on every push, after the sample build. On your machine,
+`--dry-run` lists what it would try and runs nothing:
+
+```
+$ python .github/mutate_model.py --base main --dry-run
+fct_orders	where/1        line 7    status != 'cancelled' -> true
+fct_orders	cmp/1          line 7    != -> =
+fct_orders	literal/1      line 7    'cancelled' -> 'cancelled_'
+mutate: 1 changed model listed, nothing run
+```
+
+**The operators**, tried at every site of the sql: `cmp` flips a comparison;
+`where` replaces one predicate of a `where` clause by `true`; `agg` turns
+`sum(` into `max(`, `min(` into `max(`, `max(` into `min(`, `avg(` into
+`max(` and `count(distinct` into `count(`; `join` turns a left join into an
+inner one and back; `coalesce` keeps only the first argument; `distinct` goes;
+`literal` moves a number by one and gives a string one more character; `not`
+removes a `not`. Comments, jinja blocks and string literals are not sites,
+except for `literal`, so a `!=` inside a comment is never mutated.
+
+**What blocks.** A mutant every unit test passes: the fixture cannot tell the
+code from a wrong one, and the line names the operator, the text and the
+line. A changed model with no unit test: nothing there could kill anything.
+What does not block is a mutant a human listed in
+`tests/mutation_equivalents.yml`, read from the branch the pull request
+targets, so a line the agent adds on its own branch is inert until a human
+lands it:
+
+```yaml
+- model: fct_orders
+  operator: cmp
+  original: "<>"
+  occurrence: 1
+  reason: "<> and != are one operator in every dialect"
+```
+
+An entry names a mutant by model, operator, original text and occurrence,
+never by line, so a line moving does not silence it.
+
+**The artifact.** One `mutation/<model>.json` per changed model, in the shape
+of `schemas/mutation.schema.json`: every mutant with its operator, original
+text, replacement, line, occurrence and verdict, and the three counts.
+
+**What it costs.** Nothing in the warehouse: the unit tests run on literal
+rows, and one dbt start-up per pull request is the whole of it. The probe
+that shaped this measured six seconds of dbt start-up per invocation and a
+tenth of a second per unit test, which is why the mutants of a model go into
+one invocation rather than one each.
+
+---
+
+## 7. Reading a run
 
 One line per finding, tab-separated, then one summary line. Everything on stdout;
 errors that stop the tool go to stderr.
@@ -456,7 +527,7 @@ silent pass is the exact failure this framework exists to prevent.
 1. **Did it exit 2?** Then nothing was judged. Fix that first — an exit 2 tells
    you nothing about the code.
 2. **Is there a `BLOCK`?** Each names what was measured and what was promised,
-   and ends in a rule id you can look up in [section 7](#7-the-rules). A `gate`
+   and ends in a rule id you can look up in [section 8](#8-the-rules). A `gate`
    block is almost never something to work around: it is a test that got weaker,
    and Rule 3 says the code is what changes.
 3. **Then read the `INFO` lines.** They never change the exit code, which is
@@ -491,7 +562,7 @@ compared, so adding a tag to a test is not a finding either.
 
 ---
 
-## 7. The rules
+## 8. The rules
 
 One row per rule: what it blocks, where the framework asks for it, and the two
 fixtures the meta-tests hold it to — one where it fires, one where it stays
@@ -555,7 +626,7 @@ the source so none can quietly grow a `BLOCK`.
 
 ---
 
-## 8. What v0 does not do
+## 9. What v0 does not do
 
 All of this is part of the framework and **not** enforced here. Knowing which is
 which is the point of the list; [CHANGELOG.md](CHANGELOG.md) tells each story.
@@ -624,20 +695,20 @@ can be a green about nothing.
 
 ---
 
-## 9. Contributing
+## 10. Contributing
 
 | Path | What it is |
 | --- | --- |
 | `slp.py` | The way in for the vendored spelling: it puts its own folder on the path and hands over to the package. |
 | `spec_lock_diff/` | The tool, one package read module by module: `findings` (what a rule says, how a run ends), `readers` (yml, json, the schemas), `project` (a dbt project as its yml declares it), `owners` (CODEOWNERS the way git reads it), `gitread` (two commits and the walk between them), `rules/` (one module per command, one function per rule) and `cli`. Installed, it is the same package under the same name. |
 | `spec_lock_diff/schemas/` | What a spec, a pre-registration and a `diff.json` must look like. |
-| `templates/` | CODEOWNERS, AGENTS.md and the two CI workflows, ready to copy. |
+| `templates/` | CODEOWNERS, AGENTS.md, the two CI workflows, the agent's loop (`tcr.sh`), the mutation check (`mutate_model.py`), the drafting queries (`spec_draft.sql`) and the diff converter, ready to copy. |
 | `tests/` | The suite, and `tests/fixtures/` — every case as real files, one folder per case with a `README.txt`. |
 | `../examples/` | A project the gates pass on, and a walkthrough of one that they do not. Its READMEs print real output, and `tests/test_examples.py` runs the commands and compares. |
 
 - **One rule per pull request.** A rule is one function, one docstring starting
   with the framework sentence it enforces, one rule id, one fixture that blocks,
-  one that passes, and one row in [section 7](#7-the-rules). The meta-tests fail
+  one that passes, and one row in [section 8](#8-the-rules). The meta-tests fail
   if you forget one of the last three.
 - **Framework README first.** These tools may only enforce something the
   framework says. If your rule needs it to change, open a *Framework improvement*

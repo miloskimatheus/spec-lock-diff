@@ -57,6 +57,6 @@ rule. Each is one line in the yml:
 | Editing `meta.spec` | `G7` — the spec is the human's, and Stage A happens before Stage C |
 | Touching `dbt_project.yml`, `macros/` or `.github/` | `G9` — a protected path, where a macro can silently replace a test everywhere |
 
-Thirteen `gate` rules in all; [the tools README](../../tools/README.md#7-the-rules)
+Fourteen `gate` rules in all; [the tools README](../../tools/README.md#8-the-rules)
 lists every one with the two fixtures that hold it to its word, and
-`tools/tests/fixtures/gate/` has seventy-eight more cases than this folder does.
+`tools/tests/fixtures/gate/` has eighty-five more cases than this folder does.
