@@ -1,5 +1,7 @@
 """What a rule says, and how a run ends: findings, their lines, the summary and the exit code."""
 
+from __future__ import annotations
+
 from typing import NamedTuple
 
 
@@ -16,25 +18,25 @@ class Finding(NamedTuple):
     message: str
     rule_id: str
 
-    def line(self):
+    def line(self) -> str:
         return "\t".join(self[:4] + ("[%s]" % self.rule_id,))
 
 
-def block(file, model, message, rule_id):
+def block(file: str, model: str, message: str, rule_id: str) -> Finding:
     """A finding that fails the command (exit 1)."""
     return Finding("BLOCK", file, model, message, rule_id)
 
 
-def info(file, model, message, rule_id):
+def info(file: str, model: str, message: str, rule_id: str) -> Finding:
     """A finding the reviewer should see; it never changes the exit code."""
     return Finding("INFO", file, model, message, rule_id)
 
 
-def _count(n, word):
+def _count(n: int, word: str) -> str:
     return "" if not n else "%d %s%s" % (n, word, "" if n == 1 else "s")
 
 
-def report(findings, command, ok_note=""):
+def report(findings: list[Finding], command: str, ok_note: str = "") -> int:
     """Print the findings sorted, then one summary line. Returns the exit code.
 
     By file, then by model, then what blocks before what only informs, and ties

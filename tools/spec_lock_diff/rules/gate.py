@@ -2,16 +2,19 @@
 5B, §3 Stage B).
 """
 
+from __future__ import annotations
+
 import json
 import re
+from typing import Any
 
-from ..findings import _count, block, info
-from ..gitread import _canon
+from ..findings import Finding, _count, block, info
+from ..gitread import Gate, Inventory, _canon
 from ..project import _dirs
 from .common import DEAD_KEYS, _inherited, _muted
 
 
-def _by3(inv):
+def _by3(inv: Inventory) -> dict[tuple[str, str, str], dict[str, list[dict[str, Any]]]]:
     """Data tests grouped by (model, column, test name), each keeping its own config.
 
     A column often carries two tests of the same name - two `relationships`, two
@@ -27,39 +30,39 @@ def _by3(inv):
     and the second inherits its number, which reads as a config edit rather
     than as a removal.
     """
-    out = {}
+    out: dict[tuple[str, str, str], dict[str, list[dict[str, Any]]]] = {}
     for (model, column, name, args), cfgs in sorted(inv["tests"].items()):
         out.setdefault((model, column, name), {})[args] = cfgs
     return out
 
 
-def _which(group, args):
+def _which(group: dict[str, Any], args: str) -> str:
     """Which of several same-named tests on the same column this one is."""
     if len(group) < 2:
         return ""
     return " (%s)" % ", ".join("%s=%s" % pair for pair in sorted(json.loads(args).items()))
 
 
-def _on(cfg):
+def _on(cfg: dict[str, Any]) -> bool:
     """A test that is switched off asserts nothing."""
     return cfg.get("enabled", True) is True
 
 
-def _live(bag):
+def _live(bag: list[dict[str, Any]]) -> int:
     """How many declarations in a bag are switched on."""
     return sum(1 for cfg in bag if _on(cfg))
 
 
-def _named(model, column):
+def _named(model: str, column: str) -> str:
     return "%s.%s" % (model, column) if column else model
 
 
-def _file(ctx, model):
+def _file(ctx: Gate, model: str) -> str:
     """The yml that declares the model now, or the one that declared it before."""
     return ctx.after["where"].get(model) or ctx.before["where"].get(model) or ""
 
 
-def _in_marts(ctx, model):
+def _in_marts(ctx: Gate, model: str) -> bool:
     """In marts when the yml that declares the model is, or the sql that makes it is."""
     return any(
         (inv[kind].get(model) or "").startswith(_dirs(ctx.marts))
@@ -68,19 +71,19 @@ def _in_marts(ctx, model):
     )
 
 
-def _changed(ctx, kind, keys=None):
+def _changed(ctx: Gate, kind: str, keys: set[Any] | None = None) -> list[Any]:
     """Keys of one part of the inventory whose value is not the same on both sides."""
     if keys is None:
         keys = set(ctx.before[kind]) | set(ctx.after[kind])
     return sorted(k for k in keys if ctx.before[kind].get(k) != ctx.after[kind].get(k))
 
 
-def gate_test_removed(ctx):
+def gate_test_removed(ctx: Gate) -> list[Finding]:
     """README §2 Control 5B — "Test removed": an agent can remove a failing test instead of
     fixing the code.
     """
     before, after = _by3(ctx.before), _by3(ctx.after)
-    out = []
+    out: list[Finding] = []
     for key in sorted(before):
         model, column, name = key
         said, file = "test '%s' on %s " % (name, _named(model, column)), _file(ctx, model)
@@ -123,41 +126,41 @@ def gate_test_removed(ctx):
     return out
 
 
-def gate_test_filter(ctx):
+def gate_test_filter(ctx: Gate) -> list[Finding]:
     """README §2 Control 5B — "WHERE or exclusion clause added to a test": a way to make a test
     pass without fixing the problem.
     """
-    out = []
+    out: list[Finding] = []
     before, after = _by3(ctx.before), _by3(ctx.after)
     for key in sorted(set(before) & set(after)):
         for args in sorted(set(before[key]) & set(after[key])):
             old = [cfg.get("where") for cfg in before[key][args]]
-            for new in sorted(set(cfg.get("where") for cfg in after[key][args]) - set(old)):
-                if new is not None:
-                    out.append(
-                        block(
-                            _file(ctx, key[0]),
-                            key[0],
-                            "test '%s' on %s%s now skips "
-                            "rows with where: %s"
-                            % (key[2], _named(key[0], key[1]), _which(after[key], args), new),
-                            "G2",
-                        )
+            added = set(cfg.get("where") for cfg in after[key][args]) - set(old)
+            for new in sorted(where for where in added if where is not None):
+                out.append(
+                    block(
+                        _file(ctx, key[0]),
+                        key[0],
+                        "test '%s' on %s%s now skips "
+                        "rows with where: %s"
+                        % (key[2], _named(key[0], key[1]), _which(after[key], args), new),
+                        "G2",
                     )
+                )
     return out
 
 
-def _sev(cfg):
+def _sev(cfg: dict[str, Any]) -> str:
     """The severity dbt will use: error unless the test says otherwise."""
     return str(cfg.get("severity", "error")).lower()
 
 
-def gate_test_severity(ctx):
+def gate_test_severity(ctx: Gate) -> list[Finding]:
     """README §2 Control 5B — "severity downgraded (e.g., error → warn)" and "a test added that
     cannot fail": a test that reports a pass whatever the data does is not a test, whether
     this branch made it that way or wrote it that way.
     """
-    out = []
+    out: list[Finding] = []
     before, after = _by3(ctx.before), _by3(ctx.after)
     for key in sorted(after):
         for args in sorted(after[key]):
@@ -201,13 +204,13 @@ def gate_test_severity(ctx):
     return out
 
 
-def gate_test_narrowed(ctx):
+def gate_test_narrowed(ctx: Gate) -> list[Finding]:
     """README §2 Control 5B — "WHERE or exclusion clause added to a test": a test this branch
     adds has no earlier self to be weaker than, and still asserts nothing about the rows its
     filter removes. Whether those are rows that cannot fail or rows that would have is a
     reading, so this one is shown and not blocked.
     """
-    out = []
+    out: list[Finding] = []
     before, after = _by3(ctx.before), _by3(ctx.after)
     for key in sorted(after):
         for args in sorted(after[key]):
@@ -227,11 +230,11 @@ def gate_test_narrowed(ctx):
     return out
 
 
-def gate_unit_test_changed(ctx):
+def gate_unit_test_changed(ctx: Gate) -> list[Finding]:
     """README §2 Control 5B — "expect value changed in an existing test": if the agent changes
     the expected result, any result becomes correct.
     """
-    out = []
+    out: list[Finding] = []
     for key in sorted(set(ctx.before["units"]) & set(ctx.after["units"])):
         file, model, body = ctx.after["units"][key]
         if ctx.before["units"][key][2] != body:
@@ -248,11 +251,11 @@ def gate_unit_test_changed(ctx):
     return out
 
 
-def gate_recon_with_model(ctx):
+def gate_recon_with_model(ctx: Gate) -> list[Finding]:
     """README §2 Control 5B — "analyses/reconciliation_* changed in the same PR as the model":
     like a student writing the exam and the answer key.
     """
-    out = []
+    out: list[Finding] = []
     moved = set(_changed(ctx, "recons"))
     for model in sorted(ctx.after["specs"]):
         spec = ctx.after["specs"][model]
@@ -260,7 +263,7 @@ def gate_recon_with_model(ctx):
         if query in moved and ctx.before["models"].get(model) != ctx.after["models"].get(model):
             out.append(
                 block(
-                    query,
+                    str(query),
                     model,
                     "%s changed in the same PR as the model it checks; "
                     "a human changes the reconciliation, in its own PR" % query,
@@ -270,7 +273,7 @@ def gate_recon_with_model(ctx):
     return out
 
 
-def gate_packages(ctx):
+def gate_packages(ctx: Gate) -> list[Finding]:
     """README §2 Control 5B — "Package pin changed": changing dependency versions can introduce
     different behaviors.
     """
@@ -286,7 +289,7 @@ def gate_packages(ctx):
     ]
 
 
-def gate_protected_paths(ctx):
+def gate_protected_paths(ctx: Gate) -> list[Finding]:
     """README §2 Control 5A — "Certain files and directories must be protected so that only
     humans can modify them"; §3 Stage C Rule 8 — "Do not edit protected paths".
     """
@@ -320,9 +323,9 @@ def gate_protected_paths(ctx):
 _CONFIG = re.compile(r"config\s*\((.*?)\)\s*}}", re.S)
 
 
-def _muted_sql(text):
+def _muted_sql(text: str) -> str:
     """Why a singular test cannot fail the build, read from its own config(), or "" when it can."""
-    cfg = {}
+    cfg: dict[str, Any] = {}
     for body in _CONFIG.findall(text):
         for key, value in re.findall(r"(\w+)\s*=\s*([^,\s)]+)", body):
             cfg[key] = value.strip("'\"")
@@ -331,7 +334,7 @@ def _muted_sql(text):
     return _muted(cfg, DEAD_KEYS)
 
 
-def gate_singular_born_muted(ctx):
+def gate_singular_born_muted(ctx: Gate) -> list[Finding]:
     """README §2 Control 5B — "A test added that cannot fail": a singular test under tests/
     carries its config in its own sql, where the rules that read the yml cannot see it.
     """
@@ -345,11 +348,11 @@ def gate_singular_born_muted(ctx):
     ]
 
 
-def gate_spec_changed(ctx):
+def gate_spec_changed(ctx: Gate) -> list[Finding]:
     """README §1 Principle 1 — "The human decides before, by writing the spec"; README §3 Stage
     A — the six fields are read and approved before any line of code is written.
     """
-    out = []
+    out: list[Finding] = []
     for model in sorted(ctx.after["specs"]):
         spec = ctx.after["specs"][model]
         if spec is None or not _in_marts(ctx, model):
@@ -371,12 +374,12 @@ def gate_spec_changed(ctx):
     return out
 
 
-def gate_spec_first_written(ctx):
+def gate_spec_first_written(ctx: Gate) -> list[Finding]:
     """README §3 Stage A — "the 6 fields must be read and approved by the human before any line
     of code is written": a spec that was not on main was written on this branch, and the
     Author is told where, because nothing in git can say by whom it was approved.
     """
-    out = []
+    out: list[Finding] = []
     for model in sorted(ctx.after["specs"]):
         if (
             ctx.after["specs"][model] is None
@@ -399,12 +402,12 @@ def gate_spec_first_written(ctx):
     return out
 
 
-def gate_prereg_present(ctx):
+def gate_prereg_present(ctx: Gate) -> list[Finding]:
     """README §3 Stage C — "Cannot start without a valid pre-registration"; Stage B — the agent
     declares the numerical changes it expects "before writing any code", and a
     pre-registration "belongs to one pull request".
     """
-    out = []
+    out: list[Finding] = []
     for model in sorted(ctx.after["code"]):
         if ctx.before["code"].get(model) == ctx.after["code"][model]:
             continue
@@ -437,16 +440,17 @@ def gate_prereg_present(ctx):
     return out
 
 
-def gate_prereg_counter(ctx):
+def gate_prereg_counter(ctx: Gate) -> list[Finding]:
     """README §3 Stage B — "a change counter is incremented in the PR (visible to the Author in
     review)"; a pre-registration "belongs to one pull request", so replacing the one main had
     is where this PR's count starts.
     """
-    out = []
+    out: list[Finding] = []
     for model in sorted(ctx.after["preregs"]):
         if ctx.after["preregs"][model] is None:
             continue
-        seen, edits = None, 0
+        seen: str | None = None
+        edits = 0
         for inv in ctx.walk:  # the commit it first differs from main's in is not an edit
             current = inv["preregs"].get(model)
             if current is None or _inherited(current, ctx.before["preregs"].get(model)):

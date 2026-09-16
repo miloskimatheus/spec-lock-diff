@@ -48,6 +48,11 @@ jobs:
           pip install "ruff>=0.16,<1"
           ruff check tools
           ruff format --check tools
+      # Every annotation checked, strictly; the stub packages type the two libraries.
+      - if: matrix.python-version == '3.12'
+        run: |
+          pip install "mypy>=2,<3" types-PyYAML types-jsonschema
+          mypy
 
   # Every commit of a pull request is green on its own: test && commit ||
   # revert, applied to this repository. A red commit in the middle of a branch

@@ -2,10 +2,14 @@
 between them.
 """
 
+from __future__ import annotations
+
 import hashlib
 import json
+import pathlib
 import subprocess
-from typing import NamedTuple
+from collections.abc import Sequence
+from typing import Any, NamedTuple
 
 from .findings import SlpError
 from .project import MARTS, _dirs, read_doc
@@ -25,25 +29,30 @@ PROTECTED_FILES = (".pre-commit-config.yaml", "CODEOWNERS", "AGENTS.md", "dbt_pr
 
 # What the gate rules read: the tree at the merge-base, the tree at head, and one
 # light inventory per commit in between (oldest first, merge-base included).
+# What one commit holds, by kind: tests, files, units, specs, preregs, models, sqls, code,
+# recons, packages, where, protected, singular. Each kind is a mapping of its own keys.
+Inventory = dict[str, dict[Any, Any]]
+
+
 class Gate(NamedTuple):
-    root: object
-    before: dict
-    after: dict
-    walk: list
-    marts: tuple
-    commits: list
+    root: pathlib.Path
+    before: Inventory
+    after: Inventory
+    walk: list[Inventory]
+    marts: tuple[str, ...]
+    commits: list[str]
 
 
-def _canon(obj):
+def _canon(obj: Any) -> str:
     """One text for one value, whatever order the yml file happened to use."""
     return json.dumps(obj, sort_keys=True, default=str)
 
 
-def _sha(text):
+def _sha(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def git(root, *args):
+def git(root: pathlib.Path, *args: str) -> str:
     """Run one read-only git command. git is the only program these tools ever run."""
     done = subprocess.run(["git", "-C", str(root)] + list(args), capture_output=True, text=True)
     if done.returncode != 0:
@@ -51,7 +60,7 @@ def git(root, *args):
     return done.stdout
 
 
-def git_blobs(root, commit, paths):
+def git_blobs(root: pathlib.Path, commit: str, paths: list[str]) -> dict[str, str]:
     """The content of many files at one commit, read down one pipe.
 
     `git show` costs a process per file, and the commit walk asks for every yml
@@ -71,7 +80,8 @@ def git_blobs(root, commit, paths):
         raise SlpError(
             "git cat-file: %s" % " ".join(done.stderr.decode("utf-8", "replace").split())
         )
-    out, data, at = {}, done.stdout, 0
+    out: dict[str, str] = {}
+    data, at = done.stdout, 0
     for path in paths:
         # One header line - sha, type, size in bytes - then that many bytes, then
         # a newline. Sizes are in bytes, so the split happens before decoding.
@@ -90,7 +100,7 @@ def git_blobs(root, commit, paths):
     return out
 
 
-def _without_prereg(entry):
+def _without_prereg(entry: dict[str, Any]) -> str:
     """A model's yml entry as the gate compares it: the pre-registration does not count."""
     copy = json.loads(_canon(entry))
     for holder in (copy, copy.get("config")):
@@ -99,9 +109,9 @@ def _without_prereg(entry):
     return _canon(copy)
 
 
-def _plan(listing, full, marts):
+def _plan(listing: str, full: bool, marts: Sequence[str]) -> list[tuple[str, str]]:
     """What to read at one commit, and as what, decided before anything is read."""
-    plan = []
+    plan: list[tuple[str, str]] = []
     for path in sorted(p for p in listing.split("\0") if p):
         if path.startswith(_dirs(marts, True)) and path.endswith((".yml", ".yaml")):
             plan.append(("yml", path))
@@ -120,7 +130,7 @@ def _plan(listing, full, marts):
     return plan
 
 
-def _read_models(inv, path, text, commit, marts):
+def _read_models(inv: Inventory, path: str, text: str, commit: str, marts: Sequence[str]) -> None:
     """One yml at one commit into the inventory: its models, their tests, its unit tests."""
     models, units = read_doc(parse_yaml(text, "%s at %s" % (path, commit[:8])), path, marts)
     for model in models:
@@ -142,14 +152,16 @@ def _read_models(inv, path, text, commit, marts):
         inv["units"][(unit.model, unit.name)] = (unit.file, unit.model, _canon(body))
 
 
-def inventory(root, commit, full=True, marts=MARTS):
+def inventory(
+    root: pathlib.Path, commit: str, full: bool = True, marts: Sequence[str] = MARTS
+) -> Inventory:
     """Everything the gate compares, as it was at one commit.
 
     A pure function of the commit: same commit in, same inventory out, whichever
     machine runs it. With full=False only the yml files are read, which is all
     the commit walk of G7 and I1 needs.
     """
-    inv = {
+    inv: Inventory = {
         "tests": {},
         "files": {},
         "units": {},

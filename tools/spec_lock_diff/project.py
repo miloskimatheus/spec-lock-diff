@@ -1,9 +1,12 @@
 """A dbt project as its yml declares it: models, columns, tests and unit tests, read once."""
 
+from __future__ import annotations
+
 import json
 import pathlib
 import re
-from typing import NamedTuple
+from collections.abc import Sequence
+from typing import Any, NamedTuple
 
 from .findings import SlpError
 from .readers import load_yaml
@@ -45,15 +48,19 @@ INERT_KEYS = (
 
 
 # One dbt model as its yml declares it. In tests, the column "" means model level.
+# One data test as the yml declares it: column ("" at model level), name, arguments, config.
+Test = tuple[str, str, str, dict[str, Any]]
+
+
 class Model(NamedTuple):
     name: str
     file: str
-    entry: dict
-    spec: object
-    prereg: object
-    columns: list
-    sensitive: list
-    tests: list
+    entry: dict[str, Any]
+    spec: Any
+    prereg: Any
+    columns: list[str]
+    sensitive: list[str]
+    tests: list[Test]
     is_marts: bool
 
 
@@ -62,18 +69,18 @@ class UnitTest(NamedTuple):
     name: str
     model: str
     file: str
-    body: dict
+    body: dict[str, Any]
 
 
 # Everything the check rules need from a dbt project, read once.
 class Project(NamedTuple):
-    dir: object
-    models: dict
-    unit_tests: list
-    files: dict
+    dir: pathlib.Path
+    models: dict[str, Model]
+    unit_tests: list[UnitTest]
+    files: dict[str, str]
 
 
-def _entries(value, what, where):
+def _entries(value: Any, what: str, where: str) -> list[dict[str, Any]]:
     """A yml list of mappings, or nothing. Anything else cannot be read, so it errors."""
     if value is None:
         return []
@@ -82,17 +89,19 @@ def _entries(value, what, where):
     return value
 
 
-def _one_of(entry, key, where):
+def _one_of(entry: dict[str, Any], key: str, where: str) -> Any:
     """entry.meta.<key> or entry.config.meta.<key>; both present is ambiguous."""
-    meta = entry.get("meta") if isinstance(entry.get("meta"), dict) else {}
-    config = entry.get("config") if isinstance(entry.get("config"), dict) else {}
-    nested = config.get("meta") if isinstance(config.get("meta"), dict) else {}
+    meta, config = entry.get("meta"), entry.get("config")
+    meta = meta if isinstance(meta, dict) else {}
+    config = config if isinstance(config, dict) else {}
+    nested = config.get("meta")
+    nested = nested if isinstance(nested, dict) else {}
     if meta.get(key) is not None and nested.get(key) is not None:
         raise SlpError("ambiguous: %s defined twice (meta and config.meta) in %s" % (key, where))
     return meta.get(key) if meta.get(key) is not None else nested.get(key)
 
 
-def _test_items(entry, where):
+def _test_items(entry: dict[str, Any], where: str) -> list[Any]:
     """The tests: or data_tests: list of a model or column; both keys is ambiguous."""
     classic, modern = entry.get("tests"), entry.get("data_tests")
     if classic is not None and modern is not None:
@@ -103,21 +112,23 @@ def _test_items(entry, where):
     return items or []
 
 
-def normalize_test(item, where):
+def normalize_test(item: Any, where: str) -> tuple[str, str, dict[str, Any]]:
     """One test as (name, arguments, config): what it asserts apart from how it runs."""
+    name: Any = None
+    body: Any = None
     if isinstance(item, str):
         name, body = item, {}
     elif isinstance(item, dict) and len(item) == 1:
         name, body = list(item.items())[0]
         body = {} if body is None else body
-    else:
-        name, body = None, None
     if not isinstance(name, str) or not isinstance(body, dict):
         raise SlpError("cannot read a test in %s: %r" % (where, item))
     # dbt 1.10 moved the arguments under `arguments:`; the older form writes them
     # on the test. Both are one test, so moving them is not a change, and both
     # at once is not a preference the tool guesses.
-    args, cfg, nested = {}, {}, body.get("arguments")
+    args: dict[str, Any] = {}
+    cfg: dict[str, Any] = {}
+    nested = body.get("arguments")
     if nested is not None and not isinstance(nested, dict):
         raise SlpError(
             "cannot read a test in %s: arguments of %s must be a mapping" % (where, name)
@@ -143,9 +154,11 @@ def normalize_test(item, where):
     return name, json.dumps(args, sort_keys=True, default=str), cfg
 
 
-def _read_columns(entry, where):
+def _read_columns(entry: dict[str, Any], where: str) -> tuple[list[str], list[str], list[Test]]:
     """The columns of one model entry: their names, the sensitive ones, and the tests on each."""
-    columns, sensitive, tests = [], [], []
+    columns: list[str] = []
+    sensitive: list[str] = []
+    tests: list[Test] = []
     for column in _entries(entry.get("columns"), "columns", where):
         cname = column.get("name")
         if not isinstance(cname, str) or not cname:
@@ -158,11 +171,14 @@ def _read_columns(entry, where):
     return columns, sensitive, tests
 
 
-def read_doc(doc, rel, marts=MARTS):
+def read_doc(
+    doc: Any, rel: str, marts: Sequence[str] = MARTS
+) -> tuple[list[Model], list[UnitTest]]:
     """The models and unit tests declared in one yml document, on disk or at a commit."""
     if not isinstance(doc, dict):
         raise SlpError("%s is not a yml mapping" % rel)
-    models, units = [], []
+    models: list[Model] = []
+    units: list[UnitTest] = []
     for entry in _entries(doc.get("models"), "models", rel):
         name = entry.get("name")
         if not isinstance(name, str) or not name:
@@ -192,7 +208,7 @@ def read_doc(doc, rel, marts=MARTS):
     return models, units
 
 
-def _dirs(marts, top=False):
+def _dirs(marts: Sequence[str], top: bool = False) -> tuple[str, ...]:
     """The marts paths as prefixes, or the directories that hold them - where yml is read from.
 
     A leading ./ is a path to a shell and to pathlib, and nothing at all to git,
@@ -204,15 +220,17 @@ def _dirs(marts, top=False):
     return tuple(sorted(set(p.split("/")[0] + "/" for p in paths))) if top else paths
 
 
-def read_project(project_dir, marts=MARTS):
+def read_project(project_dir: str | pathlib.Path, marts: Sequence[str] = MARTS) -> Project:
     """Read the model yml into models and unit tests. No git, no dbt, no warehouse."""
     root = pathlib.Path(project_dir).resolve()
-    for path in _dirs(marts):
-        if not (root / path).is_dir():
+    for folder in _dirs(marts):
+        if not (root / folder).is_dir():
             raise SlpError(
-                "%s not found under %s; nothing to check is not OK" % (path, project_dir)
+                "%s not found under %s; nothing to check is not OK" % (folder, project_dir)
             )
-    models, units, files = {}, [], {}
+    models: dict[str, Model] = {}
+    units: list[UnitTest] = []
+    files: dict[str, str] = {}
     for path in sorted(
         p for top in _dirs(marts) for p in (root / top).rglob("*.sql") if p.is_file()
     ):

@@ -2,15 +2,18 @@
 §3 Stage A, B; §2 Rule 2).
 """
 
+from __future__ import annotations
+
 import json
 
-from ..findings import block
+from ..findings import Finding, block
 from ..owners import CODEOWNERS_FILES, _incremental, _owner_rules, _owners
+from ..project import Project
 from ..readers import schema_errors
 from .common import _blocks, _by, _interval, _muted, _sorted_models, _strings
 
 
-def check_spec_present(project):
+def check_spec_present(project: Project) -> list[Finding]:
     """README §3 Stage A — "PR cannot advance without a completed spec"; Rule 1: no spec, stop
     and ask.
     """
@@ -21,7 +24,7 @@ def check_spec_present(project):
     ]
 
 
-def check_model_declared(project):
+def check_model_declared(project: Project) -> list[Finding]:
     """README §3 Stage A — "PR cannot advance without a completed spec": a model no yml declares
     has no spec, and nothing here can ask it for one.
     """
@@ -38,7 +41,7 @@ def check_model_declared(project):
     ]
 
 
-def check_spec_schema(project):
+def check_spec_schema(project: Project) -> list[Finding]:
     """README §3 Stage A — the six mandatory fields and their format, as
     schemas/spec.schema.json.
     """
@@ -50,9 +53,9 @@ def check_spec_schema(project):
     ]
 
 
-def check_spec_consistency(project):
+def check_spec_consistency(project: Project) -> list[Finding]:
     """README §3 Stage A — the spec names columns of this model and a query that exists."""
-    out = []
+    out: list[Finding] = []
     for model in _sorted_models(project):
         spec = model.spec if isinstance(model.spec, dict) else {}
         keys = _strings(spec.get("primary_key"))
@@ -120,7 +123,7 @@ def check_spec_consistency(project):
     return out
 
 
-def check_owned(project):
+def check_owned(project: Project) -> list[Finding]:
     """README §3 Stage E — "Critical model: a Partner (≠ Author) approves. CODEOWNERS enforces
     this"; §2 Control 5A — "Incremental models (list explicitly)".
     """
@@ -132,7 +135,7 @@ def check_owned(project):
             "critical"
             if model.is_marts and spec.get("tier") == "critical"
             else "incremental"
-            if _incremental(model, sql and project.dir / sql)
+            if _incremental(model, project.dir / sql if sql else None)
             else ""
         )
         if not kind:
@@ -167,7 +170,7 @@ def check_owned(project):
     return out
 
 
-def check_prereg_schema(project):
+def check_prereg_schema(project: Project) -> list[Finding]:
     """README §3 Stage B — the pre-registration format, as schemas/pre_registration.schema.json."""
     return [
         block(m.file, m.name, message, "P1")
@@ -177,9 +180,9 @@ def check_prereg_schema(project):
     ]
 
 
-def check_prereg_consistency(project):
+def check_prereg_consistency(project: Project) -> list[Finding]:
     """README §3 Stage B — Rule 6: the intervals are closed, and the metrics are the spec's."""
-    out = []
+    out: list[Finding] = []
     for model in _sorted_models(project):
         prereg = model.prereg if isinstance(model.prereg, dict) else None
         if prereg is None:
@@ -194,8 +197,9 @@ def check_prereg_consistency(project):
                 )
             )
             continue
-        declared = prereg.get("metrics") if isinstance(prereg.get("metrics"), dict) else {}
-        wanted = model.spec.get("metrics") if isinstance(model.spec.get("metrics"), dict) else {}
+        metrics, defined = prereg.get("metrics"), model.spec.get("metrics")
+        declared = metrics if isinstance(metrics, dict) else {}
+        wanted = defined if isinstance(defined, dict) else {}
         intervals = [("row_delta", _interval(prereg.get("row_delta")))]
         intervals += [
             ("metrics.%s.%s" % (name, _by(body)), _interval(body.get(_by(body))))
@@ -246,7 +250,7 @@ def check_prereg_consistency(project):
     return out
 
 
-def check_pk_test(project):
+def check_pk_test(project: Project) -> list[Finding]:
     """README §2 Rule 2 — "The agent creates a uniqueness test on the spec's primary_key"."""
     # The forms of uniqueness test this rule accepts. To accept another one, add
     # its name here and add a passing fixture under tests/fixtures/check/.
@@ -255,7 +259,7 @@ def check_pk_test(project):
         "unique_combination_of_columns",
         "dbt_utils.unique_combination_of_columns",
     )
-    out = []
+    out: list[Finding] = []
     for model in _sorted_models(project):
         spec = model.spec if isinstance(model.spec, dict) else {}
         keys = _strings(spec.get("primary_key")) if model.is_marts else None

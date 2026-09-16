@@ -11,7 +11,7 @@ import pathlib
 import sys
 
 
-def run():
+def run() -> int:
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
     from spec_lock_diff.cli import main
 

@@ -12,12 +12,15 @@ Exit codes: 0 nothing to report, 1 at least one BLOCK, 2 the tool could not do
 its job. 2 is a failure, never a pass: what cannot be read cannot be approved.
 """
 
+from __future__ import annotations
+
 import argparse
 import pathlib
 import sys
+from collections.abc import Sequence
 
 from . import rules
-from .findings import SlpError, _count, report
+from .findings import Finding, SlpError, _count, report
 from .gitread import Gate, git, inventory
 from .project import MARTS, _dirs, read_project
 from .readers import load_json
@@ -26,7 +29,7 @@ from .rules.compare import Diff, Run, compare_contract, stale_preregs
 from .version import __version__
 
 
-def cmd_check(args):
+def cmd_check(args: argparse.Namespace) -> int:
     """check: read the project, run the check rules, print what they found.
 
     The note says how many models were held to the framework and how many were
@@ -47,7 +50,7 @@ def cmd_check(args):
     )
 
 
-def cmd_gate(args):
+def cmd_gate(args: argparse.Namespace) -> int:
     """gate: compare the merge-base with head, and walk the commits between them."""
     root = pathlib.Path(args.project_dir).resolve()
     # The merge-base, not the branch tip: a main that moved on is not this PR's doing.
@@ -81,7 +84,7 @@ def cmd_gate(args):
     )
 
 
-def cmd_compare(args):
+def cmd_compare(args: argparse.Namespace) -> int:
     """compare: hold every diff.json against the pre-registration of its model.
 
     Without --base every pre-registration in the project counts as this pull
@@ -90,11 +93,13 @@ def cmd_compare(args):
     """
     project = read_project(args.project_dir, args.marts_path)
     stale = stale_preregs(project, args.base, args.marts_path) if args.base else set()
-    out, measured = [], set()
+    out: list[Finding] = []
+    measured: set[str] = set()
     for path in args.diffs:
         data = load_json(path)
         data = data if isinstance(data, dict) else {}
-        name = data.get("model") if isinstance(data.get("model"), str) else ""
+        named = data.get("model")
+        name = named if isinstance(named, str) else ""
         ctx = Diff(str(path), name, data, project, project.models.get(name), False, name in stale)
         blocked = any(f.severity == "BLOCK" for f in compare_contract(ctx))
         out += apply_rules(rules.COMPARE_RULES, ctx._replace(ok=not blocked))
@@ -103,7 +108,7 @@ def cmd_compare(args):
     return report(out, "compare", _count(len(args.diffs), "file"))
 
 
-def build_parser():
+def build_parser() -> argparse.ArgumentParser:
     """The command line of Section 2 of the backlog, and nothing else."""
     parser = argparse.ArgumentParser(prog="slp", description=__doc__.splitlines()[0])
     parser.add_argument("--version", action="version", version=__version__)
@@ -131,7 +136,7 @@ def build_parser():
     return parser
 
 
-def main(argv=None):
+def main(argv: Sequence[str] | None = None) -> int:
     """Parse, run, and turn anything unexpected into exit code 2."""
     # A console that cannot encode a character - an ASCII locale in a bare
     # container, a model name in a script the code page lacks - must not turn a

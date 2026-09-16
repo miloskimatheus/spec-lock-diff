@@ -107,6 +107,8 @@ def test_m2_a_rule_that_only_informs_never_blocks():
 # holds the wheel's dependencies to the second
 # set, so adding an import is a packaging decision in the same pull request.
 ALLOWED_IMPORTS = {
+    "__future__",
+    "collections",
     "argparse",
     "json",
     "os",

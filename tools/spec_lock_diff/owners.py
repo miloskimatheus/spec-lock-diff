@@ -2,13 +2,18 @@
 model.
 """
 
+from __future__ import annotations
+
+import pathlib
 import re
+
+from .project import Model
 
 # Where git looks for the file, in the order it looks.
 CODEOWNERS_FILES = (".github/CODEOWNERS", "CODEOWNERS", "docs/CODEOWNERS")
 
 
-def _owner_rules(root):
+def _owner_rules(root: pathlib.Path) -> list[tuple[re.Pattern[str], list[str]]] | None:
     """The CODEOWNERS file as (pattern, owners) in file order, or None when there is no file.
 
     The patterns are gitignore's, without negation: a leading slash or a slash
@@ -20,7 +25,7 @@ def _owner_rules(root):
     path = next((root / p for p in CODEOWNERS_FILES if (root / p).is_file()), None)
     if path is None:
         return None
-    rules = []
+    rules: list[tuple[re.Pattern[str], list[str]]] = []
     for line in path.read_text(encoding="utf-8").splitlines():
         words = line.split("#")[0].split()
         if not words:
@@ -38,18 +43,19 @@ def _owner_rules(root):
     return rules
 
 
-def _owners(rules, path):
+def _owners(rules: list[tuple[re.Pattern[str], list[str]]], path: str) -> list[str]:
     """Who CODEOWNERS makes approve a change to path: the last matching line decides."""
-    owners = []
+    owners: list[str] = []
     for regex, who in rules:
         if regex.match(path):
             owners = who
     return owners
 
 
-def _incremental(model, sql):
+def _incremental(model: Model, sql: pathlib.Path | None) -> bool:
     """Whether the model is materialized as incremental, in its yml config or in its sql."""
-    config = model.entry.get("config") if isinstance(model.entry.get("config"), dict) else {}
+    config = model.entry.get("config")
+    config = config if isinstance(config, dict) else {}
     if config.get("materialized") == "incremental":
         return True
     if sql is None or not sql.is_file():

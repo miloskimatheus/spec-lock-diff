@@ -88,7 +88,9 @@ known-first-party = ["spec_lock_diff"]
 
 # Strict: every function annotated, nothing implicitly Any, and the two
 # libraries typed through their stub packages in the dev extra.
+# mypy 2 analyses 3.10 and up; the suite still runs on 3.9, and ruff targets it, so
+# nothing 3.10-only can slip in.
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 strict = true
 files = ["tools/spec_lock_diff", "tools/slp.py"]

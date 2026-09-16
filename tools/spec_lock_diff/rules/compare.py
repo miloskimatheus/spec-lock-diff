@@ -2,15 +2,18 @@
 (README §3 Stage E).
 """
 
-import re
-from typing import NamedTuple
+from __future__ import annotations
 
-from ..findings import _count, block, info
+import re
+from collections.abc import Sequence
+from typing import Any, NamedTuple
+
+from ..findings import Finding, _count, block, info
 from ..gitread import git, inventory
-from ..project import Project
+from ..project import Model, Project
 from ..readers import schema_errors
 from .check import check_prereg_consistency, check_prereg_schema
-from .common import _by, _inherited, _interval, _moved, apply_rules
+from .common import _by, _inherited, _moved, apply_rules
 
 
 # One measured model: the file that carries the numbers, the model they claim to
@@ -19,14 +22,20 @@ from .common import _by, _inherited, _interval, _moved, apply_rules
 class Diff(NamedTuple):
     file: str
     name: str
-    data: dict
-    project: object
-    model: object
+    data: dict[str, Any]
+    project: Project
+    model: Model | None
     ok: bool
     stale: bool
 
+    @property
+    def held(self) -> Model:
+        """The model the rules after the contract read; ok is only True when there is one."""
+        assert self.model is not None
+        return self.model
 
-def stale_preregs(project, base, marts):
+
+def stale_preregs(project: Project, base: str, marts: Sequence[str]) -> set[str]:
     """The models whose pre-registration is the one the branch started with.
 
     README §3 Stage B: a pre-registration belongs to one pull request. After a
@@ -44,7 +53,7 @@ def stale_preregs(project, base, marts):
     )
 
 
-def compare_contract(ctx):
+def compare_contract(ctx: Diff) -> list[Finding]:
     """README §3 Stage E step 3 — "Each diff number is automatically compared with the intervals
     declared in the pre-registration": both sides have to be readable first, and the
     pre-registration has to be this pull request's.
@@ -103,13 +112,13 @@ def compare_contract(ctx):
     return out
 
 
-def compare_rows(ctx):
+def compare_rows(ctx: Diff) -> list[Finding]:
     """README §3 Stage E step 3 — "A number is outside the declared interval (e.g., row delta is
     15,000, but the pre-registration said max: 12000)".
     """
     if not ctx.ok:
         return []
-    low, high = _interval(ctx.model.prereg["row_delta"])
+    low, high = _ends(ctx.held.prereg["row_delta"])
     value = ctx.data["row_delta"]
     if low <= value <= high:
         return []
@@ -123,13 +132,13 @@ def compare_rows(ctx):
     ]
 
 
-def compare_removed_pks(ctx):
+def compare_removed_pks(ctx: Diff) -> list[Finding]:
     """README §3 Stage E step 3 — the rows that exist in production and not in the new version
     are a number the pre-registration has to allow.
     """
     if not ctx.ok:
         return []
-    most, value = ctx.model.prereg["removed_pks"]["max"], ctx.data["removed_pks"]
+    most, value = ctx.held.prereg["removed_pks"]["max"], ctx.data["removed_pks"]
     if value <= most:
         return []
     return [
@@ -142,13 +151,13 @@ def compare_removed_pks(ctx):
     ]
 
 
-def compare_columns(ctx):
+def compare_columns(ctx: Diff) -> list[Finding]:
     """README §3 Stage E step 3 — "A column shows a difference but is not in the
     pre-registration's altered_columns list".
     """
     if not ctx.ok:
         return []
-    declared = set(ctx.model.prereg["altered_columns"])
+    declared = set(ctx.held.prereg["altered_columns"])
     measured = set(ctx.data["altered_columns"])
     out = [
         block(
@@ -171,18 +180,18 @@ def compare_columns(ctx):
     return out
 
 
-def compare_metrics(ctx):
+def compare_metrics(ctx: Diff) -> list[Finding]:
     """README §3 Stage E step 3 — each metric of the spec is compared with the interval the
     pre-registration declared for it: its percentage move, or "the value itself" for a model
     production does not have.
     """
     if not ctx.ok:
         return []
-    out = []
-    declared, measured = ctx.model.prereg["metrics"], ctx.data["metrics"]
+    out: list[Finding] = []
+    declared, measured = ctx.held.prereg["metrics"], ctx.data["metrics"]
     for name in sorted(declared):
         by = _by(declared[name])
-        low, high = _interval(declared[name][by])
+        low, high = _ends(declared[name][by])
         got = (measured.get(name) or {}).get(by)
         if name not in measured or (by == "value" and got is None):
             out.append(
@@ -234,12 +243,12 @@ def compare_metrics(ctx):
     return out
 
 
-def compare_refactoring(ctx):
+def compare_refactoring(ctx: Diff) -> list[Finding]:
     """README §3 Stage E step 3 — "The type is refactoring but some delta is not zero": the
     schema pins every interval of a refactoring to zero, so C1 to C4 are what block; this
     says in one line what the four of them mean together.
     """
-    if not ctx.ok or ctx.model.prereg.get("type") != "refactoring":
+    if not ctx.ok or ctx.held.prereg.get("type") != "refactoring":
         return []
     moved = [
         "row_delta %s" % ctx.data["row_delta"] if ctx.data["row_delta"] else "",
@@ -267,7 +276,12 @@ def compare_refactoring(ctx):
     ]
 
 
-def _drift(numbers):
+def _ends(interval: Any) -> tuple[float, float]:
+    """Both ends of an interval the schema accepted: min and max, present and numbers."""
+    return interval["min"], interval["max"]
+
+
+def _drift(numbers: dict[str, Any]) -> float | None:
     """How far the model is from the source of truth, in percent; None when there is no
     percentage.
     """
@@ -275,11 +289,11 @@ def _drift(numbers):
     return None if outside == 0 else abs(numbers["model_value"] - outside) / abs(outside) * 100
 
 
-def _band(interval):
+def _band(interval: Any) -> str:
     """The band declared for a number and how wide it is: what Stage E asks the reviewer to
     judge.
     """
-    low, high = _interval(interval)
+    low, high = _ends(interval)
     return "declared %s..%s (a band %s)" % (
         low,
         high,
@@ -287,13 +301,13 @@ def _band(interval):
     )
 
 
-def compare_reconciliation(ctx):
+def compare_reconciliation(ctx: Diff) -> list[Finding]:
     """README §3 Stage E step 4 — "If the difference is greater than the tolerance, the PR is
     blocked".
     """
     if not ctx.ok:
         return []
-    spec = ctx.model.spec if isinstance(ctx.model.spec, dict) else {}
+    spec = ctx.held.spec if isinstance(ctx.held.spec, dict) else {}
     numbers = ctx.data.get("reconciliation")
     if numbers is None:
         if spec.get("tier") != "critical":
@@ -348,7 +362,7 @@ def compare_reconciliation(ctx):
     ]
 
 
-def compare_summary(ctx):
+def compare_summary(ctx: Diff) -> list[Finding]:
     """README §3 Stage E step 5 — "Is the pre-registration narrow enough to be able to fail?
     Does the reason justify the interval?": the human is asked to judge the interval, so the
     interval, the reason and the number that landed in it are printed whether or not anything
@@ -356,9 +370,9 @@ def compare_summary(ctx):
     """
     if not ctx.ok:
         return []
-    pre, data, out = ctx.model.prereg, ctx.data, []
+    pre, data, out = ctx.held.prereg, ctx.data, []
 
-    def say(text):
+    def say(text: str) -> None:
         out.append(info(ctx.file, ctx.name, text, "I2"))
 
     say("declared as a %s, because: %s" % (pre["type"], pre["reason"]))
@@ -388,7 +402,7 @@ def compare_summary(ctx):
                 numbers["model_value"],
                 numbers["external_value"],
                 "no percentage" if drift is None else "%.4g percent" % drift,
-                (ctx.model.spec or {}).get("reconciliation_tolerance"),
+                (ctx.held.spec or {}).get("reconciliation_tolerance"),
             )
         )
     if not isinstance(data.get("window"), dict):
@@ -401,13 +415,13 @@ def compare_summary(ctx):
 
 # What compare has to say about the run as a whole rather than about one file.
 class Run(NamedTuple):
-    project: object
-    measured: set
+    project: Project
+    measured: set[str]
     files: int
-    stale: set
+    stale: set[str]
 
 
-def compare_coverage(ctx):
+def compare_coverage(ctx: Run) -> list[Finding]:
     """README §3 Stage E step 3 — "Each diff number is automatically compared with the intervals
     declared in the pre-registration": every model pre-registered for this pull request, not
     only the ones whose numbers turned up.
