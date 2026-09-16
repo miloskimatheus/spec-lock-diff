@@ -1,0 +1,33 @@
+version: 2
+
+models:
+  - name: fct_orders
+    meta:
+      spec:
+        grain: "one row per order"
+        primary_key: [order_id]
+        tier: standard
+        metrics:
+          gross_revenue: "sum of order_total before discounts and taxes"
+        known_edges: []
+        sensitive_columns: []
+    columns:
+      - name: order_id
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+
+unit_tests:
+  - name: every_order_finds_its_customer
+    model: fct_orders
+    given:
+      - input: ref('stg_orders')
+        rows:
+          - {order_id: 1, customer_id: 7}
+      - input: ref('stg_customers')
+        rows:
+          - {customer_id: 7}
+    expect:
+      rows:
+        - {order_id: 1, customer_id: 7}

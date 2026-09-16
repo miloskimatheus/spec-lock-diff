@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 942 178" width="942" height="178" role="img" aria-label="Permissão do agente por camada: nenhum acesso a raw, leitura mascarada em staging e marts, sem escrita em produção, leitura e escrita no schema do próprio PR" font-family='"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace'>
 <title>Permissão do agente por camada: nenhum acesso a raw, leitura mascarada em staging e marts, sem escrita em produção, leitura e escrita no schema do próprio PR</title>
+<rect width="942" height="178" fill="#0d1117"/>
 
 <text x="471" y="13" text-anchor="middle" font-size="9.5" letter-spacing="2.2" fill="#e6edf3" opacity=".5">PERMISSÃO DO AGENTE, POR CAMADA DE DADOS</text>
 <rect x="371" y="25" width="200" height="36" fill="none" stroke="#e6edf3" stroke-width="1.4" opacity=".75"/>

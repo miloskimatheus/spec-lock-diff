@@ -3,6 +3,108 @@
 Versions are tagged `tools-v<version>`. The framework README is versioned
 separately; these tools implement it and never lead it.
 
+## 0.6.0 — the tool held to the standard it holds others to
+
+0.5.0 made the gates reachable. This one turns the gates on the gates: the
+tool is now judged by numbers nobody negotiates, the way it judges a pull
+request, and it is a package rather than a file so that each of those numbers
+has a place to hold.
+
+### New rules
+
+| Rule | What it blocks |
+| --- | --- |
+| `T2` | an **edge no unit test names**. Rule 2 says each spec edge becomes a unit test, and until now nothing could tell which unit test proved which edge, so a spec with five edges and one unit test looked complete. A unit test names its edge verbatim in `config.meta.edge` - the agent writes the key, the Author writes nothing new, and `config` is part of the body `G4` compares, so an existing unit test cannot be re-pointed at a new edge. A unit test naming an edge the spec does not have blocks too. `T2` and `T3` block on a model that carries a pre-registration - the one the agent is changing - and on any other model `I7` prints the same gaps as a reading, so a project already in production adopts Rule 2 one model at a time |
+| `T3` | a **unit test that leaves a `ref` or `source` of its model without `given` rows**. dbt builds the unit-test manifest from the `given` inputs and nothing else, so an input it does not mock is at best an error and at worst a read of a real relation - and the mutation check of Stage D runs through unit tests precisely because they read no table. `ref` and `source` are read from the sql with a pattern, so a ref built by a macro or a variable is not seen |
+| `I5` | nothing. Per edge of a spec, the unit test that names it and how many rows it is given and expects, printed for the third reading of Stage E |
+| `I6` | nothing. A commit on the branch whose spec or pre-registration the schema rejects: Rule 5 commits only green steps, and the gate says which step was not |
+| `I7` | nothing. On a model with no pre-registration, what `T2` and `T3` would block - an edge no unit test names, a unit test naming an edge the spec does not have, an input with no `given` rows - printed for a human to read |
+
+### New templates
+
+- **`templates/tcr.sh`, the loop of Rule 5.** `check`, `gate` and the unit
+  tests; green commits, red reverts the working tree, and the fifth red in a
+  row stops with exit 3 and a sentence that says to ask a human. No `dbt
+  build` in it, on purpose: a build scans the sample window and the loop runs
+  many times. AGENTS.md now says to commit only through it.
+- **`templates/mutate_model.py`, the mutation check of Stage D**, and
+  `schemas/mutation.schema.json` for what it writes. Every marts model whose
+  sql the pull request changed is mutated eight ways - a comparison flipped,
+  a `where` predicate replaced by `true`, an aggregate swapped, a join type
+  changed, a `coalesce` reduced to its first argument, a `distinct` removed,
+  a literal moved, a `not` removed - and each mutant is a temporary model
+  with the unit tests cloned on, so one `dbt test` invocation judges the
+  lot. A survivor blocks, a changed model with no unit test blocks, and a
+  mutant a human listed in `tests/mutation_equivalents.yml` on the base
+  branch informs. Unit tests only, on their `given` rows: nothing is
+  scanned. Section 6 of the README is its page, and `ci-warehouse.yml` runs
+  it after the sample build, from the base branch's copy, the way it runs
+  the tools. The probe that shaped it ran dbt unit tests on dbt-duckdb, with
+  no warehouse: six seconds of start-up per invocation, a tenth of a second
+  per test, and four of five surviving mutants were fixture gaps.
+- **`templates/spec_draft.sql`, the aggregate-only queries of Control 4**, for
+  the agent to draft a spec from: the storage view that costs nothing, then a
+  grain candidate, null rates, metric candidates and edge candidates over one
+  partition, each with a dry run first.
+- The CODEOWNERS template owns `tests/mutation_equivalents.yml` explicitly, and
+  the README's rung 3 and rung 5 say where the two new files go.
+
+### Changed behaviour
+
+- **The summary line keeps its note when there is something to read.**
+  `slp check: 1 info - OK (3 models in models/marts/, of 40 models read)`: the
+  count of models held to the framework used to vanish the moment a rule
+  informed, which `I5` now does on every spec with an edge. A `BLOCKED` line
+  carries no note, as before.
+- **The README's sections moved by one.** Section 6 is the mutation check,
+  and what was sections 6 to 9 is now 7 to 10. A link into one of the old
+  numbered anchors, `#7-the-rules` for instance, needs its number raised by
+  one; the two such links in this repository already point where they did.
+
+### The tool, by numbers that do not move
+
+- **100 percent of its statements and branches covered, and every function at
+  CRAP 30 or under.** `tests/crap.py` reads the coverage the suite writes and
+  counts cyclomatic complexity by one rule written in its docstring. Twenty-six
+  statements had never run: every one an error path that says exit 2 instead
+  of a pass, and each has a fixture or a test now. The 30 is Savoia's crap4j
+  constant, and for a fully covered function it is a complexity cap.
+- **Every mutant of it killed.** `tests/mutants.py` mutates the package with the
+  standard library - a comparison flipped, an `and` made an `or`, a `not`
+  removed, an integer moved by one, a `block(` made an `info(`, a rule deleted -
+  and runs the suite against each of the four hundred or so results, the
+  command's own fixture file first and the whole suite on anything that
+  survives it. The first campaign found sixty-seven survivors. Most were a rule
+  naming the wrong file, model or number and still passing on its id, which is
+  why a fixture's `README.txt` can now pin the whole line a rule prints
+  (`expect line`); the rest were tests the suite should have had, and are.
+  Mutants a human has read and found equivalent are listed in
+  `tests/equivalent_mutants.txt` with a reason of at least four words, and a
+  listed mutant the suite kills, or that no longer exists, fails the run.
+- **No comment that lowers a number.** Meta-test **M9** bans `pragma`, `skip`,
+  `xfail`, `noqa` and `type: ignore` from the tool and its tests, except the two
+  skips it names. A threshold is only immutable while nothing can exempt a line
+  from it.
+- **Every commit green.** The repository's own CI replays the suite at every
+  commit of a pull request, and `tests/tcr.sh` is the loop that makes that true
+  one commit at a time: test, then commit, otherwise revert.
+
+### One package instead of one file
+
+- `slp.py` is a six-line shim; the tool is `spec_lock_diff/`: `findings`,
+  `readers`, `project`, `owners`, `gitread`, `rules/` with one module per
+  command and one function per rule, and `cli`. Vendored, `python tools/slp.py`
+  runs it; installed, `slp` and `python -m spec_lock_diff` do. The schemas moved
+  with the readers. Nothing a command prints changed.
+- **M8's three line caps are gone.** They were the one negotiated number in
+  the repository. In their place: ruff holds every function to a cyclomatic
+  complexity of 10 and every line to 100 columns, both its own defaults, and
+  `mypy --strict` holds every annotation. `inventory` and `read_doc` were the
+  two functions over the complexity line, and each is two now.
+- **Python 3.10 is the floor.** 3.9 reached its end of life in October 2025,
+  and the wheel, the CI matrix, ruff's target and mypy's version now agree on
+  one number instead of two.
+
 ## 0.5.0 — the ladder
 
 0.4.0 made the gates right. This one makes them reachable. Nothing about what a

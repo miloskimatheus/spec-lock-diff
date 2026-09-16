@@ -9,10 +9,10 @@
 # version to install from the branch the pull request targets. A pull request
 # cannot pick the gate that judges it either way.
 #
-# Nothing moves to make this work. `tools/` is mapped to the package name, so
-# slp.py's SCHEMA_DIR - the directory beside the module - is tools/schemas/ when
-# vendored and site-packages/spec_lock_diff/schemas/ when installed, with no
-# branch in the source. That is the whole reason for this layout.
+# Nothing moves to make this work. The package lives at tools/spec_lock_diff/,
+# so SCHEMA_DIR - the directory beside readers.py - is the same folder vendored
+# and installed, with no branch in the source. tools/slp.py is the shim the
+# vendored spelling runs; the wheel does not ship it.
 
 [build-system]
 requires = ["setuptools>=64"]
@@ -20,10 +20,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spec-lock-diff"
-version = "0.5.0"
+version = "0.6.0"
 description = "Deterministic gates for dbt models written by AI agents: a spec, a pre-registration, and a diff held against it."
 readme = "tools/README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {file = "LICENSE"}
 authors = [{name = "Matheus Miloski"}]
 keywords = ["dbt", "analytics-engineering", "data-quality", "ai-agents", "ci"]
@@ -42,7 +42,9 @@ classifiers = [
 dependencies = ["pyyaml", "jsonschema>=4"]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+# coverage is pinned to a major version because tools/tests/crap.py turns its
+# numbers into a verdict, and a verdict that moves on pip install is not one.
+dev = ["pytest", "coverage>=7,<8", "ruff>=0.16,<1", "mypy>=2,<3", "types-PyYAML", "types-jsonschema"]
 
 [project.urls]
 Homepage = "https://github.com/miloskimatheus/spec-lock-diff"
@@ -53,14 +55,43 @@ Changelog = "https://github.com/miloskimatheus/spec-lock-diff/blob/main/tools/CH
 # begins `slp check:`. A command named anything else names a command the reader
 # did not type. `spec-lock-diff` is the way out if something else owns `slp`.
 [project.scripts]
-slp = "spec_lock_diff.slp:main"
-spec-lock-diff = "spec_lock_diff.slp:main"
+slp = "spec_lock_diff.cli:main"
+spec-lock-diff = "spec_lock_diff.cli:main"
 
 [tool.setuptools]
-packages = ["spec_lock_diff"]
+packages = ["spec_lock_diff", "spec_lock_diff.rules"]
 
 [tool.setuptools.package-dir]
-spec_lock_diff = "tools"
+"" = "tools"
 
 [tool.setuptools.package-data]
 spec_lock_diff = ["schemas/*.json"]
+
+# Two more numbers nobody negotiates, both ruff's own defaults: a function has a
+# cyclomatic complexity of at most 10, and a line is at most 100 columns. The
+# printf-style rule (UP031) is off on purpose: every finding is a sentence with
+# slots, and "%s" formatting keeps the sentence readable as one string.
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+extend-exclude = ["tools/tests/fixtures", "examples"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "C90"]
+ignore = ["UP031"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.isort]
+known-first-party = ["spec_lock_diff"]
+
+# Strict: every function annotated, nothing implicitly Any, and the two
+# libraries typed through their stub packages in the dev extra.
+# mypy 2 analyses 3.10 and up, and 3.10 is the floor: the oldest leg the suite
+# runs on, what the wheel declares, and what ruff targets. 3.9 reached its end
+# of life in October 2025.
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["tools/spec_lock_diff", "tools/slp.py"]

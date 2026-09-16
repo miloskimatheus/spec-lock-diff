@@ -8,10 +8,10 @@ lets `slp.py` and `pyproject.toml` drift apart quietly.
 
 import pytest
 import yaml
-
-import slp
 from conftest import TOOLS
 from test_meta import ALLOWED_IMPORTS, DISTRIBUTIONS
+
+import spec_lock_diff as slp
 
 PYPROJECT = TOOLS.parent / "pyproject.toml"
 PACKAGE = "spec_lock_diff"
@@ -38,22 +38,22 @@ def test_the_wheel_installs_exactly_what_the_allowlist_permits():
     one decision here: a new dependency fails this test until it is declared, and
     fails M3 until it is allowed.
     """
-    declared = {name.split(">")[0].split("=")[0].strip()
-                for name in _parsed()["project"]["dependencies"]}
+    declared = {
+        name.split(">")[0].split("=")[0].strip() for name in _parsed()["project"]["dependencies"]
+    }
     assert declared == set(DISTRIBUTIONS.values())
     assert set(DISTRIBUTIONS) <= ALLOWED_IMPORTS
 
 
 def test_the_schemas_travel_with_the_module():
-    """SCHEMA_DIR is the directory beside slp.py, vendored or installed.
+    """SCHEMA_DIR is the directory beside readers.py, vendored or installed.
 
-    That is the whole reason tools/ is mapped to the package name instead of the
-    module being shipped on its own: package data has to land in the same place
-    the source reads from, and no branch in slp.py knows which world it is in.
+    Package data has to land in the same place the source reads from, and no
+    branch in the source knows which world it is in.
     """
     parsed = _parsed()
-    assert parsed["tool"]["setuptools"]["package-dir"] == {PACKAGE: "tools"}
-    assert parsed["tool"]["setuptools"]["packages"] == [PACKAGE]
+    assert parsed["tool"]["setuptools"]["package-dir"] == {"": "tools"}
+    assert parsed["tool"]["setuptools"]["packages"] == [PACKAGE, PACKAGE + ".rules"]
     globs = parsed["tool"]["setuptools"]["package-data"][PACKAGE]
     for schema in sorted(slp.SCHEMA_DIR.glob("*")):
         assert any(schema.match(pattern) for pattern in globs), schema.name
@@ -66,19 +66,40 @@ def test_the_command_is_still_called_slp():
     long name is the way out for anyone whose PATH already has an `slp`.
     """
     scripts = _parsed()["project"]["scripts"]
-    assert scripts == {"slp": "%s.slp:main" % PACKAGE,
-                       "spec-lock-diff": "%s.slp:main" % PACKAGE}
+    assert scripts == {"slp": "%s.cli:main" % PACKAGE, "spec-lock-diff": "%s.cli:main" % PACKAGE}
 
 
-def test_the_package_is_still_one_file():
-    """R6, as a packaging rule. A second module here would ship as spec_lock_diff.<it>."""
-    assert sorted(p.name for p in TOOLS.glob("*.py")) == ["__init__.py", "slp.py"]
+def test_the_package_is_the_folder_beside_the_shim():
+    """One package, read module by module, and one shim that hands over to it.
+
+    A module added here ships as spec_lock_diff.<it> and is read by the
+    meta-tests as part of the tool, so the list is the contract.
+    """
+    assert sorted(p.name for p in TOOLS.glob("*.py")) == ["slp.py"]
+    package = TOOLS / PACKAGE
+    assert sorted(p.relative_to(package).as_posix() for p in package.rglob("*.py")) == [
+        "__init__.py",
+        "__main__.py",
+        "cli.py",
+        "findings.py",
+        "gitread.py",
+        "owners.py",
+        "project.py",
+        "readers.py",
+        "rules/__init__.py",
+        "rules/check.py",
+        "rules/common.py",
+        "rules/compare.py",
+        "rules/gate.py",
+        "version.py",
+    ]
 
 
 def test_the_floor_is_the_oldest_python_the_suite_runs_on():
     """A wheel that installs on a version nothing tested is a wheel nobody checked."""
     workflow = yaml.safe_load(
-        (TOOLS.parent / ".github" / "workflows" / "tools-tests.yml").read_text(encoding="utf-8"))
+        (TOOLS.parent / ".github" / "workflows" / "tools-tests.yml").read_text(encoding="utf-8")
+    )
     legs = workflow["jobs"]["tests"]["strategy"]["matrix"]["python-version"]
     oldest = min(legs, key=lambda v: tuple(int(n) for n in v.split(".")))
     assert _parsed()["project"]["requires-python"] == ">=%s" % oldest

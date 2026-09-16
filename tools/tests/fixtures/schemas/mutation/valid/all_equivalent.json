@@ -1,0 +1,2 @@
+{"model": "fct_orders", "killed": 0, "survived": 0, "equivalent": 1,
+ "mutants": [{"id": "cmp/1", "operator": "cmp", "original": "<>", "replacement": "=", "line": 3, "occurrence": 1, "verdict": "equivalent", "reason": "<> and != are one operator in every dialect"}]}

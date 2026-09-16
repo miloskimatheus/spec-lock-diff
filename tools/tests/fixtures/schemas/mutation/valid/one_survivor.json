@@ -1,0 +1,4 @@
+{"model": "fct_orders", "killed": 1, "survived": 1, "equivalent": 0,
+ "mutants": [
+   {"id": "cmp/1", "operator": "cmp", "original": "!=", "replacement": "=", "line": 7, "occurrence": 1, "verdict": "killed"},
+   {"id": "literal/1", "operator": "literal", "original": "'cancelled'", "replacement": "'cancelled_'", "line": 7, "occurrence": 1, "verdict": "survived"}]}

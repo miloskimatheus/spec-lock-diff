@@ -22,3 +22,18 @@ models:
         meta:
           sensitive: true
       - name: gross_revenue
+
+unit_tests:
+  - name: cancelled_orders_are_excluded
+    model: fct_orders
+    config:
+      meta:
+        edge: "status='cancelled' -> row excluded"
+    given:
+      - input: ref('stg_orders')
+        rows:
+          - {order_id: 1, status: shipped, order_total: 100.0}
+          - {order_id: 3, status: cancelled, order_total: 90.0}
+    expect:
+      rows:
+        - {order_id: 1, gross_revenue: 100.0}

@@ -24,6 +24,10 @@ symptom rather than a rule - the README.txt adds machine-readable lines:
     expect rules I1 G1   rule ids that must appear in the output
     expect absent G2     rule ids that must not appear
     expect count 2       the exact number of findings
+    expect line BLOCK\tmodels/marts/a.yml\tfct_a\twhat is wrong\t[G1]
+                         a line the output must contain, exactly; \t is a tab.
+                         It pins the sentence, so a rule cannot name the wrong
+                         thing and still pass on its id
 """
 
 import contextlib
@@ -36,7 +40,7 @@ import subprocess
 import sys
 
 TOOLS = pathlib.Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(TOOLS))  # so a test can import slp and read one schema
+sys.path.insert(0, str(TOOLS))  # so a test can import the package and read one schema
 SLP = TOOLS / "slp.py"
 FIXTURES = pathlib.Path(__file__).resolve().parent / "fixtures"
 # The runnable example. Absent from a vendored tools/, which is why the tests
@@ -46,8 +50,10 @@ EXAMPLES = TOOLS.parent / "examples"
 # One author, one email, one date: two runs of the suite build the same repository
 # and therefore produce the same output (R4). The email is synthetic (R9).
 GIT_ENV = {
-    "GIT_AUTHOR_NAME": "Fixture", "GIT_AUTHOR_EMAIL": "fixture@example.com",
-    "GIT_COMMITTER_NAME": "Fixture", "GIT_COMMITTER_EMAIL": "fixture@example.com",
+    "GIT_AUTHOR_NAME": "Fixture",
+    "GIT_AUTHOR_EMAIL": "fixture@example.com",
+    "GIT_COMMITTER_NAME": "Fixture",
+    "GIT_COMMITTER_EMAIL": "fixture@example.com",
     "GIT_AUTHOR_DATE": "2025-01-01T00:00:00+00:00",
     "GIT_COMMITTER_DATE": "2025-01-01T00:00:00+00:00",
 }
@@ -61,17 +67,19 @@ def run_slp(args, cwd, as_subprocess=False):
     real command line, which is what CI runs; test_cli.py proves the two agree.
     """
     if as_subprocess:
-        done = subprocess.run([sys.executable, str(SLP)] + list(args), cwd=str(cwd),
-                              capture_output=True, text=True)
+        done = subprocess.run(
+            [sys.executable, str(SLP)] + list(args), cwd=str(cwd), capture_output=True, text=True
+        )
         return done.returncode, done.stdout, done.stderr
-    import slp
+    from spec_lock_diff.cli import main
+
     out, err = io.StringIO(), io.StringIO()
     here = os.getcwd()
     os.chdir(str(cwd))
     try:
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             try:
-                code = slp.main(list(args))
+                code = main(list(args))
             except SystemExit as exc:  # argparse exits on a bad command line
                 code = exc.code if isinstance(exc.code, int) else 2
     finally:
@@ -83,9 +91,14 @@ def git(repo, *args):
     """Run one git command in repo with the fixed identity. Raises if it fails."""
     env = dict(os.environ)
     env.update(GIT_ENV)
-    return subprocess.run(["git", "-C", str(repo), "-c", "commit.gpgsign=false",
-                           "-c", "core.hooksPath=/dev/null"] + list(args),
-                          capture_output=True, text=True, env=env, check=True).stdout
+    return subprocess.run(
+        ["git", "-C", str(repo), "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"]
+        + list(args),
+        capture_output=True,
+        text=True,
+        env=env,
+        check=True,
+    ).stdout
 
 
 def make_repo(tmp_path, *trees):
@@ -133,8 +146,11 @@ def expectation(folder):
     said = {}
     for line in readme.read_text(encoding="utf-8").splitlines() if readme.exists() else []:
         words = line.split()
-        if len(words) >= 3 and words[0] == "expect":
+        if len(words) >= 3 and words[:2] == ["expect", "line"]:
+            said.setdefault("lines", []).append(line.split(" ", 2)[2].replace("\\t", "\t"))
+        elif len(words) >= 3 and words[0] == "expect":
             said[words[1]] = int(words[2]) if words[1] in ("exit", "count") else words[2:]
+    want["lines"] = []
     want.update(said)
     if "rules" not in said:  # a case that blocks prints its rule; one that passes does not
         want["rules"] = [rule] if rule and want["exit"] == 1 else []
@@ -156,6 +172,8 @@ def assert_expected(folder, code, stdout, stderr=""):
         assert rule not in printed, "%s: unexpected [%s] in\n%s" % (folder.name, rule, stdout)
     if want["count"] is not None:
         assert len(got) == want["count"], "%s: %d findings\n%s" % (folder.name, len(got), stdout)
+    for text in want["lines"]:
+        assert text in stdout.splitlines(), "%s: no line %r in\n%s" % (folder.name, text, stdout)
     return got
 
 

@@ -4,12 +4,12 @@
 
 <p align="center">
   <img alt="feito para dbt" src="https://img.shields.io/badge/feito%20para-dbt-A34F2E">
-  <img alt="python 3.9+" src="https://img.shields.io/badge/python-3.9%2B-444d56">
+  <img alt="python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-444d56">
   <img alt="sem rede, sem warehouse" src="https://img.shields.io/badge/sem%20rede-sem%20warehouse-0F6B4F">
   <img alt="docs em EN e pt-BR" src="https://img.shields.io/badge/docs-EN%20%C2%B7%20pt--BR-8A5A0B">
 </p>
 
-Três comandos, trinta regras, um arquivo.
+Três comandos, trinta e cinco regras, um pacote.
 
 <p align="center">
   <picture>
@@ -45,20 +45,21 @@ slp gate: 1 block - BLOCKED
 3. [Etapas C e D — `gate`](#3-etapas-c-e-d--gate)
 4. [Etapa E — `compare`](#4-etapa-e--compare)
 5. [O contrato do `diff.json`](#5-o-contrato-do-diffjson)
-6. [Como ler uma execução](#6-como-ler-uma-execução)
-7. [As regras](#7-as-regras)
-8. [O que a v0 não faz](#8-o-que-a-v0-não-faz)
-9. [Como contribuir](#9-como-contribuir)
+6. [Etapa D — o mutation check](#6-etapa-d--o-mutation-check)
+7. [Como ler uma execução](#7-como-ler-uma-execução)
+8. [As regras](#8-as-regras)
+9. [O que a v0 não faz](#9-o-que-a-v0-não-faz)
+10. [Como contribuir](#10-como-contribuir)
 
 ---
 
 ## 1. Instalação
 
-**Você precisa de** Python 3.9+ e git 2.20+. Depois, um de dois caminhos.
+**Você precisa de** Python 3.10+ e git 2.20+. Depois, um de dois caminhos.
 
 | | Como | O que compra, e o que custa |
 | --- | --- | --- |
-| **Copiado** | `pip install "pyyaml" "jsonschema>=4"`, depois copie `tools/` para o lado do seu `dbt_project.yml` — a pasta, não o arquivo, porque o `slp.py` lê os schemas do diretório ao lado dele. | Nada na raiz de confiança além de um arquivo que você lê: sem índice, sem rede, e o portão fica no seu repositório, onde o diff dele é revisável. |
+| **Copiado** | `pip install "pyyaml" "jsonschema>=4"`, depois copie `tools/` para o lado do seu `dbt_project.yml` — a pasta, não o arquivo, porque o `slp.py` é só a porta de entrada, e a ferramenta é o pacote ao lado dele. | Nada na raiz de confiança além de um arquivo que você lê: sem índice, sem rede, e o portão fica no seu repositório, onde o diff dele é revisável. |
 | **Instalado** | `pipx run spec-lock-diff check`, ou `pip install spec-lock-diff`. No CI, ponha a versão num arquivo `.slp-version` na raiz do repositório e o workflow instala exatamente aquela. | Uma linha no lugar de uma pasta. Também põe um índice na raiz de confiança, o que copiar não faz — por isso o workflow lê o pin da branch que o PR mira, e por isso o `.slp-version` é caminho protegido. |
 
 O wheel carrega a ferramenta e os schemas dela, não os templates nem os testes:
@@ -107,8 +108,8 @@ python tools/slp.py check --project-dir examples/quickstart
 | --- | --- | --- |
 | `tools/templates/ci.yml` | `.github/workflows/ci.yml` | Nada, para começar. Defina a variável de repositório `AGENT_LOGIN` com o usuário-bot do agente, para o gate ser obrigatório nos PRs que ele abre e consultivo nos seus. |
 
-Vinte e uma das trinta regras e o Controle 5B inteiro, por um arquivo e uma
-variável. Ele instala Python e duas bibliotecas — sem adapter, sem credencial e
+Vinte e seis das trinta e cinco regras e o Controle 5B inteiro, por um arquivo
+e uma variável. Ele instala Python e duas bibliotecas — sem adapter, sem credencial e
 sem um `exit 1` sequer — então a primeira execução já fica verde. Liste `ci`
 como check obrigatório.
 
@@ -118,6 +119,7 @@ como check obrigatório.
 | --- | --- | --- |
 | `tools/templates/CODEOWNERS` | `.github/CODEOWNERS` | Troque `@your-org/data-platform`; liste seus modelos incrementais e seus diretórios críticos. Ele segue a tabela de caminhos protegidos do framework linha por linha. |
 | `tools/templates/AGENTS.md` | `AGENTS.md` | Mantenha a lista de caminhos protegidos idêntica à do seu CODEOWNERS. Nada no arquivo é um controle — ele conta ao agente o que as máquinas vão fazer, para o agente não gastar um PR descobrindo. |
+| `tools/templates/tcr.sh` | `tcr.sh` | Defina `SLP_BASE` se os pull requests não miram a `main`, e `--marts-path` se seus marts moram em outro lugar. É o loop da Regra 5 e o único caminho de commit que o AGENTS.md dá ao agente: `check`, `gate`, os unit tests, depois commit ou reversão; a quinta reversão seguida para o loop. Sem build dentro dele. |
 
 **Ligue a proteção de branch** na `main`: exigir pull request, exigir review dos
 Code Owners e bloquear force-push em toda branch — três regras do gate leem o
@@ -132,19 +134,26 @@ os perfis estatísticos no lugar das linhas. Nada em `tools/` garante esses
 controles e nada aqui poderia — são permissões, monitores e máscaras, não um
 script. É o degrau que faz valer a pena ler os números do degrau seguinte.
 
+Um arquivo pertence a este degrau: `tools/templates/spec_draft.sql` são as
+queries só de agregados que o Controle 4 deixa o agente rodar para rascunhar
+uma spec, as mais baratas primeiro — a view de storage que não custa nada,
+depois uma partição. Nada garante isso; é o que o agente recebe no lugar de um
+`select *`.
+
 ### Degrau 5 — Etapa E, o diff
 
 | Copie | Para | Depois edite |
 | --- | --- | --- |
 | `tools/templates/ci-warehouse.yml` | `.github/workflows/ci-warehouse.yml` | Escreva seu adapter, sua autenticação no warehouse, seus artefatos de produção, o build amostrado, o build completo e o diff. **Seis passos saem com 1 até você escrever** — um template entregue sem edição falha fechado. |
+| `tools/templates/mutate_model.py` | `.github/mutate_model.py` | Nada: o workflow entrega a ele a base e os artefatos. É o mutation check da Etapa D ([seção 6](#6-etapa-d--o-mutation-check)), e o `ci-warehouse.yml` roda depois do build amostrado. |
 
 Acrescente `build` e `diff` aos checks obrigatórios. O maior desses passos é o
 próprio diff, e é a única coisa que estas ferramentas não fazem por você: a
 [seção 5](#5-o-contrato-do-diffjson) é o contrato dele, e mostra uma query para
 partir daí.
 
-**Confira que roda, depois rode os testes dele** — uns trezentos e setenta,
-alguns segundos, sem rede. Se passam, os portões da sua máquina são os portões
+**Confira que roda, depois rode os testes dele** — uns quatrocentos, alguns
+segundos, sem rede. Se passam, os portões da sua máquina são os portões
 do CI.
 
 ```bash
@@ -157,16 +166,18 @@ pip install pytest && pytest tools/tests -q
 ## 2. Etapas A e C — `check`
 
 O `check` faz uma pergunta a cada modelo em `models/marts/`: ele tem uma spec
-completa, um pré-registro válido se tiver algum, e um teste de unicidade na
-primary key que de fato consiga falhar? Ele lê yml e uma linha de sql, nunca
-chama o git e nunca toca no warehouse.
+completa, um pré-registro válido se tiver algum, um teste de unicidade na
+primary key que de fato consiga falhar, e um unit test nomeando cada borda
+conhecida, com toda entrada que o modelo lê simulada? Ele lê yml e o sql do
+modelo, nunca chama o git e nunca toca no warehouse.
 
 **Roda na** Etapa A, enquanto o Autor escreve a spec; na Etapa C, antes de o
 agente commitar; e na Etapa D, no CI, a cada push.
 
 ```
 $ python tools/slp.py check
-slp check: OK (1 model in models/marts/, of 1 model read)
+INFO	models/marts/fct_orders.yml	fct_orders	edge 'status='cancelled' -> row excluded' is proven by unit test 'cancelled_orders_are_excluded', given 2 rows and expecting 1; the third reading of Stage E asks whether the expect says what the edge says	[I5]
+slp check: 1 info - OK (1 model in models/marts/, of 1 model read)
 
 $ python tools/slp.py check
 BLOCK	models/marts/fct_orders.yml	fct_orders	the uniqueness test on primary key [order_id] cannot fail the build: it sets where	[T1]
@@ -313,7 +324,7 @@ INFO	diff.json	fct_orders	removed_pks 0, declared at most 0	[I2]
 INFO	diff.json	fct_orders	metric gross_revenue moved 0.42 percent, declared 0.0..0.8 (a band 0.8 wide)	[I2]
 INFO	diff.json	fct_orders	altered columns measured [gross_revenue], declared [gross_revenue]	[I2]
 INFO	diff.json	fct_orders	this diff declares no window; README §3 Stage E step 2 asks for a closed event_time window identical on both sides, and nothing here can check that	[I2]
-slp compare: 6 infos - OK
+slp compare: 6 infos - OK (1 file)
 ```
 
 Nada bloqueou, e ainda assim a `I2` imprimiu cada número. É exatamente esse o
@@ -431,7 +442,72 @@ artefato de diff é lido por todo mundo que abre o PR.
 
 ---
 
-## 6. Como ler uma execução
+## 6. Etapa D — o mutation check
+
+`tools/templates/mutate_model.py` é o único template que roda o dbt, e é o
+mutation check do framework: para todo modelo de marts cujo sql o pull
+request alterou, o sql é mutado numa lista fixa de formas e os unit tests do
+modelo têm que falhar em todo mutante. Ele roda só por unit tests, sobre as
+linhas de `given`, então não lê tabela nenhuma — o `T3` é o que garante isso
+— e escreve cada mutante de um modelo como um modelo temporário com os unit
+tests clonados, para que uma única invocação de `dbt test` cubra todos.
+Copie para `.github/mutate_model.py`, um caminho protegido, e o job `build`
+do `ci-warehouse.yml` roda depois do build amostrado — a cópia dele no
+branch base, como as ferramentas rodam, para que um pull request que o edite
+não seja julgado pela própria edição.
+
+**Roda na** Etapa D, a cada push, depois do build amostrado. Na sua máquina,
+`--dry-run` lista o que ele tentaria e não roda nada:
+
+```
+$ python .github/mutate_model.py --base main --dry-run
+fct_orders	where/1        line 7    status != 'cancelled' -> true
+fct_orders	cmp/1          line 7    != -> =
+fct_orders	literal/1      line 7    'cancelled' -> 'cancelled_'
+mutate: 1 changed model listed, nothing run
+```
+
+**Os operadores**, tentados em todo ponto do sql: `cmp` inverte uma comparação;
+`where` troca um predicado da cláusula `where` por `true`; `agg` transforma
+`sum(` em `max(`, `min(` em `max(`, `max(` em `min(`, `avg(` em `max(` e
+`count(distinct` em `count(`; `join` transforma um left join num inner e
+vice-versa; `coalesce` fica só com o primeiro argumento; `distinct` some;
+`literal` move um número em um e dá um caractere a mais a uma string; `not`
+remove um `not`. Comentários, blocos jinja e strings não são pontos, exceto
+para `literal`, então um `!=` dentro de um comentário nunca é mutado.
+
+**O que bloqueia.** Um mutante em que todo unit test passa: a fixture não
+consegue distinguir o código de um código errado, e a linha nomeia o operador,
+o texto e a linha. Um modelo alterado sem unit test: nada ali conseguiria matar
+coisa alguma. O que não bloqueia é um mutante que um humano listou em
+`tests/mutation_equivalents.yml`, lido da branch que o pull request mira, de
+modo que uma linha que o agente adiciona na própria branch fica inerte até um
+humano levá-la:
+
+```yaml
+- model: fct_orders
+  operator: cmp
+  original: "<>"
+  occurrence: 1
+  reason: "<> and != are one operator in every dialect"
+```
+
+Uma entrada nomeia o mutante por modelo, operador, texto original e ocorrência,
+nunca por linha, para que uma linha que se move não a silencie.
+
+**O artefato.** Um `mutation/<modelo>.json` por modelo alterado, no formato de
+`schemas/mutation.schema.json`: cada mutante com operador, texto original,
+substituição, linha, ocorrência e veredicto, e as três contagens.
+
+**O que custa.** Nada no warehouse: os unit tests rodam sobre linhas literais,
+e uma inicialização do dbt por pull request é o custo inteiro. A sondagem que
+moldou isso mediu seis segundos de inicialização do dbt por invocação e um
+décimo de segundo por unit test, e é por isso que os mutantes de um modelo vão
+numa invocação só, e não um por vez.
+
+---
+
+## 7. Como ler uma execução
 
 Uma linha por achado, separada por tabulação, e depois uma linha de resumo. Tudo
 no stdout; erros que param a ferramenta vão para o stderr.
@@ -462,7 +538,7 @@ para impedir.
 1. **Saiu com 2?** Então nada foi julgado. Conserte isso primeiro — um exit 2 não
    diz nada sobre o código.
 2. **Tem algum `BLOCK`?** Cada um nomeia o que foi medido e o que foi prometido,
-   e termina num id de regra que você procura na [seção 7](#7-as-regras). Um
+   e termina num id de regra que você procura na [seção 8](#8-as-regras). Um
    bloqueio do `gate` quase nunca é coisa para contornar: é um teste que ficou
    mais fraco, e a Regra 3 diz que quem muda é o código.
 3. **Depois leia as linhas `INFO`.** Elas nunca mudam o código de saída, e é
@@ -499,7 +575,7 @@ comparadas, então adicionar uma tag a um teste também não é achado.
 
 ---
 
-## 7. As regras
+## 8. As regras
 
 Uma linha por regra: o que ela bloqueia, onde o framework pede isso, e as duas
 fixtures a que os meta-testes a prendem — uma em que ela dispara, outra em que
@@ -524,6 +600,10 @@ código-fonte, para que nenhuma delas ganhe um `BLOCK` em silêncio.
 | Um pré-registro com intervalo aberto ou campo faltando — §3 B, §3 C R6 | `P1` | `check/prereg_open_interval` | `check/prereg_ok` |
 | Um `min` acima do `max`, ou métricas que não são as da spec — §3 B | `P2` | `check/prereg_min_gt_max` | `check/prereg_ok` |
 | Nenhum teste de unicidade na `primary_key` da spec, ou um que não pode falhar — §3 C R2 | `T1` | `check/pk_single_missing` | `check/pk_single_unique` |
+| Uma borda que nenhum unit test nomeia em `config.meta.edge`, ou um unit test que nomeia uma borda que a spec não tem, num modelo que carrega um pré-registro — §3 C R2 | `T2` | `check/T2_edge_without_unit_test` | `check/T2_ok_every_edge_tested` |
+| Um unit test sem linhas em `given` para um `ref` ou `source` que o modelo lê, num modelo que carrega um pré-registro — §3 C R2 | `T3` | `check/T3_input_not_mocked` | `check/T3_ok_all_inputs_given` |
+| Informa: por borda, o unit test que a nomeia e quantas linhas ele recebe e espera — §3 E5 | `I5` | `check/T2_ok_every_edge_tested` | `check/T2_edge_without_unit_test` |
+| Informa: num modelo sem pré-registro, o que `T2` e `T3` bloqueariam, para um humano ler — §3 C R2 | `I7` | `check/I7_untested_edge_without_prereg` | `check/T2_edge_without_unit_test` |
 
 ### `gate`
 
@@ -542,6 +622,7 @@ código-fonte, para que nenhuma delas ganhe um `BLOCK` em silêncio.
 | Informa: quantas vezes o pré-registro mudou depois de escrito — §3 B | `I1` | `gate/I1_two_edits` | `gate/I1_ok_written_once` |
 | Informa: um `where` num teste que esta branch adiciona — §2 C5B | `I3` | `gate/I3_new_test_with_where` | `gate/I3_ok_new_test_plain` |
 | Informa: o commit que escreveu primeiro uma spec nova nesta branch — §3 A | `I4` | `gate/I4_spec_first_written_on_branch` | `gate/I4_ok_spec_from_main` |
+| Informa: um commit da branch cuja spec ou pré-registro o schema rejeita — §3 C R5 | `I6` | `gate/I6_red_commit_in_the_walk` | `gate/I6_ok_every_commit_green` |
 
 ### `compare`
 
@@ -559,7 +640,7 @@ código-fonte, para que nenhuma delas ganhe um `BLOCK` em silêncio.
 
 ---
 
-## 8. O que a v0 não faz
+## 9. O que a v0 não faz
 
 Tudo isto faz parte do framework e **não** é imposto aqui. Saber o que é o quê é
 o ponto da lista; o [CHANGELOG.md](CHANGELOG.md) conta cada história.
@@ -597,9 +678,14 @@ maneiras de um verde ser um verde sobre nada.
   materialização, um `config` — porque o `G8` é escopado ao `.sql`. E a *ordem*
   da Etapa B: o pré-registro é conferido como presente no fim da branch, não como
   escrito antes do código ao longo dela.
-- Se cada known_edge da spec virou unit test, e se uma tolerância ou uma âncora
-  conseguem falhar: `reconciliation_tolerance: "999%"` e
-  `external_validation: "TODO"` satisfazem o schema.
+- Se uma tolerância ou uma âncora conseguem falhar:
+  `reconciliation_tolerance: "999%"` e `external_validation: "TODO"` satisfazem
+  o schema. E se o `expect` de um unit test diz o que a borda dele diz: o `T2`
+  segura o nome, o `I5` imprime as contagens, e a frase é a terceira leitura do
+  humano.
+- O `T3` lê `ref` e `source` do sql com um padrão, não com o dbt: um ref montado
+  por macro ou por variável não é visto, e um unit test que o deixa sem simular
+  não é bloqueado.
 - O `compare` revalida o pré-registro e não a spec, então um `tier` escrito
   errado pula o `C6`; o `check` pega isso na mesma execução de CI.
 - O `T1` recusa um teste de unicidade *mais forte* que a primary key, e o teste
@@ -624,20 +710,20 @@ maneiras de um verde ser um verde sobre nada.
 
 ---
 
-## 9. Como contribuir
+## 10. Como contribuir
 
 | Caminho | O que é |
 | --- | --- |
-| `slp.py` | A ferramenta inteira: três comandos, todas as regras, um arquivo que se lê de uma sentada. |
-| `__init__.py` | Uma docstring, nenhum import. Existe para o `../pyproject.toml` mapear este diretório para o nome do pacote sem mover nada. |
-| `schemas/` | O que uma spec, um pré-registro e um `diff.json` precisam ser. |
-| `templates/` | CODEOWNERS, AGENTS.md e os dois workflows de CI, prontos para copiar. |
+| `slp.py` | A porta de entrada da grafia copiada: põe a própria pasta no path e passa a vez ao pacote. |
+| `spec_lock_diff/` | A ferramenta, um pacote que se lê módulo a módulo: `findings` (o que uma regra diz, como uma execução termina), `readers` (yml, json, os schemas), `project` (um projeto dbt como o yml dele declara), `owners` (o CODEOWNERS do jeito que o git lê), `gitread` (dois commits e a caminhada entre eles), `rules/` (um módulo por comando, uma função por regra) e `cli`. Instalado, é o mesmo pacote com o mesmo nome. |
+| `spec_lock_diff/schemas/` | O que uma spec, um pré-registro e um `diff.json` precisam ser. |
+| `templates/` | CODEOWNERS, AGENTS.md, os dois workflows de CI, o loop do agente (`tcr.sh`), o mutation check (`mutate_model.py`), as queries de rascunho (`spec_draft.sql`) e o conversor do diff, prontos para copiar. |
 | `tests/` | A suíte, e `tests/fixtures/` — cada caso como arquivos de verdade, uma pasta por caso com um `README.txt`. |
 | `../examples/` | Um projeto em que os portões passam, e um passo a passo de um em que eles não passam. Os READMEs de lá imprimem saída de verdade, e o `tests/test_examples.py` roda os comandos e confere. |
 
 - **Uma regra por pull request.** Uma regra é uma função, uma docstring que
   começa pela frase do framework que ela impõe, um id, uma fixture que bloqueia,
-  uma que passa e uma linha na [seção 7](#7-as-regras). Os meta-testes falham se
+  uma que passa e uma linha na [seção 8](#8-as-regras). Os meta-testes falham se
   você esquecer uma das três últimas.
 - **README do framework primeiro.** Estas ferramentas só podem impor algo que o
   framework diz. Se a sua regra exige mudar o framework, abra uma issue de
@@ -648,12 +734,15 @@ maneiras de um verde ser um verde sobre nada.
 - **As duas línguas.** `tools/README.md` e `tools/README.pt-br.md` são o mesmo
   documento. Mudou a substância de um, mude o outro — ou diga no pull request que
   não conseguiu.
-- **Um arquivo.** Toda a lógica mora no `slp.py`, e o **M8** limita três coisas
-  separadamente: a maquinaria compartilhada de que toda regra depende, qualquer
-  regra sozinha, e o arquivo inteiro. Ele conta só as linhas que precisam ser
-  *entendidas* — código, sem linhas em branco, comentários e docstrings — porque,
-  sob um limite que conta prosa, o jeito mais barato de comprar espaço é apagar a
-  explicação que torna o arquivo legível.
+- **Um pacote, e números que ninguém negocia.** A lógica mora em
+  `spec_lock_diff/`, um módulo por assunto e uma função por regra. O que o
+  segura não é uma contagem de linhas, e sim quatro números, nenhum deles nosso
+  para mexer: 100 por cento das instruções e dos branches cobertos e toda função
+  com CRAP 30 ou menos (`tests/crap.py`), toda função com complexidade
+  ciclomática 10 ou menos e toda linha com 100 colunas ou menos (os padrões do
+  próprio ruff), toda anotação conferida (`mypy --strict`), e todo mutante dele
+  morto (`tests/mutants.py`). Uma função que precisa de mais é duas funções, e o
+  **M9** proíbe o comentário que isentaria uma linha de qualquer um deles.
 
 Para exigir um campo novo na spec, comece pelo `schemas/spec.schema.json` e
 escreva a `description` dele como um requisito — essa descrição é a frase que a

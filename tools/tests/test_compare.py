@@ -5,7 +5,6 @@ folder name and its README.txt say what must happen.
 """
 
 import pytest
-
 from conftest import FIXTURES, assert_expected, cases, findings, make_repo, run_slp
 
 TREES = ("before", "mid", "after")
@@ -46,12 +45,12 @@ def test_the_message_states_both_numbers():
     code, out, _ = run_slp(["compare", "diff.json"], case)
     assert code == 1
     assert out.splitlines()[0] == (
-        "BLOCK\tdiff.json\tfct_orders\trow_delta is 15000, pre-registration "
-        "allows 0..12000\t[C1]")
+        "BLOCK\tdiff.json\tfct_orders\trow_delta is 15000, pre-registration allows 0..12000\t[C1]"
+    )
     # And the block is followed by the numbers themselves, in reading order.
     assert out.splitlines()[2] == (
-        "INFO\tdiff.json\tfct_orders\trow_delta 15000, declared 0..12000 "
-        "(a band 12000 wide)\t[I2]")
+        "INFO\tdiff.json\tfct_orders\trow_delta 15000, declared 0..12000 (a band 12000 wide)\t[I2]"
+    )
     assert out.splitlines()[-1] == "slp compare: 1 block, 6 infos - BLOCKED"
 
 

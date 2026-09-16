@@ -1,0 +1,2 @@
+// expect: required
+{"model": "fct_orders", "mutants": []}

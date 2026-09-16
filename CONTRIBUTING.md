@@ -37,8 +37,8 @@ land through pull requests from a fork. Only the maintainer can merge.
 ## Working on `tools/`
 
 ```bash
-pip install -e ".[dev]"   # or: pip install pyyaml "jsonschema>=4" pytest
-pytest tools/tests -q     # around three hundred and seventy, ten seconds, no network
+pip install -e ".[dev]"   # pytest, coverage, ruff, mypy and the two stub packages
+pytest tools/tests -q     # around four hundred, ten seconds, no network
 ```
 
 The suite is most of the review. Before you open a pull request that touches the
@@ -51,7 +51,10 @@ tools, this is what it will ask of you:
 | change what a command prints | the pinned output in `examples/*/README.md`, compared character for character |
 | change a template | the assertions in `tests/test_templates.py`, which parse the file rather than reading it |
 | change the tools README | the same change in `README.pt-br.md` — **R10** checks section numbering, rule order, and every line the tool itself prints |
-| write more code | room under **M8**, which caps the shared machinery, any one rule, and the file. Raising a number is allowed; the pull request has to say what was bought with it |
+| write more code | it in the module it belongs to, typed, and under ruff's two defaults, a cyclomatic complexity of 10 per function and 100 columns per line: `ruff check tools && ruff format --check tools && mypy`. No number here is raised; a function that needs more is two functions |
+| write a branch | the tool at 100% of statements and branches and every function at CRAP ≤ 30: `coverage run --branch --source=tools/spec_lock_diff -m pytest tools/tests -q && python tools/tests/crap.py`. Neither number moves, and **M9** bans the comment that would exempt a line from them; a function over the cap is two functions |
+| change the tool | every mutant of it killed: `python tools/tests/mutants.py --jobs 4` (a quarter of an hour on four cores; `--only <function>` while you work). A survivor is a test to write, or, when the change alters no verdict, a line in `tools/tests/equivalent_mutants.txt` with its id and a reason of at least four words; a listed mutant the suite kills, or that no longer exists, fails the run |
+| push a pull request | every commit of it green on its own: the `commits` job replays the suite at each one. `tools/tests/tcr.sh "message"` is the loop that guarantees it, commit by commit |
 | release | `__version__`, the `## <version>` heading in `CHANGELOG.md`, and the version in `pyproject.toml`, held together by one test |
 
 A fixture folder is the unit of a test. Its name is the assertion —

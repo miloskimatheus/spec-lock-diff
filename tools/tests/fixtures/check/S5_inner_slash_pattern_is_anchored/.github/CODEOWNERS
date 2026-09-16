@@ -1,0 +1,3 @@
+# A slash inside the pattern anchors it to the root, as gitignore reads it:
+# this owns <root>/marts/finance/, and the model is under models/.
+marts/finance/    @your-org/finance-data

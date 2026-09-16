@@ -9,7 +9,6 @@ the wording of a summary line reds a test in `examples/` - which is the point.
 import re
 
 import pytest
-
 from conftest import EXAMPLES, TOOLS, findings, make_repo, run_slp
 
 ROOT = TOOLS.parent
@@ -19,8 +18,7 @@ WALKTHROUGH = EXAMPLES / "gate-walkthrough"
 # A vendored tools/ has no examples/ beside it, and its owner still runs this
 # suite as the install page tells them to. Skipping is right there; a silent skip
 # in *this* repository would not be, which is what the last test in the file is for.
-needs_examples = pytest.mark.skipif(not EXAMPLES.is_dir(),
-                                    reason="no examples/ beside this tools/")
+needs_examples = pytest.mark.skipif(not EXAMPLES.is_dir(), reason="no examples/ beside this tools/")
 
 
 def _pinned(readme):
@@ -30,7 +28,7 @@ def _pinned(readme):
     for block in blocks:
         lines = block.rstrip("\n").split("\n")
         if lines[0].startswith("$ python tools/slp.py"):
-            argv = lines[0][len("$ python tools/slp.py"):].split()
+            argv = lines[0][len("$ python tools/slp.py") :].split()
             out.append((argv, "\n".join(lines[1:])))
     return out
 
@@ -49,17 +47,20 @@ def _expand(argv):
 def _cases():
     if not EXAMPLES.is_dir():
         return []
-    return [(readme.parent.name, argv, want)
-            for readme in sorted(EXAMPLES.glob("*/README.md"))
-            for argv, want in _pinned(readme)]
+    return [
+        (readme.parent.name, argv, want)
+        for readme in sorted(EXAMPLES.glob("*/README.md"))
+        for argv, want in _pinned(readme)
+    ]
 
 
 CASES = _cases()
 
 
 @needs_examples
-@pytest.mark.parametrize("folder,argv,want", CASES,
-                         ids=["%s-%s" % (folder, argv[0]) for folder, argv, _ in CASES])
+@pytest.mark.parametrize(
+    "folder,argv,want", CASES, ids=["%s-%s" % (folder, argv[0]) for folder, argv, _ in CASES]
+)
 def test_the_readme_prints_what_the_command_prints(folder, argv, want):
     """The output in the example's README is the output, not a paraphrase of it."""
     code, stdout, stderr = run_slp(_expand(argv), ROOT)
@@ -72,7 +73,9 @@ def test_the_quickstart_has_something_to_check():
     """A pass on nothing reads exactly like a pass. Both numbers are asserted."""
     code, stdout, _ = run_slp(["check", "--project-dir", str(QUICKSTART)], ROOT)
     assert code == 0, stdout
-    assert stdout.strip() == "slp check: OK (2 models in models/marts/, of 4 models read)"
+    assert stdout.strip().endswith(
+        "slp check: 2 infos - OK (2 models in models/marts/, of 4 models read)"
+    )
 
 
 @needs_examples
@@ -97,8 +100,11 @@ def test_the_walkthrough_blocks_on_the_test_the_agent_deleted(tmp_path):
     assert "exists on main but not in this PR" in stdout
     # Its README cannot print a command a reader can run here - the walkthrough is
     # two commits somebody makes by hand - so the output block is pinned instead.
-    printed = re.findall(r"^```\n(BLOCK.*?)^```$",
-                         (WALKTHROUGH / "README.md").read_text(encoding="utf-8"), re.S | re.M)
+    printed = re.findall(
+        r"^```\n(BLOCK.*?)^```$",
+        (WALKTHROUGH / "README.md").read_text(encoding="utf-8"),
+        re.S | re.M,
+    )
     assert printed == [stdout.rstrip("\n") + "\n"], stdout
 
 

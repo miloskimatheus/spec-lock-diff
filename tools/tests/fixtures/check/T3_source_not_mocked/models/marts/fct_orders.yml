@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: fct_orders
+    meta:
+      spec:
+        grain: "one row per order"
+        primary_key: [order_id]
+        tier: standard
+        metrics: {}
+        known_edges: []
+        sensitive_columns: []
+      pre_registration:
+        type: data_change
+        reason: "the change this pull request makes, in one sentence"
+        row_delta: {min: 0, max: 1000}
+        removed_pks: {max: 0}
+        altered_columns: []
+        metrics: {}
+    columns:
+      - name: order_id
+        tests:
+          - unique
+
+unit_tests:
+  - name: orders_with_nothing_given
+    model: fct_orders
+    given:
+    expect:
+      rows:
+        - {order_id: 1}

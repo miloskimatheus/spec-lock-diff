@@ -7,15 +7,16 @@ wrong reason when the schema changes.
 
 import json
 
+import jsonschema
 import pytest
 import yaml
-
-import slp
 from conftest import FIXTURES
 
+import spec_lock_diff as slp
+from spec_lock_diff.readers import _why
+
 # Whatever schemas/ holds: a new schema is covered the moment it lands.
-KINDS = tuple(sorted(p.name.split(".")[0]
-                     for p in slp.SCHEMA_DIR.glob("*.schema.json")))
+KINDS = tuple(sorted(p.name.split(".")[0] for p in slp.SCHEMA_DIR.glob("*.schema.json")))
 
 
 def _load(path):
@@ -31,8 +32,11 @@ def _load(path):
 
 
 def _fixtures(group):
-    return [(kind, path) for kind in KINDS
-            for path in sorted((FIXTURES / "schemas" / kind / group).glob("*.*"))]
+    return [
+        (kind, path)
+        for kind in KINDS
+        for path in sorted((FIXTURES / "schemas" / kind / group).glob("*.*"))
+    ]
 
 
 def _id(case):
@@ -65,4 +69,20 @@ def test_messages_name_the_field_and_what_it_should_be():
     bad = _load(FIXTURES / "schemas" / "spec" / "invalid" / "tier_typo.yml")
     assert slp.schema_errors(bad, "spec", "spec") == [
         'spec.tier: must be "critical" or "standard"; critical means the model feeds'
-        ' business decisions, financial reports or executive dashboards (got "crítical")']
+        ' business decisions, financial reports or executive dashboards (got "crítical")'
+    ]
+
+
+def test_a_field_no_schema_describes_says_what_the_keyword_wanted():
+    """R7: when there is no sentence to borrow, the keyword and its value are the sentence."""
+    error = next(jsonschema.Draft202012Validator({"type": "integer"}).iter_errors("x"))
+    assert _why(error) == '"integer" (got "x")'
+
+
+def test_a_missing_field_is_named_with_its_own_sentence():
+    """R7: the field, and the sentence its schema wrote for it, not the parent's."""
+    bad = _load(FIXTURES / "schemas" / "spec" / "invalid" / "missing_grain.yml")
+    assert slp.schema_errors(bad, "spec", "spec") == [
+        "spec: missing required field 'grain' - must say what each row represents, in one"
+        " sentence; it is the most important definition of the model"
+    ]
