@@ -634,7 +634,7 @@ None of these is about dbt or agents. The framework is what they become when poi
 | A prediction written down before the result is seen (Stage B, the pre-registration) | Nosek, Ebersole, DeHaven, Mellor, "The preregistration revolution", *PNAS*, 2018 |
 | A test that cannot fail is not a test; each edge as a test, before the code (Rules 2 and 3) | Beck, *Test-Driven Development: By Example*, 2002 |
 | One step at a time: test, then commit, otherwise revert (Rule 5) | Beck, "test && commit \|\| revert", 2018 |
-| Would the tests notice a plausible wrong result? (the mutation check, Stage D) | DeMillo, Lipton, Sayward, "Hints on Test Data Selection: Help for the Practicing Programmer", *IEEE Computer*, 1978 |
+| Would the tests notice a plausible wrong result? Mutation testing (the mutation check, Stage D) | DeMillo, Lipton, Sayward, "Hints on Test Data Selection: Help for the Practicing Programmer", *IEEE Computer*, 1978 |
 | An edge written as what is given and what follows (`known_edges`; a unit test's `given` and `expect`) | North, "Introducing BDD", 2006; Gherkin, the language of Cucumber, 2008 |
 | Change risk as complexity times what the tests never exercise (the gates on the tools themselves) | Savoia, C.R.A.P., Change Risk Anti-Patterns, crap4j, 2007; McCabe, "A Complexity Measure", *IEEE TSE*, 1976 |
 | Limits in the infrastructure, the least access that does the job, a check that fails closed (Principle 2, Controls 1 to 3, exit 2) | Saltzer, Schroeder, "The Protection of Information in Computer Systems", *Proc. IEEE*, 1975: least privilege and fail-safe defaults |

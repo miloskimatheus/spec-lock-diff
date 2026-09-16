@@ -635,7 +635,7 @@ Nenhuma delas é sobre dbt ou agentes. O framework é o que elas viram quando ap
 | Uma previsão escrita antes de o resultado ser visto (Etapa B, o pré-registro) | Nosek, Ebersole, DeHaven, Mellor, "The preregistration revolution", *PNAS*, 2018 |
 | Um teste que não consegue falhar não é um teste; cada borda como um teste, antes do código (Regras 2 e 3) | Beck, *Test-Driven Development: By Example*, 2002 |
 | Um passo de cada vez: testa, então commita, senão reverte (Regra 5) | Beck, "test && commit \|\| revert", 2018 |
-| Os testes notariam um resultado errado e plausível? (o mutation check, Etapa D) | DeMillo, Lipton, Sayward, "Hints on Test Data Selection: Help for the Practicing Programmer", *IEEE Computer*, 1978 |
+| Os testes notariam um resultado errado e plausível? Teste de mutação (o mutation check, Etapa D) | DeMillo, Lipton, Sayward, "Hints on Test Data Selection: Help for the Practicing Programmer", *IEEE Computer*, 1978 |
 | Uma borda escrita como o que é dado e o que decorre (`known_edges`; o `given` e o `expect` de um unit test) | North, "Introducing BDD", 2006; Gherkin, a linguagem do Cucumber, 2008 |
 | Risco de mudança como complexidade vezes o que os testes nunca exercitam (os portões sobre as próprias ferramentas) | Savoia, C.R.A.P., Change Risk Anti-Patterns, crap4j, 2007; McCabe, "A Complexity Measure", *IEEE TSE*, 1976 |
 | Limites na infraestrutura, o menor acesso que faz o trabalho, uma verificação que falha fechada (Princípio 2, Controles 1 a 3, exit 2) | Saltzer, Schroeder, "The Protection of Information in Computer Systems", *Proc. IEEE*, 1975: menor privilégio e padrões à prova de falha |
