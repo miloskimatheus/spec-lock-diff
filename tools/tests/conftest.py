@@ -24,6 +24,10 @@ symptom rather than a rule - the README.txt adds machine-readable lines:
     expect rules I1 G1   rule ids that must appear in the output
     expect absent G2     rule ids that must not appear
     expect count 2       the exact number of findings
+    expect line BLOCK\tmodels/marts/a.yml\tfct_a\twhat is wrong\t[G1]
+                         a line the output must contain, exactly; \t is a tab.
+                         It pins the sentence, so a rule cannot name the wrong
+                         thing and still pass on its id
 """
 
 import contextlib
@@ -133,8 +137,11 @@ def expectation(folder):
     said = {}
     for line in readme.read_text(encoding="utf-8").splitlines() if readme.exists() else []:
         words = line.split()
-        if len(words) >= 3 and words[0] == "expect":
+        if len(words) >= 3 and words[:2] == ["expect", "line"]:
+            said.setdefault("lines", []).append(line.split(" ", 2)[2].replace("\\t", "\t"))
+        elif len(words) >= 3 and words[0] == "expect":
             said[words[1]] = int(words[2]) if words[1] in ("exit", "count") else words[2:]
+    want["lines"] = []
     want.update(said)
     if "rules" not in said:  # a case that blocks prints its rule; one that passes does not
         want["rules"] = [rule] if rule and want["exit"] == 1 else []
@@ -156,6 +163,8 @@ def assert_expected(folder, code, stdout, stderr=""):
         assert rule not in printed, "%s: unexpected [%s] in\n%s" % (folder.name, rule, stdout)
     if want["count"] is not None:
         assert len(got) == want["count"], "%s: %d findings\n%s" % (folder.name, len(got), stdout)
+    for text in want["lines"]:
+        assert text in stdout.splitlines(), "%s: no line %r in\n%s" % (folder.name, text, stdout)
     return got
 
 

@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: stg_orders
+    meta:
+      spec:
+        grain: "one row per order"
+        primary_key: [order_id]
+        tier: critical
+        metrics: {}
+        known_edges: []
+        sensitive_columns: []
+        reconciliation_query: analyses/reconciliation_stg_orders.sql
+        reconciliation_tolerance: "0.1%"
+        external_validation: "orders 2025-11 = 1,200 in the order system"
+    columns:
+      - name: order_id

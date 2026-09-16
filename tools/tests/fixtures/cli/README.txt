@@ -21,3 +21,7 @@ Projects that exercise the entry point itself, not a rule:
   column_without_name     a column entry with no name - exit 2
   unit_test_without_name  a unit test whose name is empty - exit 2
   model_declared_twice    two yml files declare the same model - exit 2
+  models_entry_not_a_mapping  models: is a list of names, not of entries - exit 2
+  test_name_not_a_string  a test whose name is a number - exit 2
+  model_with_empty_name   a model whose name is "" - exit 2
+  column_with_empty_name  a column whose name is "" - exit 2

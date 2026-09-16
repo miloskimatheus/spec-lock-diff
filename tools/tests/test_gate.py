@@ -181,8 +181,9 @@ def test_a_blob_is_read_whole_and_unchanged(tmp_path):
 def test_a_path_the_commit_does_not_have_is_an_error(tmp_path):
     """The header of a missing object has two words, not three; that is exit 2, not an empty file."""
     repo = build(QUIET, tmp_path)
-    with pytest.raises(slp.SlpError, match="cannot read no/such.yml at HEAD"):
-        slp.git_blobs(repo, "HEAD", ["no/such.yml"])
+    head = git(repo, "rev-parse", "HEAD").strip()
+    with pytest.raises(slp.SlpError, match="cannot read no/such.yml at %s:" % head[:8]):
+        slp.git_blobs(repo, head, ["no/such.yml"])
 
 
 def test_cat_file_outside_a_repository_is_an_error(tmp_path):
@@ -206,3 +207,14 @@ def test_the_filter_finding_names_the_column_it_was_put_on(tmp_path):
     repo = build(FIXTURES / "gate" / "G2_where_added", tmp_path)
     _, out, _ = run_slp(["gate", "--base", "base"], repo)
     assert "test 'unique' on fct_orders.order_id now skips rows with where: status != 'cancelled'" in out, out
+
+
+def test_a_yml_that_does_not_parse_names_the_commit(tmp_path):
+    """R3 and R7: exit 2 for the life of the branch, and the message says at which commit."""
+    repo = build(QUIET, tmp_path)
+    (repo / "models" / "marts" / "broken.yml").write_text("models:\n\t- name: x\n", encoding="utf-8")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "a tab where yml wants spaces")
+    head = git(repo, "rev-parse", "HEAD").strip()
+    with pytest.raises(slp.SlpError, match="cannot parse models/marts/broken.yml at %s:" % head[:8]):
+        slp.inventory(repo, head)

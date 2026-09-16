@@ -1,5 +1,7 @@
 """The test harness itself (SLP-23): if it lies, every other test lies with it."""
 
+import pytest
+
 from conftest import assert_expected, expectation, findings, git, make_repo
 
 
@@ -63,3 +65,17 @@ def test_a_readme_can_say_what_the_name_cannot(tmp_path):
     assert (want["exit"], want["rules"], want["count"]) == (0, ["I1"], 1)
     out = "INFO\tmodels/marts/a.yml\tfct_a\tchanged 2 times\t[I1]\n"
     assert len(assert_expected(folder, 0, out)) == 1
+
+
+def test_a_readme_can_pin_a_whole_line(tmp_path):
+    """A rule that names the wrong file, model or thing still prints its id; the line is the check."""
+    folder = tmp_path / "G1_removed_unique"
+    folder.mkdir()
+    (folder / "README.txt").write_text(
+        "expect line BLOCK\\tmodels/marts/a.yml\\tfct_a\\ttest removed\\t[G1]\n")
+    want = expectation(folder)
+    assert want["lines"] == ["BLOCK\tmodels/marts/a.yml\tfct_a\ttest removed\t[G1]"]
+    out = "BLOCK\tmodels/marts/a.yml\tfct_a\ttest removed\t[G1]\nslp gate: 1 block - BLOCKED\n"
+    assert_expected(folder, 1, out)
+    with pytest.raises(AssertionError):
+        assert_expected(folder, 1, out.replace("fct_a", "a"))

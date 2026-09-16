@@ -73,3 +73,11 @@ def test_a_field_no_schema_describes_says_what_the_keyword_wanted():
     """R7: when there is no sentence to borrow, the keyword and its value are the sentence."""
     error = next(jsonschema.Draft202012Validator({"type": "integer"}).iter_errors("x"))
     assert slp._why(error) == '"integer" (got "x")'
+
+
+def test_a_missing_field_is_named_with_its_own_sentence():
+    """R7: the field, and the sentence its schema wrote for it, not the parent's."""
+    bad = _load(FIXTURES / "schemas" / "spec" / "invalid" / "missing_grain.yml")
+    assert slp.schema_errors(bad, "spec", "spec") == [
+        "spec: missing required field 'grain' - must say what each row represents, in one"
+        " sentence; it is the most important definition of the model"]

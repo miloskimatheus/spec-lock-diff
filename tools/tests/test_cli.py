@@ -98,6 +98,10 @@ def test_more_than_one_marts_path_is_read_as_one_set():
     ("column_without_name", "a column without a name"),
     ("unit_test_without_name", "a unit test without a name"),
     ("model_declared_twice", "is declared twice"),
+    ("models_entry_not_a_mapping", "must be a list of entries"),
+    ("test_name_not_a_string", "cannot read a test"),
+    ("model_with_empty_name", "a model without a name"),
+    ("column_with_empty_name", "a column without a name"),
 ])
 def test_what_cannot_be_read_is_never_a_pass(case, expected):
     """R3, fail closed: an unreadable project is exit 2, not exit 0."""
@@ -158,3 +162,15 @@ def test_the_file_runs_as_a_script(monkeypatch):
     with pytest.raises(SystemExit) as done:
         runpy.run_path(str(SLP), run_name="__main__")
     assert done.value.code == 0
+
+
+def test_the_help_names_the_tool():
+    """argparse prints the first line of the docstring; a reader who typed --help should meet it."""
+    code, out, _ = run_slp(["--help"], CLI)
+    assert code == 0 and "the deterministic gates of Spec-Lock-Diff" in out
+
+
+def test_gate_without_a_base_is_a_usage_error():
+    """--base is required: without it there is nothing to compare against, and argparse says so."""
+    code, _, err = run_slp(["gate"], CLI / "valid")
+    assert code == 2 and "the following arguments are required: --base" in err
