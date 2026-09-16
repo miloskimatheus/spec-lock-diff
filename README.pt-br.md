@@ -51,6 +51,7 @@ Adotar é uma escada, não um penhasco: o `check` e o `gate` são vinte e uma da
 1. [Manifesto — 3 princípios](#1-manifesto--3-princ%C3%ADpios)
 2. [Construindo a trava — 5 controles obrigatórios](#2-construindo-a-trava--5-controles-obrigat%C3%B3rios)
 3. [O processo de desenvolvimento (rotina) — 5 etapas](#3-o-processo-de-desenvolvimento-rotina--5-etapas)
+4. [Rotinas — três passo a passos](#4-rotinas--tr%C3%AAs-passo-a-passos)
 
 **Sete palavras que este documento usa antes de definir**, para você poder ler direto:
 
@@ -204,7 +205,7 @@ Masking de colunas sensíveis:
 Custos de warehouse:
 
 - **Snowflake:** Resource monitor com `FREQUENCY = DAILY` e ação `SUSPEND_IMMEDIATE`. A cota diária deve ser: (cota mensal ÷ 22 dias úteis). Quando atingida, o warehouse é desligado imediatamente.
-- **BigQuery:** Cota diária de bytes escaneados no projeto de CI do agente.
+- **BigQuery:** Cota diária de bytes escaneados no projeto de CI do agente, e `maximum_bytes_billed` no `profiles.yml` do agente, para que uma query acima do teto falhe em vez de cobrar.
 - **Databricks:** O sistema de budgets do Databricks só envia alertas (não desliga). Então crie um job que roda a cada hora, consulta o consumo acumulado do dia e desliga o SQL warehouse do agente se estiver acima do teto.
 
 Timeout por query:
@@ -242,7 +243,7 @@ customer_email: {rows: 1284003, nulls: 1.2%, distinct: 83904}
 # sem mínimos, sem máximos, sem amostras, sem exemplos de linhas
 ```
 
-Quando o agente precisa entender a estrutura de um dado, ele consulta `docs/profile/`. Ele nunca roda queries exploratórias no warehouse.
+Quando o agente precisa entender a estrutura de um dado, ele consulta `docs/profile/` primeiro. Para rascunhar uma spec (Etapa A) ele também pode rodar queries **só de agregados** sobre staging e marts, como a role `agent_ci`, sob o masking do Controle 2 e o teto de gastos do Controle 3: metadados primeiro (no BigQuery, contagens de linhas e bytes de tabela via `INFORMATION_SCHEMA` não custam nada), depois `count(*)` contra `count(distinct ...)` ou `APPROX_COUNT_DISTINCT` para testar um grain, taxas de nulos, somas de colunas numéricas como candidatas a métrica, e os valores distintos de colunas marcadas `categorical: true` como candidatos a borda, cada uma sobre uma partição recente e cada uma precedida de um dry run. Ele nunca roda uma query que devolva linhas.
 
 ---
 
@@ -265,7 +266,7 @@ Quando o agente precisa entender a estrutura de um dado, ele consulta `docs/prof
 | `packages.yml`                               | Dependências do dbt. Um agente poderia pinar uma versão vulnerável.                                                           |
 | `dbt_project.yml`                            | Configuração global do projeto.                                                                                               |
 | `macros/`                                    | Macros são reutilizadas por vários modelos. Uma mudança afeta tudo.                                                           |
-| `tests/`                                     | Testes genéricos.                                                                                                             |
+| `tests/`                                     | Testes genéricos, e `mutation_equivalents.yml`: os mutantes que um humano declarou equivalentes (Etapa D).                    |
 | `analyses/reconciliation_*`                  | Queries de reconciliação. Se o agente mudar a reconciliação no mesmo PR do modelo, ele controla o que está sendo verificado.  |
 | `models/semantic/`                           | Definições de métricas. Uma métrica errada propaga erro para todos os consumidores.                                           |
 | `docs/profile/`                              | Perfis estatísticos. Se o agente mudar o perfil, ele muda sua própria referência.                                             |
@@ -358,6 +359,9 @@ meta:
     # A borda deve descrever o RESULTADO esperado, não a implementação.
     # Exemplo bom: "status='cancelled' → linha excluída"
     # Exemplo ruim: "usar WHERE status != 'cancelled'"
+    # Uma linha cada, texto livre: o que é dado, uma seta, o que o modelo faz
+    # com isso. Nada valida as palavras; uma máquina só verifica que toda borda
+    # tem um unit test que a nomeia (Etapa C, Regra 2).
 
     sensitive_columns: [customer_email]
     # Lista de colunas que contêm dados pessoais.
@@ -471,12 +475,12 @@ Cada regra abaixo deve ter um mecanismo de infraestrutura que a impõe. A regra 
 | #   | Regra                                                                                                                                                                                                                                                                 | Mecanismo que impõe                                                                                             |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | 1   | **Sem spec, pare e peça.** Se o modelo não tem spec, o agente não começa. Ele pede ao Autor para escrevê-la.                                                                                                                                                          | CI valida presença da spec (JSON Schema).                                                                       |
-| 2   | **Todo modelo tem teste de PK e contagem mínima.** O agente cria um teste de unicidade na primary_key da spec e um teste de contagem mínima de linhas. Cada borda da spec vira um unit test com fixture sintética (dados inventados que representam o caso descrito). | CI valida presença dos testes (JSON Schema + gate anti-fraude).                                                 |
-| 3   | **Teste falhou = código errado.** Se um teste falha, o agente corrige o código. Nunca o contrário. O agente nunca enfraquece um teste, altera um `expect`, muda uma macro de teste ou remove uma reconciliação para fazer o CI passar.                                | Gate anti-fraude (Controle 5B) detecta e bloqueia.                                                              |
+| 2   | **Todo modelo tem teste de PK e contagem mínima.** O agente cria um teste de unicidade na primary_key da spec e um teste de contagem mínima de linhas. Cada borda da spec vira um unit test com fixture sintética (dados inventados que representam o caso descrito) que nomeia sua borda literalmente em `config.meta.edge`, simula em `given` todo `ref` e `source` que o modelo lê, e fixa funções de tempo com `overrides`. | CI valida presença dos testes (JSON Schema + gate anti-fraude); o `check` bloqueia uma borda sem unit test que a nomeie, e um unit test que deixa uma entrada do modelo sem simular. |
+| 3   | **Teste falhou = código errado.** Se um teste falha, o agente corrige o código. Nunca o contrário. O agente nunca enfraquece um teste, altera um `expect`, muda uma macro de teste ou remove uma reconciliação para fazer o CI passar, e nunca escreve uma fixture que não saberia distinguir o código de um código errado. | Gate anti-fraude (Controle 5B) detecta e bloqueia; o mutation check (Etapa D) bloqueia um unit test que nenhum mutante do código consegue fazer falhar. |
 | 4   | **Métricas ficam em `models/semantic/`.** Métricas são definidas uma única vez, no diretório semântico. Se a métrica que o agente precisa não existe, ele para e pede ao Autor para criá-la.                                                                          | CODEOWNERS protege `models/semantic/`.                                                                          |
-| 5   | **Ordem de execução fixa.** O agente segue esta sequência: `dbt compile` → `dbt test --select test_type:unit` → `dbt build`. Se o mesmo comando falhar 3 vezes seguidas, o agente para e chama um humano.                                                             | Regra de 3 falhas no gateway de API.                                                                            |
+| 5   | **Um passo de cada vez.** Depois de cada alteração o agente roda `python tools/slp.py check`, `python tools/slp.py gate --base <branch>` e `dbt test --select test_type:unit`. Tudo verde: ele faz commit. Algo vermelho: ele reverte a árvore de trabalho para o último commit (testa, então commita, senão reverte). Cinco reversões seguidas: o agente para e chama um humano. `dbt build` roda uma vez, no CI, nunca dentro do loop. | O `tcr.sh` é o único caminho de commit que o agente recebe, e seu contador de strikes é o 5; o gate mostra ao Autor todo commit da branch em que o `check` teria bloqueado. |
 | 6   | **Pré-registro antes do diff.** O agente deve entregar o pré-registro (etapa B) antes de qualquer diff. Intervalos abertos (sem min ou sem max) são inválidos.                                                                                                        | JSON Schema no CI.                                                                                              |
-| 7   | **Nunca leia linhas individuais.** O agente não roda `dbt show`, não faz `SELECT` sem agregação, e nunca cola um valor lido do warehouse em código, teste, fixture ou comentário de PR. Fixtures são sempre sintéticas (inventadas pelo agente).                      | Role `agent_ci` sem acesso a `raw`. Masking em staging/marts. Gate anti-fraude detecta dados reais em fixtures. |
+| 7   | **Nunca leia linhas individuais.** O agente não roda `dbt show` em um modelo, nunca seleciona sem agregar, nunca amostra com `LIMIT`, nunca lista os valores de uma coluna que não seja `categorical: true`, e nunca cola um valor lido do warehouse em código, teste, fixture ou comentário de PR. Queries só de agregados para rascunhar uma spec são permitidas (Controle 4), dentro do orçamento de bytes. Fixtures são sempre sintéticas (inventadas pelo agente). | Role `agent_ci` sem acesso a `raw`. Masking em staging/marts. `maximum_bytes_billed` no profile do agente e a cota diária do Controle 3. Gate anti-fraude detecta dados reais em fixtures. |
 | 8   | **Não edite paths protegidos.** Se a tarefa exige mudar um arquivo protegido (macros, CI, testes genéricos etc.), o agente para e pede ao Autor.                                                                                                                      | CODEOWNERS bloqueia merge sem aprovação humana; o gate antifraude (Controle 5B) bloqueia o PR.                  |
 
 ---
@@ -507,6 +511,7 @@ O build inclui:
 
 - **Fusion em `static_analysis: baseline`** — detecta colunas inexistentes e tipos errados antes de executar qualquer query (análise estática do SQL).
 - **Unit tests** gerados a partir das bordas da spec.
+- **Mutation check** em todo modelo de marts cujo SQL o PR alterou: o SQL do modelo é mutado numa lista fixa e determinística de formas (uma comparação invertida, um predicado do `where` removido, um `sum` virando `max`, um tipo de join trocado, um `coalesce` removido, um literal alterado), e seus unit tests têm que falhar em todo mutante. Roda só por unit tests, então não escaneia nada: toda entrada é simulada, a query compilada não lê tabela nenhuma, e uma única invocação de `dbt test` cobre todos os mutantes de um modelo. Um mutante sobrevivente bloqueia o PR, a menos que um humano o tenha listado como equivalente em `tests/mutation_equivalents.yml`, dentro do `tests/` protegido e lido da branch que o PR mira. Um modelo alterado sem unit test bloqueia: não tem nada que o distinga de um modelo errado.
 - **Teste de unicidade** da primary_key da spec.
 - **Teste de contagem mínima** — o limiar é ajustado proporcionalmente à janela de amostra (ex: se a amostra é 30 dias e a tabela tem 365 dias, o limiar mínimo é 30/365 do limiar cheio).
 - **Contracts** nos modelos de marts (garantem que colunas e tipos estão corretos).
@@ -580,11 +585,43 @@ O Autor (e o Parceiro, se o modelo for crítico) lê exatamente três coisas.
 | 2 | O pré-registro é estreito o bastante para poder falhar? O motivo justifica o intervalo? | Um pré-registro que diz `row_delta: {min: -999999, max: 999999}` é inútil — ele nunca falha. O intervalo deve ser apertado o suficiente para pegar erros reais. |
 | 3 | Os `expect` dos unit tests dizem o mesmo que as bordas da spec?                        | Verificar se o agente traduziu as bordas da spec corretamente nos testes.                                                                                  |
 
+Abaixo das três perguntas, o CI imprime uma linha por borda da spec: o unit test que a nomeia, e quantas linhas ele recebe e espera, para que a terceira leitura comece dessa lista e não do yml. Os sobreviventes do mutation check, se houver, são impressos ao lado.
+
 **Regras de aprovação:**
 
 - Modelo **padrão**: o Autor aprova.
 - Modelo **crítico**: um Parceiro (≠ Autor) aprova. O CODEOWNERS impõe isso.
 - Macros, modelos incrementais e `models/semantic/`: sempre passam por aprovação humana, independentemente do tier. O CODEOWNERS impõe.
+
+---
+
+## 4. Rotinas — três passo a passos
+
+Tudo acima diz o que cada etapa deve. Esta seção diz o que uma pessoa faz numa terça-feira, em ordem, nas três situações que acontecem toda semana.
+
+### Um modelo novo
+
+1. **O Autor pede um rascunho.** O agente lê `docs/profile/`, roda as queries só de agregados do Controle 4 e propõe os seis campos da spec (para um modelo crítico, também a query de reconciliação, a tolerância e a âncora externa). Nada neste passo é um gate; ele existe para que o Autor escreva o mínimo possível.
+2. **O Autor lê e aprova os seis campos**, corrige o que estiver errado, e a spec chega ao `main` antes de qualquer código. O caminho recomendado: o agente sobe o rascunho numa branch e **o humano abre esse pull request** (só spec; num modelo crítico, a query de reconciliação também), que o CODEOWNERS decide. Uma spec também pode nascer na própria branch do agente, num commit só dela antes de qualquer código; o gate então diz ao Autor qual commit ler, e a spec não muda mais naquela branch.
+3. **O agente pré-registra** (Etapa B) e trabalha no loop da Regra 5: uma alteração, `check`, `gate`, os unit tests, commit ou reversão. Um unit test por borda, nomeando-a; toda entrada simulada.
+4. **`dbt build` uma vez**, o pull request aberto como rascunho e marcado como pronto quando a Etapa C termina. As Etapas D e E rodam.
+5. **O Autor lê** as três perguntas da Etapa E, a lista de bordas e o mutation check; um Parceiro aprova um modelo crítico.
+
+### Um modelo que já tem spec, cuja regra de negócio mudou
+
+A spec é do humano, e o gate bloqueia qualquer mudança nela na branch do agente. Então uma mudança de regra de negócio chega a um modelo existente em dois pull requests, nesta ordem:
+
+1. **O Autor pede um rascunho da mudança.** O agente lê a spec atual e o perfil, e propõe: as bordas que mudam e as que saem, as novas definições de métrica, o tier se ele mudar, e num modelo crítico a nova query de reconciliação, a tolerância e a âncora externa. Ele também lista os testes que codificam a regra antiga: os unit tests cujo `config.meta.edge` nomeia uma borda que vai sair, e os data tests que a regra nova contradiz (uma lista de `accepted_values`, um `relationships`).
+2. **Um pull request de spec, aberto por um humano.** Ele altera `meta.spec`, remove ou reescreve os unit tests e data tests obsoletos, e altera a query de reconciliação. O agente pode subir a branch; **o humano abre o pull request**, porque o gate é obrigatório nos pull requests que a identidade do agente abre e consultivo nos de um humano, e toda regra dele sobre specs, testes e reconciliações dispara aqui por construção. O CODEOWNERS decide, e a saída consultiva do gate é a lista do que mudou.
+3. **Faça merge do pull request de spec primeiro.** O `main` agora carrega a spec nova e nenhum teste que a contradiga.
+4. **O pull request do agente, exatamente como num modelo novo**: um pré-registro novo (`type: data_change`, um `reason` que nomeia a regra de negócio, intervalos que o Autor consiga julgar), o código, um unit test por borda nova, o loop, rascunho até a Etapa C terminar, depois pronto para revisão.
+5. **A Etapa E lê as três perguntas** contra a spec nova; num modelo crítico a reconciliação roda contra a âncora externa nova.
+
+Uma spec, uma reconciliação e os testes que codificam uma regra antiga mudam num pull request que um humano abre, antes de o agente começar. O agente pode subir essa branch; ele não abre esse pull request.
+
+### O loop do agente
+
+`tcr.sh "mensagem"` roda `check`, `gate` e os unit tests. Verde: a alteração vira commit. Vermelho: a árvore de trabalho volta ao último commit e um strike é contado; um passo verde zera a contagem; o quinto strike seguido para o agente com uma mensagem que manda chamar um humano. Os unit tests não leem tabela nenhuma (toda entrada é simulada), então o loop não custa nada no warehouse, rode quantas vezes rodar; o build roda uma vez, no CI. Nada que o agente faça dentro do loop enfraquece um teste: o `gate` está dentro dele, e a Regra 3 diz que o código é o que muda.
 
 ---
 

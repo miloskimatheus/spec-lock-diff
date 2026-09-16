@@ -51,6 +51,7 @@ Adoption is a ladder, not a cliff: `check` and `gate` are twenty-one of the thir
 1. [Manifesto — 3 principles](#1-manifesto--3-principles)
 2. [Building the lock — 5 mandatory controls](#2-building-the-lock--5-mandatory-controls)
 3. [The development process (routine) — 5 stages](#3-the-development-process-routine--5-stages)
+4. [Routines — three step-by-steps](#4-routines--three-step-by-steps)
 
 **Seven words this document uses before it defines them**, so you can read straight through:
 
@@ -204,7 +205,7 @@ Masking of sensitive columns:
 Warehouse costs:
 
 - **Snowflake:** Resource monitor with `FREQUENCY = DAILY` and action `SUSPEND_IMMEDIATE`. The daily quota should be: (monthly quota ÷ 22 business days). When reached, the warehouse is shut down immediately.
-- **BigQuery:** Daily quota of scanned bytes in the agent's CI project.
+- **BigQuery:** Daily quota of scanned bytes in the agent's CI project, and `maximum_bytes_billed` in the agent's `profiles.yml`, so that one query above the cap fails instead of billing.
 - **Databricks:** Databricks' budget system only sends alerts (doesn't shut down). So create a job that runs every hour, queries the day's accumulated consumption, and shuts down the agent's SQL warehouse if it's above the cap.
 
 Timeout per query:
@@ -242,7 +243,7 @@ customer_email: {rows: 1284003, nulls: 1.2%, distinct: 83904}
 # no minimums, no maximums, no samples, no example rows
 ```
 
-When the agent needs to understand the structure of data, it consults `docs/profile/`. It never runs exploratory queries in the warehouse.
+When the agent needs to understand the structure of data, it consults `docs/profile/` first. To draft a spec (Stage A) it may also run **aggregate-only** queries over staging and marts, as the `agent_ci` role, under the masking of Control 2 and the spending cap of Control 3: metadata first (on BigQuery, `INFORMATION_SCHEMA` row counts and table bytes cost nothing), then `count(*)` against `count(distinct ...)` or `APPROX_COUNT_DISTINCT` to test a grain, null rates, sums of numeric columns as metric candidates, and the distinct values of columns marked `categorical: true` as edge candidates, each over one recent partition and each preceded by a dry run. It never runs a query that returns rows.
 
 ---
 
@@ -265,7 +266,7 @@ When the agent needs to understand the structure of data, it consults `docs/prof
 | `packages.yml`                              | dbt dependencies. An agent could pin a vulnerable version.                                                                                               |
 | `dbt_project.yml`                           | Global project configuration.                                                                                                                            |
 | `macros/`                                   | Macros are reused by several models. One change affects everything.                                                                                      |
-| `tests/`                                    | Generic tests.                                                                                                                                           |
+| `tests/`                                    | Generic tests, and `mutation_equivalents.yml`: the mutants a human declared equivalent (Stage D).                                                        |
 | `analyses/reconciliation_*`                 | Reconciliation queries. If the agent changes the reconciliation in the same PR as the model, it controls what is being verified.                          |
 | `models/semantic/`                          | Metric definitions. A wrong metric propagates errors to all consumers.                                                                                   |
 | `docs/profile/`                             | Statistical profiles. If the agent changes the profile, it changes its own reference.                                                                    |
@@ -358,6 +359,9 @@ meta:
     # The edge should describe the EXPECTED result, not the implementation.
     # Good example: "status='cancelled' → row excluded"
     # Bad example: "use WHERE status != 'cancelled'"
+    # One line each, free text: what is given, an arrow, what the model does
+    # with it. Nothing validates the words; a machine checks only that every
+    # edge has a unit test naming it (Stage C, Rule 2).
 
     sensitive_columns: [customer_email]
     # List of columns containing personal data.
@@ -471,12 +475,12 @@ Each rule below must have an infrastructure mechanism that enforces it. The text
 | #   | Rule                                                                                                                                                                                                                                                                     | Mechanism that enforces                                                                                         |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
 | 1   | **No spec, stop and ask.** If the model has no spec, the agent does not start. It asks the Author to write it.                                                                                                                                                           | CI validates spec presence (JSON Schema).                                                                       |
-| 2   | **Every model has PK test and minimum count.** The agent creates a uniqueness test on the spec's primary_key and a minimum row count test. Each spec edge becomes a unit test with synthetic fixture (invented data representing the described case).                    | CI validates test presence (JSON Schema + anti-fraud gate).                                                     |
-| 3   | **Test failed = code wrong.** If a test fails, the agent fixes the code. Never the opposite. The agent never weakens a test, changes an `expect`, modifies a test macro, or removes a reconciliation to make CI pass.                                                     | Anti-fraud gate (Control 5B) detects and blocks.                                                                |
+| 2   | **Every model has PK test and minimum count.** The agent creates a uniqueness test on the spec's primary_key and a minimum row count test. Each spec edge becomes a unit test with synthetic fixture (invented data representing the described case) that names its edge verbatim in `config.meta.edge`, mocks in `given` every `ref` and `source` the model reads, and pins time functions with `overrides`. | CI validates test presence (JSON Schema + anti-fraud gate); `check` blocks an edge with no unit test naming it, and a unit test that leaves an input of its model unmocked. |
+| 3   | **Test failed = code wrong.** If a test fails, the agent fixes the code. Never the opposite. The agent never weakens a test, changes an `expect`, modifies a test macro, or removes a reconciliation to make CI pass, and never writes a fixture that could not tell the code from a wrong one. | Anti-fraud gate (Control 5B) detects and blocks; the mutation check (Stage D) blocks a unit test that no mutant of the code can fail. |
 | 4   | **Metrics live in `models/semantic/`.** Metrics are defined once, in the semantic directory. If the metric the agent needs doesn't exist, it stops and asks the Author to create it.                                                                                     | CODEOWNERS protects `models/semantic/`.                                                                          |
-| 5   | **Fixed execution order.** The agent follows this sequence: `dbt compile` → `dbt test --select test_type:unit` → `dbt build`. If the same command fails 3 times in a row, the agent stops and calls a human.                                                             | 3-failure rule in the API gateway.                                                                              |
+| 5   | **One step at a time.** After every change the agent runs `python tools/slp.py check`, `python tools/slp.py gate --base <branch>` and `dbt test --select test_type:unit`. All green: it commits. Anything red: it reverts the working tree to the last commit (test, then commit, otherwise revert). Five reverts in a row: the agent stops and calls a human. `dbt build` runs once, in CI, never inside the loop. | `tcr.sh` is the only commit path the agent is given, and its strike counter is the 5; the gate shows the Author every commit on the branch at which `check` would have blocked. |
 | 6   | **Pre-registration before diff.** The agent must deliver the pre-registration (stage B) before any diff. Open intervals (without min or max) are invalid.                                                                                                                | JSON Schema in CI.                                                                                              |
-| 7   | **Never read individual rows.** The agent does not run `dbt show`, does not do `SELECT` without aggregation, and never pastes a value read from the warehouse into code, test, fixture, or PR comment. Fixtures are always synthetic (invented by the agent).            | `agent_ci` role without access to `raw`. Masking in staging/marts. Anti-fraud gate detects real data in fixtures. |
+| 7   | **Never read individual rows.** The agent does not run `dbt show` on a model, never selects without aggregating, never samples with `LIMIT`, never lists the values of a column that is not `categorical: true`, and never pastes a value read from the warehouse into code, test, fixture, or PR comment. Aggregate-only queries to draft a spec are allowed (Control 4), inside the bytes budget. Fixtures are always synthetic (invented by the agent). | `agent_ci` role without access to `raw`. Masking in staging/marts. `maximum_bytes_billed` on the agent's profile and Control 3's daily quota. Anti-fraud gate detects real data in fixtures. |
 | 8   | **Do not edit protected paths.** If the task requires changing a protected file (macros, CI, generic tests, etc.), the agent stops and asks the Author.                                                                                                                  | CODEOWNERS blocks merge without human approval; the anti-fraud gate (Control 5B) blocks the PR.                |
 
 ---
@@ -507,6 +511,7 @@ The build includes:
 
 - **Fusion in `static_analysis: baseline`** — detects non-existent columns and wrong types before running any query (static SQL analysis).
 - **Unit tests** generated from the spec's edges.
+- **Mutation check** on every marts model whose SQL the PR changed: the model's SQL is mutated in a fixed, deterministic list of ways (a comparison flipped, a `where` predicate dropped, a `sum` turned into a `max`, a join type changed, a `coalesce` removed, a literal altered), and its unit tests must fail on every mutant. It runs through unit tests only, so it scans nothing: every input is mocked, the compiled query reads no table, and one `dbt test` invocation covers every mutant of a model. A surviving mutant blocks the PR unless a human has listed it as equivalent in `tests/mutation_equivalents.yml`, under the protected `tests/` and read from the branch the PR targets. A changed model with no unit test blocks: it has nothing that could tell it from a wrong one.
 - **Uniqueness test** of the spec's primary_key.
 - **Minimum count test** — the threshold is adjusted proportionally to the sample window (e.g., if the sample is 30 days and the table has 365 days, the minimum threshold is 30/365 of the full threshold).
 - **Contracts** on marts models (ensure columns and types are correct).
@@ -579,11 +584,43 @@ The Author (and the Partner, if the model is critical) reads exactly three thing
 | 2 | Is the pre-registration narrow enough to be able to fail? Does the reason justify the interval? | A pre-registration that says `row_delta: {min: -999999, max: 999999}` is useless — it never fails. The interval should be tight enough to catch real errors. |
 | 3 | Do the unit test `expect`s say the same as the spec's edges? | Verify whether the agent translated the spec's edges correctly into tests.                                              |
 
+Under the three questions, CI prints one line per edge of the spec: the unit test that names it, and how many rows it is given and expects, so the third reading starts from that list rather than from the yml. The mutation check's survivors, if any, are printed next to it.
+
 **Approval rules:**
 
 - **Standard** model: the Author approves.
 - **Critical** model: a Partner (≠ Author) approves. CODEOWNERS enforces this.
 - Macros, incremental models, and `models/semantic/`: always go through human approval, regardless of tier. CODEOWNERS enforces.
+
+---
+
+## 4. Routines — three step-by-steps
+
+Everything above says what each stage owes. This section says what a person does on a Tuesday, in order, in the three situations that happen every week.
+
+### A new model
+
+1. **The Author asks for a draft.** The agent reads `docs/profile/`, runs the aggregate-only queries of Control 4, and proposes the six fields of the spec (for a critical model, the reconciliation query, its tolerance and the external anchor too). Nothing in this step is a gate; it exists so that the Author writes as little as possible.
+2. **The Author reads and approves the six fields**, corrects what is wrong, and the spec reaches `main` before any code. The recommended path: the agent pushes the draft on a branch and **the human opens that pull request** (spec only; for a critical model, the reconciliation query too), which CODEOWNERS decides. A spec may also be born on the agent's own branch, in a commit of its own before any code; the gate then tells the Author which commit to read, and the spec does not change again on that branch.
+3. **The agent pre-registers** (Stage B) and works in the loop of Rule 5: one change, `check`, `gate`, the unit tests, commit or revert. One unit test per edge, naming it; every input mocked.
+4. **`dbt build` once**, the pull request opened as a draft and marked ready when Stage C is done. Stage D and Stage E run.
+5. **The Author reads** the three questions of Stage E, the edge list and the mutation check; a Partner approves a critical model.
+
+### A model that already has a spec, whose business rule changed
+
+The spec is the human's, and the gate blocks any change to it on the agent's branch. So a business-rule change reaches an existing model in two pull requests, in this order:
+
+1. **The Author asks for a draft of the change.** The agent reads the current spec and the profile, and proposes: the edges that change and the edges that go, the new metric definitions, the tier if it changes, and for a critical model the new reconciliation query, tolerance and external anchor. It also lists the tests that encode the old rule: the unit tests whose `config.meta.edge` names an edge that is going away, and the data tests the new rule contradicts (an `accepted_values` list, a `relationships`).
+2. **One spec pull request, opened by a human.** It changes `meta.spec`, removes or rewrites the obsolete unit tests and data tests, and changes the reconciliation query. The agent may push the branch; **the human opens the pull request**, because the gate is required on the pull requests the agent identity opens and advisory on a human's, and every one of its rules about specs, tests and reconciliations fires here by design. CODEOWNERS decides it, and the advisory gate output is the list of what changed.
+3. **Merge the spec pull request first.** `main` now carries the new spec and no test that contradicts it.
+4. **The agent's pull request, exactly as for a new model**: a fresh pre-registration (`type: data_change`, a `reason` that names the business rule, intervals the Author can judge), the code, one unit test per new edge, the loop, draft until Stage C is done, then ready for review.
+5. **Stage E reads the three questions** against the new spec; for a critical model the reconciliation runs against the new external anchor.
+
+A spec, a reconciliation and the tests that encode an old rule change in a pull request a human opens, before the agent starts. The agent may push that branch; it does not open that pull request.
+
+### The agent's loop
+
+`tcr.sh "message"` runs `check`, `gate` and the unit tests. Green: the change is committed. Red: the working tree goes back to the last commit and a strike is counted; a green step resets the count; the fifth consecutive strike stops the agent with a message that says to ask a human. The unit tests read no table (every input is mocked), so the loop costs nothing in the warehouse however many times it runs; the build runs once, in CI. Nothing the agent can do inside the loop weakens a test: `gate` is inside it, and Rule 3 says the code is what changes.
 
 ---
 
