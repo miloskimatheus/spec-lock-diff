@@ -15,6 +15,7 @@ mismatch into a light card on a dark page, which still reads.
 
 import io
 import os
+import textwrap
 
 # Beside this file, so a clone can regenerate the drawings without editing it.
 OUT = os.path.dirname(os.path.abspath(__file__))
@@ -89,9 +90,14 @@ L = {
         "proc_alt": "Stage A is human, stages B C and D run locked inside the platform, stage E returns to a human who only reads the automated diff",
 
         "cmds_head": "WHICH COMMAND RUNS WHEN",
-        "cmds_key": "bar = the stages it runs in  ·  dotted = the same command, run again",
-        "bar_check_a": "on the spec", "bar_check_cd": "on every commit, then in CI",
-        "bar_gate": "in CI, against the base branch", "bar_compare": "on the diff.json",
+        "cell_check": ["the spec · S1 to S5", None,
+                       "the pre-registration and the tests · P1, P2, T1 to T3", "again, on every push", None],
+        "cell_gate": [None, None, "every step of the agent's loop",
+                      "against the base · G1 to G10, required on the agent's pull requests", None],
+        "cell_compare": [None, None, None, None, "the diff.json, against the pre-registration · C0 to C7"],
+        "who": "WHO ACTS", "who_human": "A HUMAN", "who_agent": "THE AGENT", "who_platform": "THE PLATFORM",
+        "prints_a": "each prints one line per finding · ", "prints_b": " exit 1 · ", "prints_c": " exit 0",
+        "filled": "a filled cell is where the command runs, and what it reads there",
         "q_check": "is there a spec, and can its test fail?",
         "q_gate": "did this branch weaken anything that judges the code?",
         "q_compare": "do the numbers match what was promised?",
@@ -167,9 +173,14 @@ L = {
         "proc_alt": "A etapa A é humana, as etapas B C e D rodam trancadas dentro da plataforma, a etapa E volta para um humano que apenas lê o diff automático",
 
         "cmds_head": "QUAL COMANDO RODA QUANDO",
-        "cmds_key": "barra = etapas em que roda  ·  pontilhado = o mesmo comando, de novo",
-        "bar_check_a": "na spec", "bar_check_cd": "a cada commit, depois no CI",
-        "bar_gate": "no CI, contra o branch base", "bar_compare": "sobre o diff.json",
+        "cell_check": ["a spec · S1 a S5", None,
+                       "o pré-registro e os testes · P1, P2, T1 a T3", "de novo, a cada push", None],
+        "cell_gate": [None, None, "cada passo do loop do agente",
+                      "contra a base · G1 a G10, obrigatório nos pull requests do agente", None],
+        "cell_compare": [None, None, None, None, "o diff.json, contra o pré-registro · C0 a C7"],
+        "who": "QUEM AGE", "who_human": "UM HUMANO", "who_agent": "O AGENTE", "who_platform": "A PLATAFORMA",
+        "prints_a": "cada um imprime uma linha por achado · ", "prints_b": " exit 1 · ", "prints_c": " exit 0",
+        "filled": "uma célula preenchida é onde o comando roda, e o que ele lê ali",
         "q_check": "existe spec, e o teste dela pode falhar?",
         "q_gate": "este branch enfraqueceu algo que julga o código?",
         "q_compare": "os números batem com o que foi prometido?",
@@ -401,45 +412,72 @@ def process(t, s):
 
 
 # ── which command runs at which stage ───────────────────────────────────────
+def _lines(x, y, texts, size, fill, lh, anchor="start", weight=None):
+    """One <text> per line, the block centred on y."""
+    top = y - (len(texts) - 1) * lh / 2
+    w = f' font-weight="{weight}"' if weight else ""
+    return "".join(f'<text x="{x}" y="{top + k * lh:.1f}" text-anchor="{anchor}" font-size="{size}"{w}'
+                   f' fill="{fill}">{line}</text>' for k, line in enumerate(texts))
+
+
 def commands(t, s):
-    """The three commands over the five stages, on process()'s own x geometry."""
-    i, m = t["ink"], t["muted"]
-    stages = ((1, 146, "A", s["sA"]), (207, 144, "B", s["sB"]), (377, 144, "C", s["sC"]),
-              (547, 144, "D", s["sD"]), (751, 190, "E", s["sE"]))
-    head = "".join(
-        f'<rect x="{x}" y="24" width="{w}" height="52" fill="none" stroke="{i}"'
-        f' stroke-width="1.4" opacity=".5"/>'
-        f'<text x="{x + w // 2}" y="47" text-anchor="middle" font-size="18"'
-        f' font-weight="600" fill="{i}" opacity=".8">{letter}</text>'
-        f'<text x="{x + w // 2}" y="66" text-anchor="middle" font-size="10"'
-        f' fill="{m}">{name}</text>\n'
-        for x, w, letter, name in stages)
-    # A bar per command, over the stages it runs in. check runs at A and again at
-    # C and D, so its bar is two segments and a dotted line saying they are one
-    # command, not two.
-    rows = ((110, t["c1"], "check", s["q_check"],
-             ((1, 146, s["bar_check_a"]), (377, 314, s["bar_check_cd"])), (149, 375)),
-            (164, t["c5"], "gate", s["q_gate"], ((377, 314, s["bar_gate"]),), None),
-            (218, t["c4"], "compare", s["q_compare"], ((751, 190, s["bar_compare"]),), None))
-    body = ""
-    for y, col, name, question, bars, link in rows:
-        body += (f'<text x="1" y="{y}" font-size="13" font-weight="600" fill="{col}">'
-                 f'{name}</text>'
-                 f'<text x="104" y="{y}" font-size="10.5" fill="{m}">{question}</text>')
-        body += "".join(f'<rect x="{x}" y="{y + 8}" width="{w}" height="18" fill="{col}"'
-                        f' fill-opacity=".15" stroke="{col}" stroke-width="1.6"/>'
-                        f'<text x="{x + 7}" y="{y + 21}" font-size="9.5" fill="{col}">'
-                        f'{label}</text>'
-                        for x, w, label in bars)
-        if link:
-            body += (f'<path d="M{link[0]} {y + 17}h{link[1] - link[0]}" fill="none"'
-                     f' stroke="{col}" stroke-width="1.4" stroke-dasharray="3 4"'
-                     f' opacity=".55"/>')
+    """A matrix: the three commands by the five stages, a filled cell where one runs.
+
+    The stage boxes take the process drawing's styles - the two human stages solid,
+    the three inside the platform dashed and framed - and the columns are one grid
+    the cells share, so nothing is aligned by eye.
+    """
+    i, m, f, h, a = t["ink"], t["muted"], t["faint"], t["hum"], t["mac"]
+    label, gap, cgap, col = 220, 8, 12, 133
+    xs = [label + gap + k * (col + cgap) for k in range(5)]
+    head_y, head_h, row_h = 36, 52, 80
+    rows_y = [head_y + head_h + gap + k * (row_h + gap) for k in range(3)]
+    frame_x, frame_r = (xs[0] + col + xs[1]) / 2, (xs[3] + col + xs[4]) / 2
+    frame_y, frame_b = head_y - 22, rows_y[2] + row_h + 6
+    stages = (("A", s["sA"], h, ""), ("B", s["sB"], a, ' stroke-dasharray="5 3"'),
+              ("C", s["sC"], a, ' stroke-dasharray="5 3"'), ("D", s["sD"], a, ' stroke-dasharray="5 3"'),
+              ("E", s["sE"], h, ""))
+    body = (f'<rect x="{frame_x}" y="{frame_y}" width="{frame_r - frame_x}" height="{frame_b - frame_y}"'
+            f' fill="none" stroke="{i}" stroke-width="2" opacity=".75"/>'
+            f'<text x="{(frame_x + frame_r) / 2}" y="{frame_y + 13}" text-anchor="middle" font-size="10"'
+            f' letter-spacing="2" fill="{i}" opacity=".6">{s["locked"]}</text>\n')
+    for x, (letter, name, color, dash) in zip(xs, stages, strict=True):
+        body += (f'<rect x="{x}" y="{head_y}" width="{col}" height="{head_h}" fill="none" stroke="{color}"'
+                 f' stroke-width="2"{dash}/>'
+                 f'<text x="{x + col / 2}" y="{head_y + 25}" text-anchor="middle" font-size="18"'
+                 f' font-weight="600" fill="{color}">{letter}</text>'
+                 f'<text x="{x + col / 2}" y="{head_y + 42}" text-anchor="middle" font-size="10"'
+                 f' fill="{color}">{name}</text>\n')
+    rows = (("check", t["c1"], s["q_check"], s["cell_check"]),
+            ("gate", t["c5"], s["q_gate"], s["cell_gate"]),
+            ("compare", t["c4"], s["q_compare"], s["cell_compare"]))
+    for y, (name, color, question, cells) in zip(rows_y, rows, strict=True):
+        body += (f'<text x="1" y="{y + 27}" font-size="13" font-weight="600" fill="{color}">{name}</text>'
+                 + _lines(1, y + 48, textwrap.wrap(question, 34), 10.5, m, 14.7))
+        for x, text in zip(xs, cells, strict=True):
+            if text is None:
+                body += (f'<rect x="{x}" y="{y}" width="{col}" height="{row_h}" fill="none" stroke="{f}"'
+                         f' stroke-width="1" stroke-dasharray="3 3" opacity=".5"/>')
+            else:
+                body += (f'<rect x="{x}" y="{y}" width="{col}" height="{row_h}" fill="{color}"'
+                         f' fill-opacity=".15" stroke="{color}" stroke-width="1.6"/>'
+                         + _lines(x + 10, y + row_h / 2 + 3.5, textwrap.wrap(text, 18), 10, color, 13.5))
         body += "\n"
-    return svg(t, 942, 252, s["cmds_alt"], f'''
+    who_y = rows_y[2] + row_h + gap + 14
+    actors = ((s["who_human"], h), (s["who_agent"], a), (s["who_agent"], a), (s["who_platform"], m),
+              (s["who_human"], h))
+    body += f'<text x="1" y="{who_y}" font-size="10" letter-spacing="1.6" fill="{m}">{s["who"]}</text>'
+    body += "".join(f'<text x="{x + col / 2}" y="{who_y}" text-anchor="middle" font-size="10"'
+                    f' letter-spacing="1.2" fill="{color}">{who}</text>'
+                    for x, (who, color) in zip(xs, actors, strict=True))
+    foot_y = who_y + 22
+    body += (f'\n<text x="1" y="{foot_y}" font-size="9.5" fill="{m}">{s["prints_a"]}'
+             f'<tspan font-weight="600" fill="{t["blk"]}">BLOCK</tspan>{s["prints_b"]}'
+             f'<tspan font-weight="600">INFO</tspan>{s["prints_c"]}</text>'
+             f'<text x="941" y="{foot_y}" text-anchor="end" font-size="9.5" fill="{m}">{s["filled"]}</text>')
+    return svg(t, 942, foot_y + 6, s["cmds_alt"], f'''
 <text x="1" y="12" font-size="10" letter-spacing="2" fill="{i}" opacity=".55">{s["cmds_head"]}</text>
-<text x="941" y="12" text-anchor="end" font-size="9.5" fill="{m}">{s["cmds_key"]}</text>
-{head}{body}''')
+{body}''')
 
 
 # ── pre-registration interval ───────────────────────────────────────────────
