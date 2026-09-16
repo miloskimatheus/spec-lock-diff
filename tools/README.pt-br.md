@@ -603,6 +603,13 @@ fixtures a que os meta-testes a prendem — uma em que ela dispara, outra em que
 fica calada. O **M2** falha se uma regra não tem linha, ou se uma linha aponta
 para uma fixture que não faz o que a linha diz.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../assets/rules-pt-dark.svg">
+    <img src="../assets/rules-pt-light.svg" alt="As 35 regras como quadrados sob o comando que as imprime, por família: preenchido quando a regra bloqueia, contornado quando informa" width="900">
+  </picture>
+</p>
+
 Marcações: `§1 P`*n* um princípio, `§2 C`*n* um controle, `§3 C R`*n* uma regra do
 agente, `§3 A`–`§3 E` uma etapa. **Cinco regras só informam** e nunca mudam o
 código de saída — `I1`, `I2`, `I3`, `I4` e `C5`. O framework pede que o que elas

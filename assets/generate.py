@@ -15,6 +15,7 @@ mismatch into a light card on a dark page, which still reads.
 
 import io
 import os
+import re
 import textwrap
 
 # Beside this file, so a clone can regenerate the drawings without editing it.
@@ -120,6 +121,10 @@ L = {
         "line_sentence": "test 'unique' on order_id exists on main but not here",
         "line_summary": "slp gate: 1 block - BLOCKED", "line_exit": "→ exit 1",
         "line_foot": "left to right: what happened, where, to which model, why, and which rule says so · the last line is the verdict, and BLOCK means exit 1",
+        "rules_head": "{n} RULES, BY THE COMMAND THAT PRINTS THEM",
+        "rules_blocks": "blocks · exit 1", "rules_informs": "informs · exit 0",
+        "rules_families": "S the spec · P the pre-registration · T the tests · G the branch · C the numbers · I a reading for a human",
+        "rules_alt": "The {n} rules as squares under the command that prints them, by family: filled when the rule blocks, outlined when it informs",
         "line_alt": "One finding line: BLOCK, the file, the model, what is wrong in one sentence, and the rule in brackets; then the summary line, which carries the exit code",
         "mut_alt": "The changed model is mutated one operator at a time; its unit tests run once against every mutant; a mutant a unit test fails on is killed, a survivor blocks the pull request, and one a human listed as equivalent informs",
         "lad_alt": "Five rungs, each green on its own: check on your machine; check and gate in CI; the paths nobody may quietly edit; the controls that are not code; Stage E, the diff",
@@ -228,6 +233,10 @@ L = {
         "line_sentence": "test 'unique' on order_id exists on main but not here",
         "line_summary": "slp gate: 1 block - BLOCKED", "line_exit": "→ exit 1",
         "line_foot": "da esquerda para a direita: o que houve, onde, em que modelo, por quê, e que regra diz isso · a última linha é o veredito, e BLOCK quer dizer exit 1",
+        "rules_head": "{n} REGRAS, PELO COMANDO QUE AS IMPRIME",
+        "rules_blocks": "bloqueia · exit 1", "rules_informs": "informa · exit 0",
+        "rules_families": "S a spec · P o pré-registro · T os testes · G o branch · C os números · I uma leitura para um humano",
+        "rules_alt": "As {n} regras como quadrados sob o comando que as imprime, por família: preenchido quando a regra bloqueia, contornado quando informa",
         "line_alt": "Uma linha de achado: BLOCK, o arquivo, o modelo, o que está errado numa frase, e a regra entre colchetes; depois a linha de resumo, que carrega o exit code",
         "mut_alt": "O modelo alterado é mutado um operador por vez; seus unit tests rodam uma vez contra todo mutante; um mutante em que um unit test falha morre, um sobrevivente bloqueia o pull request, e um que um humano listou como equivalente informa",
         "lad_alt": "Cinco degraus, cada um verde sozinho: check na sua máquina; check e gate no CI; os caminhos que ninguém edita caladinho; os controles que não são código; Etapa E, o diff",
@@ -621,6 +630,64 @@ def line(t, s):
 <text x="1" y="168" font-size="9.5" fill="{m}">{s["line_foot"]}</text>''')
 
 
+# ── the rules of section 8, as an index ─────────────────────────────────────
+# Which command prints which family. The ids themselves are read from the
+# registry, and the drawing refuses to be written if this map and the registry
+# disagree, so a rule added to the code is a rule missing from the map until
+# somebody puts it here.
+FAMILIES = (
+    ("check", "c1", 1, (("S", ("S1", "S2", "S3", "S4", "S5")), ("P", ("P1", "P2")),
+                        ("T", ("T1", "T2", "T3")), ("I", ("I5", "I7")))),
+    ("gate", "c5", 200, (("G", tuple("G%d" % n for n in range(1, 11))), ("I", ("I1", "I3", "I4", "I6")))),
+    ("compare", "c4", 520, (("C", tuple("C%d" % n for n in range(8))), ("I", ("I2",)))),
+)
+
+
+def _registry():
+    """RULE_IDS and INFO_RULES, read from the tool's own registry without importing it."""
+    text = io.open(os.path.join(OUT, "..", "tools", "spec_lock_diff", "rules", "__init__.py"),
+                   encoding="utf-8").read()
+    ids = re.findall(r'"([A-Z]\d+)"', text[text.index("RULE_IDS = ("):text.index("INFO_RULES = (")])
+    infos = re.findall(r'"([A-Z]\d+)"', text[text.index("INFO_RULES = ("):].split(")")[0])
+    return ids, set(infos)
+
+
+def rules(t, s):
+    """Every rule as a square under the command that prints it: filled blocks, outlined informs."""
+    ids, infos = _registry()
+    drawn = [r for _, _, _, fams in FAMILIES for _, rs in fams for r in rs]
+    assert sorted(drawn) == sorted(ids) and len(drawn) == len(set(drawn)), sorted(set(ids) ^ set(drawn))
+    i, m, bg = t["ink"], t["muted"], t["bg"]
+    body = ""
+    for name, key, x, fams in FAMILIES:
+        color = t[key]
+        count = sum(len(rs) for _, rs in fams)
+        body += (f'<text x="{x}" y="44" font-size="13" font-weight="600" fill="{color}">{name}</text>'
+                 f'<text x="{x + len(name) * 7.8 + 8:.0f}" y="44" font-size="10" fill="{m}">· {count}</text>\n')
+        for row, (family, rs) in enumerate(fams):
+            y = 60 + row * 28
+            body += f'<text x="{x}" y="{y + 14}" font-size="9.5" fill="{m}">{family}</text>'
+            for k, rule in enumerate(rs):
+                sx = x + 18 + k * 24
+                if rule in infos:
+                    body += (f'<rect x="{sx}" y="{y}" width="20" height="20" fill="none" stroke="{color}"'
+                             f' stroke-width="1.4"/><text x="{sx + 10}" y="{y + 14}" text-anchor="middle"'
+                             f' font-size="8" fill="{color}">{rule}</text>')
+                else:
+                    body += (f'<rect x="{sx}" y="{y}" width="20" height="20" fill="{color}"/>'
+                             f'<text x="{sx + 10}" y="{y + 14}" text-anchor="middle" font-size="8"'
+                             f' font-weight="600" fill="{bg}">{rule}</text>')
+            body += "\n"
+    n = str(len(ids))
+    return svg(t, 942, 214, s["rules_alt"].replace("{n}", n), f'''
+<text x="1" y="12" font-size="10" letter-spacing="2" fill="{i}" opacity=".55">{s["rules_head"].replace("{n}", n)}</text>
+{body}<rect x="1" y="176" width="12" height="12" fill="{m}"/>
+<text x="19" y="186" font-size="9.5" fill="{m}">{s["rules_blocks"]}</text>
+<rect x="141" y="176" width="12" height="12" fill="none" stroke="{m}" stroke-width="1.4"/>
+<text x="159" y="186" font-size="9.5" fill="{m}">{s["rules_informs"]}</text>
+<text x="1" y="207" font-size="9.5" fill="{m}">{s["rules_families"]}</text>''')
+
+
 # ── pre-registration interval ───────────────────────────────────────────────
 def prereg(t, s):
     i, p, b = t["ink"], t["pas"], t["blk"]
@@ -686,7 +753,7 @@ DRAWINGS = {
     "risks": risks, "roles": roles, "manifesto": manifesto, "controls": controls,
     "permissions": permissions, "process": process,
     "pre-registration": prereg, "diff": diff, "commands": commands, "ladder": ladder,
-    "mutants": mutants, "line": line,
+    "mutants": mutants, "line": line, "rules": rules,
 }
 
 os.makedirs(OUT, exist_ok=True)

@@ -592,6 +592,13 @@ fixtures the meta-tests hold it to — one where it fires, one where it stays
 silent. **M2** fails if a rule has no row, or a row names a fixture that does not
 do what it says.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../assets/rules-en-dark.svg">
+    <img src="../assets/rules-en-light.svg" alt="The 35 rules as squares under the command that prints them, by family: filled when the rule blocks, outlined when it informs" width="900">
+  </picture>
+</p>
+
 Tags: `§1 P`*n* a principle, `§2 C`*n* a control, `§3 C R`*n* an agent rule,
 `§3 A`–`§3 E` a stage. **Five rules only ever inform** and never change the exit
 code — `I1`, `I2`, `I3`, `I4` and `C5`. The framework asks for what they say to
