@@ -32,7 +32,7 @@ O framework se resume em três fases:
 - **Lock** — Restrições determinísticas. Limites de custo, acesso e comportamento ficam na infraestrutura (warehouse, CI, permissões), não em instruções de texto para o agente.
 - **Diff** — Depois que o agente termina, o humano confere e revisa _números_ (diferenças entre produção e a versão nova), não código.
 
-Uma implementação de referência desses portões vive em **[`tools/`](tools/README.pt-br.md)**: três comandos num arquivo Python, sem rede e sem warehouse.
+Uma implementação de referência desses portões vive em **[`tools/`](tools/README.pt-br.md)**: três comandos num pacote Python, sem rede e sem warehouse.
 
 **Quer ver antes de ler tudo isso?** O [`examples/quickstart`](examples/quickstart/README.md) é um projeto dbt em que os portões passam — dois marts, suas specs, seus pré-registros e seus diffs. Sem dbt, sem warehouse e sem credencial:
 

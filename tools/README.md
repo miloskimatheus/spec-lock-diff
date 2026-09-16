@@ -9,7 +9,7 @@
   <img alt="docs in EN and pt-BR" src="https://img.shields.io/badge/docs-EN%20%C2%B7%20pt--BR-8A5A0B">
 </p>
 
-Three commands, thirty rules, one file.
+Three commands, thirty rules, one package.
 
 <p align="center">
   <picture>
@@ -58,7 +58,7 @@ slp gate: 1 block - BLOCKED
 
 | | How | What it buys, and what it costs |
 | --- | --- | --- |
-| **Vendored** | `pip install "pyyaml" "jsonschema>=4"`, then copy `tools/` next to your `dbt_project.yml` — the folder, not the file, because `slp.py` reads its schemas from the directory beside it. | Nothing in the trust root but a file you can read: no index, no network, and the gate sits in your repository where its diff is reviewable. |
+| **Vendored** | `pip install "pyyaml" "jsonschema>=4"`, then copy `tools/` next to your `dbt_project.yml` — the folder, not the file, because `slp.py` is only the way in, and the tool is the package beside it. | Nothing in the trust root but a file you can read: no index, no network, and the gate sits in your repository where its diff is reviewable. |
 | **Installed** | `pipx run spec-lock-diff check`, or `pip install spec-lock-diff`. For CI, put the version in a `.slp-version` file at the repository root and the workflow installs exactly that. | One line instead of a folder. It also puts an index in the trust root, which vendoring does not — which is why the workflow reads the pin from the branch the pull request targets, and why `.slp-version` is a protected path. |
 
 The wheel carries the tool and its schemas, not the templates or the tests:
@@ -140,8 +140,8 @@ diff itself, and it is the one thing these tools do not do for you:
 [section 5](#5-the-diffjson-contract) is its contract, and shows a query to
 start from.
 
-**Check it runs, then run its own tests** — around three hundred and seventy of
-them, a few seconds, no network. If they pass, the gates on your machine are the
+**Check it runs, then run its own tests** — around four hundred of them, a few
+seconds, no network. If they pass, the gates on your machine are the
 gates in CI.
 
 ```bash
@@ -617,9 +617,9 @@ can be a green about nothing.
 
 | Path | What it is |
 | --- | --- |
-| `slp.py` | The whole tool: three commands, every rule, one file you can read in one sitting. |
-| `__init__.py` | One docstring, no imports. It exists so `../pyproject.toml` can map this directory to the package name without moving anything. |
-| `schemas/` | What a spec, a pre-registration and a `diff.json` must look like. |
+| `slp.py` | The way in for the vendored spelling: it puts its own folder on the path and hands over to the package. |
+| `spec_lock_diff/` | The tool, one package read module by module: `findings` (what a rule says, how a run ends), `readers` (yml, json, the schemas), `project` (a dbt project as its yml declares it), `owners` (CODEOWNERS the way git reads it), `gitread` (two commits and the walk between them), `rules/` (one module per command, one function per rule) and `cli`. Installed, it is the same package under the same name. |
+| `spec_lock_diff/schemas/` | What a spec, a pre-registration and a `diff.json` must look like. |
 | `templates/` | CODEOWNERS, AGENTS.md and the two CI workflows, ready to copy. |
 | `tests/` | The suite, and `tests/fixtures/` — every case as real files, one folder per case with a `README.txt`. |
 | `../examples/` | A project the gates pass on, and a walkthrough of one that they do not. Its READMEs print real output, and `tests/test_examples.py` runs the commands and compares. |
@@ -636,12 +636,15 @@ can be a green about nothing.
 - **Both languages.** `tools/README.md` and `tools/README.pt-br.md` are the same
   document. Change the substance of one, change the other — or say in the pull
   request that you could not.
-- **One file.** All the logic lives in `slp.py`, and **M8** caps three things
-  separately: the shared machinery every rule depends on, any one rule on its
-  own, and the file as a whole. It counts only the lines that have to be
-  *understood* — code, with blanks, comments and docstrings taken out — because
-  under a cap that counts prose, the cheapest way to buy room is to delete the
-  explanation that makes the file readable.
+- **One package, and numbers nobody negotiates.** The logic lives in
+  `spec_lock_diff/`, one module per concern and one function per rule. What
+  holds it is not a line count but four numbers, none of them ours to move: 100
+  percent of its statements and branches covered and every function at CRAP 30
+  or under (`tests/crap.py`), every function at cyclomatic complexity 10 or under
+  and every line at 100 columns or under (ruff's own defaults), every annotation
+  checked (`mypy --strict`), and every mutant of it killed (`tests/mutants.py`).
+  A function that needs more is two functions, and **M9** bans the comment that
+  would exempt a line from any of them.
 
 To require a new spec field, start at `schemas/spec.schema.json` and write its
 `description` as a requirement — that description is the sentence the tool

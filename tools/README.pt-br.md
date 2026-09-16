@@ -9,7 +9,7 @@
   <img alt="docs em EN e pt-BR" src="https://img.shields.io/badge/docs-EN%20%C2%B7%20pt--BR-8A5A0B">
 </p>
 
-Três comandos, trinta regras, um arquivo.
+Três comandos, trinta regras, um pacote.
 
 <p align="center">
   <picture>
@@ -58,7 +58,7 @@ slp gate: 1 block - BLOCKED
 
 | | Como | O que compra, e o que custa |
 | --- | --- | --- |
-| **Copiado** | `pip install "pyyaml" "jsonschema>=4"`, depois copie `tools/` para o lado do seu `dbt_project.yml` — a pasta, não o arquivo, porque o `slp.py` lê os schemas do diretório ao lado dele. | Nada na raiz de confiança além de um arquivo que você lê: sem índice, sem rede, e o portão fica no seu repositório, onde o diff dele é revisável. |
+| **Copiado** | `pip install "pyyaml" "jsonschema>=4"`, depois copie `tools/` para o lado do seu `dbt_project.yml` — a pasta, não o arquivo, porque o `slp.py` é só a porta de entrada, e a ferramenta é o pacote ao lado dele. | Nada na raiz de confiança além de um arquivo que você lê: sem índice, sem rede, e o portão fica no seu repositório, onde o diff dele é revisável. |
 | **Instalado** | `pipx run spec-lock-diff check`, ou `pip install spec-lock-diff`. No CI, ponha a versão num arquivo `.slp-version` na raiz do repositório e o workflow instala exatamente aquela. | Uma linha no lugar de uma pasta. Também põe um índice na raiz de confiança, o que copiar não faz — por isso o workflow lê o pin da branch que o PR mira, e por isso o `.slp-version` é caminho protegido. |
 
 O wheel carrega a ferramenta e os schemas dela, não os templates nem os testes:
@@ -143,8 +143,8 @@ próprio diff, e é a única coisa que estas ferramentas não fazem por você: a
 [seção 5](#5-o-contrato-do-diffjson) é o contrato dele, e mostra uma query para
 partir daí.
 
-**Confira que roda, depois rode os testes dele** — uns trezentos e setenta,
-alguns segundos, sem rede. Se passam, os portões da sua máquina são os portões
+**Confira que roda, depois rode os testes dele** — uns quatrocentos, alguns
+segundos, sem rede. Se passam, os portões da sua máquina são os portões
 do CI.
 
 ```bash
@@ -628,9 +628,9 @@ maneiras de um verde ser um verde sobre nada.
 
 | Caminho | O que é |
 | --- | --- |
-| `slp.py` | A ferramenta inteira: três comandos, todas as regras, um arquivo que se lê de uma sentada. |
-| `__init__.py` | Uma docstring, nenhum import. Existe para o `../pyproject.toml` mapear este diretório para o nome do pacote sem mover nada. |
-| `schemas/` | O que uma spec, um pré-registro e um `diff.json` precisam ser. |
+| `slp.py` | A porta de entrada da grafia copiada: põe a própria pasta no path e passa a vez ao pacote. |
+| `spec_lock_diff/` | A ferramenta, um pacote que se lê módulo a módulo: `findings` (o que uma regra diz, como uma execução termina), `readers` (yml, json, os schemas), `project` (um projeto dbt como o yml dele declara), `owners` (o CODEOWNERS do jeito que o git lê), `gitread` (dois commits e a caminhada entre eles), `rules/` (um módulo por comando, uma função por regra) e `cli`. Instalado, é o mesmo pacote com o mesmo nome. |
+| `spec_lock_diff/schemas/` | O que uma spec, um pré-registro e um `diff.json` precisam ser. |
 | `templates/` | CODEOWNERS, AGENTS.md e os dois workflows de CI, prontos para copiar. |
 | `tests/` | A suíte, e `tests/fixtures/` — cada caso como arquivos de verdade, uma pasta por caso com um `README.txt`. |
 | `../examples/` | Um projeto em que os portões passam, e um passo a passo de um em que eles não passam. Os READMEs de lá imprimem saída de verdade, e o `tests/test_examples.py` roda os comandos e confere. |
@@ -648,12 +648,15 @@ maneiras de um verde ser um verde sobre nada.
 - **As duas línguas.** `tools/README.md` e `tools/README.pt-br.md` são o mesmo
   documento. Mudou a substância de um, mude o outro — ou diga no pull request que
   não conseguiu.
-- **Um arquivo.** Toda a lógica mora no `slp.py`, e o **M8** limita três coisas
-  separadamente: a maquinaria compartilhada de que toda regra depende, qualquer
-  regra sozinha, e o arquivo inteiro. Ele conta só as linhas que precisam ser
-  *entendidas* — código, sem linhas em branco, comentários e docstrings — porque,
-  sob um limite que conta prosa, o jeito mais barato de comprar espaço é apagar a
-  explicação que torna o arquivo legível.
+- **Um pacote, e números que ninguém negocia.** A lógica mora em
+  `spec_lock_diff/`, um módulo por assunto e uma função por regra. O que o
+  segura não é uma contagem de linhas, e sim quatro números, nenhum deles nosso
+  para mexer: 100 por cento das instruções e dos branches cobertos e toda função
+  com CRAP 30 ou menos (`tests/crap.py`), toda função com complexidade
+  ciclomática 10 ou menos e toda linha com 100 colunas ou menos (os padrões do
+  próprio ruff), toda anotação conferida (`mypy --strict`), e todo mutante dele
+  morto (`tests/mutants.py`). Uma função que precisa de mais é duas funções, e o
+  **M9** proíbe o comentário que isentaria uma linha de qualquer um deles.
 
 Para exigir um campo novo na spec, comece pelo `schemas/spec.schema.json` e
 escreva a `description` dele como um requisito — essa descrição é a frase que a

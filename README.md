@@ -32,7 +32,7 @@ The framework boils down to three phases:
 - **Lock** — Deterministic restrictions. Cost, access, and behavior limits live in the infrastructure (warehouse, CI, permissions), not in text instructions to the agent.
 - **Diff** — After the agent finishes, the human checks and reviews _numbers_ (differences between production and the new version), not code.
 
-A working reference implementation of the gates lives in **[`tools/`](tools/README.md)**: three commands in one Python file, no network and no warehouse.
+A working reference implementation of the gates lives in **[`tools/`](tools/README.md)**: three commands in one Python package, no network and no warehouse.
 
 **Want to see it before you read all this?** [`examples/quickstart`](examples/quickstart/README.md) is a dbt project the gates pass on — two marts, their specs, their pre-registrations and their diffs. No dbt, no warehouse and no credentials needed:
 

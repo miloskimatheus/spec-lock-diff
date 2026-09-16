@@ -3,6 +3,54 @@
 Versions are tagged `tools-v<version>`. The framework README is versioned
 separately; these tools implement it and never lead it.
 
+## 0.6.0 — the tool held to the standard it holds others to
+
+0.5.0 made the gates reachable. This one turns the gates on the gates: the
+tool is now judged by numbers nobody negotiates, the way it judges a pull
+request, and it is a package rather than a file so that each of those numbers
+has a place to hold.
+
+### The tool, by numbers that do not move
+
+- **100 percent of its statements and branches covered, and every function at
+  CRAP 30 or under.** `tests/crap.py` reads the coverage the suite writes and
+  counts cyclomatic complexity by one rule written in its docstring. Twenty-six
+  statements had never run: every one an error path that says exit 2 instead
+  of a pass, and each has a fixture or a test now. The 30 is Savoia's crap4j
+  constant, and for a fully covered function it is a complexity cap.
+- **Every mutant of it killed.** `tests/mutants.py` mutates the package with the
+  standard library - a comparison flipped, an `and` made an `or`, a `not`
+  removed, an integer moved by one, a `block(` made an `info(`, a rule deleted -
+  and runs the suite against each of the four hundred or so results, the
+  command's own fixture file first and the whole suite on anything that
+  survives it. The first campaign found sixty-seven survivors. Most were a rule
+  naming the wrong file, model or number and still passing on its id, which is
+  why a fixture's `README.txt` can now pin the whole line a rule prints
+  (`expect line`); the rest were tests the suite should have had, and are.
+  Mutants a human has read and found equivalent are listed in
+  `tests/equivalent_mutants.txt` with a reason of at least four words, and a
+  listed mutant the suite kills, or that no longer exists, fails the run.
+- **No comment that lowers a number.** Meta-test **M9** bans `pragma`, `skip`,
+  `xfail`, `noqa` and `type: ignore` from the tool and its tests, except the two
+  skips it names. A threshold is only immutable while nothing can exempt a line
+  from it.
+- **Every commit green.** The repository's own CI replays the suite at every
+  commit of a pull request, and `tests/tcr.sh` is the loop that makes that true
+  one commit at a time: test, then commit, otherwise revert.
+
+### One package instead of one file
+
+- `slp.py` is a six-line shim; the tool is `spec_lock_diff/`: `findings`,
+  `readers`, `project`, `owners`, `gitread`, `rules/` with one module per
+  command and one function per rule, and `cli`. Vendored, `python tools/slp.py`
+  runs it; installed, `slp` and `python -m spec_lock_diff` do. The schemas moved
+  with the readers. Nothing a command prints changed.
+- **M8's three line caps are gone.** They were the one negotiated number in
+  the repository. In their place: ruff holds every function to a cyclomatic
+  complexity of 10 and every line to 100 columns, both its own defaults, and
+  `mypy --strict` holds every annotation. `inventory` and `read_doc` were the
+  two functions over the complexity line, and each is two now.
+
 ## 0.5.0 — the ladder
 
 0.4.0 made the gates right. This one makes them reachable. Nothing about what a
