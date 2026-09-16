@@ -394,6 +394,25 @@ def test_the_tools_come_from_the_base_branch_everywhere_they_run():
     assert len(copies) == 2 and len(set(copies)) == 1
 
 
+def test_the_mutation_check_runs_from_the_base_branch_too():
+    """The same boundary for the one template that is not the tools.
+
+    .github/mutate_model.py is a protected path, which makes a change to it a
+    change a human reads; running the base branch's copy is what makes a pull
+    request that edits it not the judge of its own edit, the way the tools are
+    not.
+    """
+    steps = WORKFLOWS["ci-warehouse.yml"]["jobs"]["build"]["steps"]
+    step = [s for s in steps if s.get("name") == "mutation check"]
+    assert len(step) == 1
+    run = step[0]["run"]
+    assert 'git show "$base:.github/mutate_model.py"' in run
+    assert 'python "$RUNNER_TEMP/mutate_model.py"' in run
+    assert "python .github/mutate_model.py" not in run
+    # It fails open only when there is nothing to fall back to, and says so on stderr.
+    assert "is not on the base branch yet" in run and ">&2" in run
+
+
 def _template(name):
     """A template as a module. It is a template, so it is not importable by name."""
     spec = importlib.util.spec_from_file_location(name[:-3], TEMPLATES / name)

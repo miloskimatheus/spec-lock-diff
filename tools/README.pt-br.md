@@ -445,14 +445,16 @@ artefato de diff é lido por todo mundo que abre o PR.
 ## 6. Etapa D — o mutation check
 
 `tools/templates/mutate_model.py` é o único template que roda o dbt, e é o
-mutation check do framework: para todo modelo de marts cujo sql o pull request
-alterou, o sql é mutado numa lista fixa de formas e os unit tests do modelo têm
-que falhar em todo mutante. Ele roda só por unit tests, sobre as linhas de
-`given`, então não lê tabela nenhuma — o `T3` é o que garante isso — e escreve
-cada mutante de um modelo como um modelo temporário com os unit tests clonados,
-para que uma única invocação de `dbt test` cubra todos. Copie para
-`.github/mutate_model.py`, um caminho protegido, e o job `build` do
-`ci-warehouse.yml` roda depois do build amostrado.
+mutation check do framework: para todo modelo de marts cujo sql o pull
+request alterou, o sql é mutado numa lista fixa de formas e os unit tests do
+modelo têm que falhar em todo mutante. Ele roda só por unit tests, sobre as
+linhas de `given`, então não lê tabela nenhuma — o `T3` é o que garante isso
+— e escreve cada mutante de um modelo como um modelo temporário com os unit
+tests clonados, para que uma única invocação de `dbt test` cubra todos.
+Copie para `.github/mutate_model.py`, um caminho protegido, e o job `build`
+do `ci-warehouse.yml` roda depois do build amostrado — a cópia dele no
+branch base, como as ferramentas rodam, para que um pull request que o edite
+não seja julgado pela própria edição.
 
 **Roda na** Etapa D, a cada push, depois do build amostrado. Na sua máquina,
 `--dry-run` lista o que ele tentaria e não roda nada:

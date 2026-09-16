@@ -94,14 +94,23 @@ jobs:
       # a changed model with no unit test blocks.
       #
       # YOU: copy tools/templates/mutate_model.py to .github/mutate_model.py.
-      # The path is protected, so only a human changes what mutates the code.
+      # The path is protected, so only a human changes what mutates the code -
+      # and, as with the tools, the copy that runs is the base branch's, so a
+      # pull request that edits it is not judged by its own edit.
       - name: mutation check
         shell: bash  # bash -eo pipefail, so tee cannot swallow a failure
         run: |
+          base=${{ github.event.pull_request.base.sha }}
+          if git cat-file -e "$base:.github/mutate_model.py" 2>/dev/null; then
+            git show "$base:.github/mutate_model.py" > "$RUNNER_TEMP/mutate_model.py"
+          else
+            echo ".github/mutate_model.py is not on the base branch yet; this run judges with the pull request's own copy" >&2
+            cp .github/mutate_model.py "$RUNNER_TEMP/mutate_model.py"
+          fi
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           trap 'echo "```" >> "$GITHUB_STEP_SUMMARY"' EXIT
-          python .github/mutate_model.py \
-            --base ${{ github.event.pull_request.base.sha }} \
+          python "$RUNNER_TEMP/mutate_model.py" \
+            --base "$base" \
             --defer-state ./prod-artifacts | tee -a "$GITHUB_STEP_SUMMARY"
 
   # README section 3, Stage E. Runs when the pull request is marked ready for

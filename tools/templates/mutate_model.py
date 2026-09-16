@@ -7,6 +7,9 @@ build, with the branch the pull request targets and the production artifacts:
 
     python .github/mutate_model.py --base <sha> --defer-state ./prod-artifacts
 
+The job runs the base branch's copy of this file, the way it runs the tools,
+so a pull request that edits it is not judged by its own edit.
+
 For every marts model whose sql changed since the base, the sql is mutated in
 a fixed list of ways. Each mutant is written as a temporary model under
 <marts>/__mutants__/ with the model's unit tests cloned onto it, and ONE

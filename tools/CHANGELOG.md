@@ -28,18 +28,19 @@ has a place to hold.
   many times. AGENTS.md now says to commit only through it.
 - **`templates/mutate_model.py`, the mutation check of Stage D**, and
   `schemas/mutation.schema.json` for what it writes. Every marts model whose
-  sql the pull request changed is mutated eight ways - a comparison flipped, a
-  `where` predicate replaced by `true`, an aggregate swapped, a join type
-  changed, a `coalesce` reduced to its first argument, a `distinct` removed, a
-  literal moved, a `not` removed - and each mutant is a temporary model with
-  the unit tests cloned on, so one `dbt test` invocation judges the lot. A
-  survivor blocks, a changed model with no unit test blocks, and a mutant a
-  human listed in `tests/mutation_equivalents.yml` on the base branch informs.
-  Unit tests only, on their `given` rows: nothing is scanned. Section 6 of
-  the README is its page, and `ci-warehouse.yml` runs it after the sample
-  build. The probe that shaped it ran dbt unit tests on dbt-duckdb, with no
-  warehouse: six seconds of start-up per invocation, a tenth of a second per
-  test, and four of five surviving mutants were fixture gaps.
+  sql the pull request changed is mutated eight ways - a comparison flipped,
+  a `where` predicate replaced by `true`, an aggregate swapped, a join type
+  changed, a `coalesce` reduced to its first argument, a `distinct` removed,
+  a literal moved, a `not` removed - and each mutant is a temporary model
+  with the unit tests cloned on, so one `dbt test` invocation judges the
+  lot. A survivor blocks, a changed model with no unit test blocks, and a
+  mutant a human listed in `tests/mutation_equivalents.yml` on the base
+  branch informs. Unit tests only, on their `given` rows: nothing is
+  scanned. Section 6 of the README is its page, and `ci-warehouse.yml` runs
+  it after the sample build, from the base branch's copy, the way it runs
+  the tools. The probe that shaped it ran dbt unit tests on dbt-duckdb, with
+  no warehouse: six seconds of start-up per invocation, a tenth of a second
+  per test, and four of five surviving mutants were fixture gaps.
 - **`templates/spec_draft.sql`, the aggregate-only queries of Control 4**, for
   the agent to draft a spec from: the storage view that costs nothing, then a
   grain candidate, null rates, metric candidates and edge candidates over one
