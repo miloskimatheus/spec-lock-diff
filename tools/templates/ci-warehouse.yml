@@ -85,6 +85,25 @@ jobs:
           dbt build --select state:modified+ --defer --state ./prod-artifacts \
             --sample "30 days"
 
+      # Stage D, the mutation check (README section 3, Stage D). Every marts
+      # model whose sql this pull request changed is mutated in a fixed list of
+      # ways and its unit tests must fail on every mutant - through unit tests
+      # only, on their given rows, so nothing is scanned, and in one dbt
+      # invocation. A survivor blocks unless a human listed it in
+      # tests/mutation_equivalents.yml on the branch the pull request targets;
+      # a changed model with no unit test blocks.
+      #
+      # YOU: copy tools/templates/mutate_model.py to .github/mutate_model.py.
+      # The path is protected, so only a human changes what mutates the code.
+      - name: mutation check
+        shell: bash  # bash -eo pipefail, so tee cannot swallow a failure
+        run: |
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          trap 'echo "```" >> "$GITHUB_STEP_SUMMARY"' EXIT
+          python .github/mutate_model.py \
+            --base ${{ github.event.pull_request.base.sha }} \
+            --defer-state ./prod-artifacts | tee -a "$GITHUB_STEP_SUMMARY"
+
   # README section 3, Stage E. Runs when the pull request is marked ready for
   # review, and again on every push after that: a required check belongs to a
   # commit, so a diff of code that has since changed is worth what a dismissed

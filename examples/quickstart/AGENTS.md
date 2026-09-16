@@ -90,8 +90,13 @@ what you think it is.
   under `tests/` is read the same way, from its own `{{ config() }}` (`G10`).
 - A unit test that does not name its edge verbatim in `config.meta.edge`, or
   leaves a `ref` or `source` of its model without `given` rows: `check` blocks
-  both, and a unit test that reads a real table is the one scan the loop must
-  never make.
+  both (`T2`, `T3`), and a unit test that reads a real table is the one scan
+  the loop must never make. `I5` prints, per edge, the unit test and how many
+  rows it is given and expects; a human reads that list.
+- `tests/mutation_equivalents.yml`. When a mutant of your model survives every
+  unit test, you write the unit test that kills it. If you believe the mutant
+  is the same code, say so in the pull request; a human lists it, on a branch
+  of their own, and the check reads that file from the branch you target.
 - A model file with no yml entry. A `.sql` in a marts path that no yml declares
   has no spec, no primary key and no test, and `check` blocks on it (`S4`). The
   yml may live anywhere under `models/` — what puts a model in scope is where
@@ -113,6 +118,11 @@ what you think it is.
 - The metric you need does not exist in `models/semantic/` (rule 4).
 - The diff came back outside your pre-registration. You do not widen the
   pre-registration; you explain what you found.
+- A mutant of your model survived every unit test and you cannot write one
+  that tells them apart.
+- The business rule of a model that already has a spec changed. That is two
+  pull requests, and a human opens the first: the framework README's section 4
+  has the steps.
 
 ## How to read what the tools print
 
@@ -143,6 +153,10 @@ approved before any line of code — and nothing in git can say whether that
 happened, so the line says where to look. If you draft one, it goes in a
 commit of its own, before any code, and you say so in the pull request.
 
-None of `G7`, `I1` and `I4` can see a history you rewrote. Do not amend, rebase
+`I6` prints every commit on your branch whose spec or pre-registration the
+schema rejects. The loop of rule 5 commits only green steps, so a red commit
+says the loop was not used; the Author will ask why.
+
+None of `G7`, `I1`, `I4` and `I6` can see a history you rewrote. Do not amend, rebase
 or squash your commits on this branch; the platform blocks force-push, and a
 branch that needed one is a branch the Author has to ask about.

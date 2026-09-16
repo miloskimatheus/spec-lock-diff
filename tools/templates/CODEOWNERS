@@ -44,6 +44,11 @@
 # Generic tests.
 /tests/                         @your-org/data-platform
 
+# The mutants a human declared equivalent (Stage D's mutation check). The check
+# reads this file from the branch the pull request targets, so a line the agent
+# adds on its own branch is inert until a human lands it.
+/tests/mutation_equivalents.yml @your-org/data-platform
+
 # Reconciliation queries. If the agent changes the reconciliation in the same
 # PR as the model, it controls what is being verified.
 /analyses/reconciliation_*      @your-org/data-platform

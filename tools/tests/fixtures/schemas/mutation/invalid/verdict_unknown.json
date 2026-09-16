@@ -1,0 +1,3 @@
+// expect: enum
+{"model": "fct_orders", "killed": 0, "survived": 0, "equivalent": 0,
+ "mutants": [{"id": "cmp/1", "operator": "cmp", "original": "!=", "replacement": "=", "line": 7, "occurrence": 1, "verdict": "maybe"}]}

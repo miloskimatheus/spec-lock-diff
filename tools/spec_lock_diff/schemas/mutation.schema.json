@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/miloskimatheus/spec-lock-diff/tools/schemas/mutation.schema.json",
+  "title": "mutation/<model>.json",
+  "description": "What the mutation check of Stage D measured on one model: every mutant of its sql, and whether its unit tests killed it (README section 3, Stage D).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["model", "mutants", "killed", "survived", "equivalent"],
+  "properties": {
+    "model": {"type": "string", "minLength": 1, "description": "must be the dbt model the mutants were made from"},
+    "mutants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "operator", "original", "replacement", "line", "occurrence", "verdict"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1, "description": "must be the mutant's id, operator/ordinal"},
+          "operator": {"type": "string", "minLength": 1, "description": "must name the operator that made the mutant"},
+          "original": {"type": "string", "description": "must be the text the operator replaced"},
+          "replacement": {"type": "string", "description": "must be the text it wrote instead"},
+          "line": {"type": "integer", "minimum": 1, "description": "must be the line of the sql the change is on"},
+          "occurrence": {"type": "integer", "minimum": 1, "description": "must say which occurrence of the original text in the model this is, so an equivalence entry survives a line moving"},
+          "verdict": {"enum": ["killed", "survived", "equivalent"], "description": "must be killed when a unit test failed on the mutant, survived when every unit test passed, or equivalent when a human listed it"},
+          "reason": {"type": "string", "minLength": 1, "description": "must be the reason a human gave, for an equivalent mutant"}
+        }
+      },
+      "description": "must hold one entry per mutant, in the order they were made"
+    },
+    "killed": {"type": "integer", "minimum": 0, "description": "must be how many mutants a unit test failed on"},
+    "survived": {"type": "integer", "minimum": 0, "description": "must be how many mutants every unit test passed on, and nobody listed"},
+    "equivalent": {"type": "integer", "minimum": 0, "description": "must be how many survivors a human listed as equivalent"}
+  }
+}

@@ -6,12 +6,16 @@ like the framework and enforces something else.
 
 import importlib.util
 import json
+import os
 import re
+import shutil
+import subprocess
+import sys
 
 import jsonschema
 import pytest
 import yaml
-from conftest import TOOLS
+from conftest import EXAMPLES, GIT_ENV, TOOLS, git, make_repo
 
 import spec_lock_diff as slp
 
@@ -64,6 +68,7 @@ def test_codeowners_adds_only_what_it_explains():
         "/package-lock.yml",
         "/dependencies.yml",
         "/.slp-version",
+        "/tests/mutation_equivalents.yml",
     }
     for path in owned:
         assert path in extra or path.strip("/").split("*")[0] in README, path
@@ -185,7 +190,7 @@ def test_every_job_checks_out_every_commit():
 def test_the_first_workflow_needs_nothing_but_python():
     """The bottom rung of the ladder: check and gate, and not one credential.
 
-    Twenty-one of the thirty rules and the whole of Control 5B run on yml, git
+    Twenty-five of the thirty-four rules and the whole of Control 5B run on yml, git
     and one line of sql. If this file ever grows a warehouse step, an adopter's
     first pull request is red again and the ladder loses the rung that makes
     starting cheap.
@@ -235,7 +240,7 @@ def test_every_piped_step_sets_bash_so_tee_cannot_swallow_a_failure():
         name: (TEMPLATES / name).read_text(encoding="utf-8").count("shell: bash")
         for name in WORKFLOWS
     }
-    assert counts == {"ci.yml": 2, "ci-warehouse.yml": 1}
+    assert counts == {"ci.yml": 2, "ci-warehouse.yml": 2}
 
 
 def test_the_findings_are_fenced_so_the_job_summary_can_be_read():
@@ -247,7 +252,7 @@ def test_the_findings_are_fenced_so_the_job_summary_can_be_read():
         for step in job["steps"]
         if "tee -a" in str(step.get("run", ""))
     ]
-    assert len(piped) == 3
+    assert len(piped) == 4
     for step in piped:
         run = step["run"]
         assert "GITHUB_STEP_SUMMARY" in run, step["name"]
@@ -389,13 +394,16 @@ def test_the_tools_come_from_the_base_branch_everywhere_they_run():
     assert len(copies) == 2 and len(set(copies)) == 1
 
 
-def _converter():
-    """templates/diff_to_json.py as a module. It is a template, so it is not importable."""
-    path = TEMPLATES / "diff_to_json.py"
-    spec = importlib.util.spec_from_file_location("diff_to_json", path)
+def _template(name):
+    """A template as a module. It is a template, so it is not importable by name."""
+    spec = importlib.util.spec_from_file_location(name[:-3], TEMPLATES / name)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def _converter():
+    return _template("diff_to_json.py")
 
 
 ONE_ROW = (
@@ -518,3 +526,288 @@ def test_the_converter_output_is_a_diff_compare_accepts(tmp_path):
     code, out, err = run_slp(["compare", "--project-dir", str(project), str(diff)], tmp_path)
     assert code == 0, out + err
     assert "row_delta 8400, declared 0..12000" in out
+
+
+# --- templates/tcr.sh: the loop of Rule 5 ---
+
+
+def _loop_repo(tmp_path):
+    """A repository with a stub tool and a stub dbt, both driven by environment variables."""
+    repo = tmp_path / "repo"
+    (repo / "tools").mkdir(parents=True)
+    (repo / "tools" / "slp.py").write_text(
+        'import os, sys\nsys.exit(int(os.environ.get("STUB_SLP", "0")))\n', encoding="utf-8"
+    )
+    shutil.copy(str(TEMPLATES / "tcr.sh"), str(repo / "tcr.sh"))
+    stubs = tmp_path / "bin"
+    stubs.mkdir()
+    (stubs / "dbt").write_text('#!/bin/sh\nexit "${STUB_DBT:-0}"\n', encoding="utf-8")
+    (stubs / "dbt").chmod(0o755)
+    (stubs / "python").symlink_to(sys.executable)
+    git(repo, "init", "-q", "-b", "main", "--template=")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "the model as main has it")
+    return repo, stubs
+
+
+def _loop(repo, stubs, dbt="0", message="a step"):
+    env = dict(os.environ, PATH="%s:%s" % (stubs, os.environ["PATH"]), STUB_DBT=dbt, **GIT_ENV)
+    return subprocess.run(
+        ["bash", "tcr.sh", message], cwd=str(repo), env=env, capture_output=True, text=True
+    )
+
+
+def test_the_loop_commits_on_green_and_reverts_on_red(tmp_path):
+    """Rule 5: all green, it commits; anything red, the working tree goes back."""
+    repo, stubs = _loop_repo(tmp_path)
+    (repo / "models").mkdir()
+    (repo / "models" / "a.sql").write_text("select 1\n", encoding="utf-8")
+    done = _loop(repo, stubs, message="a model")
+    assert done.returncode == 0 and "tcr: green, committed" in done.stdout, done.stderr
+    assert git(repo, "log", "--format=%s").splitlines()[0] == "a model"
+    (repo / "models" / "a.sql").write_text("select 2\n", encoding="utf-8")
+    (repo / "models" / "b.sql").write_text("select 3\n", encoding="utf-8")
+    done = _loop(repo, stubs, dbt="1")
+    assert done.returncode == 1 and "strike 1 of 5" in done.stderr
+    assert (repo / "models" / "a.sql").read_text(encoding="utf-8") == "select 1\n"
+    assert not (repo / "models" / "b.sql").exists()  # a new file goes too
+    assert git(repo, "status", "--short") == ""
+
+
+def test_the_fifth_red_in_a_row_stops_the_loop_and_a_green_resets_it(tmp_path):
+    repo, stubs = _loop_repo(tmp_path)
+    for strike in range(1, 5):
+        done = _loop(repo, stubs, dbt="1")
+        assert done.returncode == 1 and "strike %d of 5" % strike in done.stderr
+    done = _loop(repo, stubs, dbt="1")
+    assert done.returncode == 3 and "five reverts in a row; stop and ask a human" in done.stderr
+    (repo / "tools" / "note.txt").write_text("green again\n", encoding="utf-8")
+    assert _loop(repo, stubs).returncode == 0
+    assert not (repo / ".git" / "slp-tcr-strikes").exists()
+    assert _loop(repo, stubs, dbt="1").returncode == 1  # the count started over
+
+
+def test_the_loop_never_builds():
+    """A build scans the sample window; the loop runs many times. The build runs once, in CI."""
+    text = (TEMPLATES / "tcr.sh").read_text(encoding="utf-8")
+    assert "dbt build" not in text.replace("`dbt build`", "")
+    assert "dbt test --select test_type:unit" in text and "exit 3" in text
+
+
+# --- templates/spec_draft.sql: aggregates, never rows ---
+
+
+def test_the_draft_queries_return_aggregates_and_never_a_row():
+    """Control 4: an agent may run these; a query that returns rows is not one of them."""
+    text = (TEMPLATES / "spec_draft.sql").read_text(encoding="utf-8").lower()
+    assert "select *" not in text and not re.search(r"\blimit\b", text)
+    for statement in [s for s in text.split(";") if "select" in s]:
+        assert re.search(r"\b(count|countif|sum|approx_count_distinct|total_rows)\b", statement), (
+            statement
+        )
+
+
+# --- templates/mutate_model.py: the mutation check of Stage D ---
+
+RICH = (
+    "select distinct a, sum(b) as s, coalesce('x', 0) as c\n"
+    "from {{ ref('x') }} x\n"
+    "left join {{ ref('y') }} y on x.id = y.id -- != in a comment\n"
+    "where x.d is not null and (x.e > 3 or x.f not in ('a', 'b'))\n"
+    "group by 1\n"
+)
+
+
+def test_the_mutants_of_a_model_are_deterministic_and_leave_comments_alone():
+    mm = _template("mutate_model.py")
+    sql = (EXAMPLES / "quickstart" / "models" / "marts" / "fct_orders.sql").read_text(
+        encoding="utf-8"
+    )
+    sql += "-- where status != 'x' {{ ref('ghost') }}\n"
+    first = [(m.id, m.original, m.replacement, m.line) for m in mm.sites(sql)]
+    assert first == [(m.id, m.original, m.replacement, m.line) for m in mm.sites(sql)]
+    assert first == [
+        ("where/1", "status != 'cancelled'", "true", 7),
+        ("cmp/1", "!=", "=", 7),
+        ("literal/1", "'cancelled'", "'cancelled_'", 7),
+    ]
+
+
+def test_every_operator_finds_its_site_in_a_rich_model():
+    mm = _template("mutate_model.py")
+    by_op = {}
+    for mutant in mm.sites(RICH):
+        by_op.setdefault(mutant.op, []).append((mutant.original, mutant.replacement))
+    assert sorted(by_op) == [
+        "agg",
+        "cmp",
+        "coalesce",
+        "distinct",
+        "join",
+        "literal",
+        "not",
+        "where",
+    ]
+    assert by_op["coalesce"] == [("coalesce('x', 0)", "'x'")]
+    assert by_op["join"] == [("left join", "inner join")]
+    assert ("(x.e > 3 or x.f not in ('a', 'b'))", "true") in by_op["where"]
+    assert ("is not null", "is null") in by_op["not"] and ("not in", "in") in by_op["not"]
+    assert ("!=", "=") not in by_op["cmp"]  # the one in the comment
+
+
+def test_the_batch_is_one_model_per_mutant_with_the_unit_tests_cloned():
+    mm = _template("mutate_model.py")
+    sql = (EXAMPLES / "quickstart" / "models" / "marts" / "fct_orders.sql").read_text(
+        encoding="utf-8"
+    )
+    yml = (EXAMPLES / "quickstart" / "models" / "marts" / "fct_orders.yml").read_text(
+        encoding="utf-8"
+    )
+    units = yaml.safe_load(yml)["unit_tests"]
+    mutants = mm.sites(sql)
+    files = mm.layout("fct_orders", sql, units, mutants, "models/marts")
+    doc = yaml.safe_load(files["models/marts/__mutants__/schema.yml"])
+    assert len(doc["unit_tests"]) == len(mutants) * len(units)
+    assert len(set(u["name"] for u in doc["unit_tests"])) == len(doc["unit_tests"])
+    for unit in doc["unit_tests"]:
+        assert mm.TAG in unit["config"]["tags"] and unit["given"][0]["input"] == "ref('stg_orders')"
+    for mutant in mutants:
+        text = files["models/marts/__mutants__/%s.sql" % mutant.name]
+        assert text != sql and mutant.replacement in text
+
+
+def test_verdicts_come_from_run_results():
+    mm = _template("mutate_model.py")
+    mutants = mm.sites("select a from {{ ref('t') }} where a != 1 and b > 2\n")
+    mm.layout("m", "", [{"name": "u", "model": "m"}], mutants, "models/marts")
+    results = {
+        "results": [
+            {
+                "unique_id": "unit_test.p.%s.u__%s" % (mutants[0].name, mutants[0].name),
+                "status": "fail",
+            },
+            {
+                "unique_id": "unit_test.p.%s.u__%s" % (mutants[1].name, mutants[1].name),
+                "status": "pass",
+            },
+            {
+                "unique_id": "unit_test.p.%s.u__%s" % (mutants[2].name, mutants[2].name),
+                "status": "error",
+            },
+        ]
+    }
+    mm.verdicts(results, mutants)
+    assert [m.verdict for m in mutants[:3]] == ["killed", "survived", "killed"]
+    assert all(m.verdict == "survived" for m in mutants[3:])
+
+
+def _stub_dbt(folder):
+    """A dbt that runs nothing: it reads the cloned unit tests and writes their verdicts.
+
+    Every cloned unit test fails, except on the mutant models STUB_SURVIVORS names.
+    """
+    folder.mkdir()
+    (folder / "dbt").write_text(
+        "#!%s\n"
+        "import glob, json, os, pathlib, yaml\n"
+        "survivors = os.environ.get('STUB_SURVIVORS', '').split(',')\n"
+        "results = []\n"
+        "for schema in glob.glob('models/**/__mutants__/schema.yml', recursive=True):\n"
+        "    for unit in yaml.safe_load(open(schema))['unit_tests']:\n"
+        "        status = 'pass' if unit['model'] in survivors else 'fail'\n"
+        "        results.append({'unique_id': 'unit_test.p.%%s.%%s'"
+        " %% (unit['model'], unit['name']),"
+        " 'status': status})\n"
+        "pathlib.Path('target').mkdir(exist_ok=True)\n"
+        "json.dump({'results': results}, open('target/run_results.json', 'w'))\n" % sys.executable,
+        encoding="utf-8",
+    )
+    (folder / "dbt").chmod(0o755)
+
+
+def _changed_quickstart(tmp_path, equivalents=None, unit_tests=True):
+    """The quickstart as main has it, then a pull request that changes fct_orders.sql."""
+    before, after = tmp_path / "before", tmp_path / "after"
+    for tree in (before, after):
+        shutil.copytree(str(EXAMPLES / "quickstart"), str(tree))
+        shutil.rmtree(str(tree / "diff"))
+    if equivalents is not None:
+        (before / "tests").mkdir()
+        (before / "tests" / "mutation_equivalents.yml").write_text(equivalents, encoding="utf-8")
+        shutil.copytree(str(before / "tests"), str(after / "tests"))
+    sql = after / "models" / "marts" / "fct_orders.sql"
+    sql.write_text(
+        sql.read_text(encoding="utf-8").replace("select\n", "select  -- reformatted\n"),
+        encoding="utf-8",
+    )
+    if not unit_tests:
+        yml = after / "models" / "marts" / "fct_orders.yml"
+        yml.write_text(
+            yml.read_text(encoding="utf-8").split("\nunit_tests:")[0] + "\n", encoding="utf-8"
+        )
+    repo = make_repo(tmp_path, before, after)
+    stubs = tmp_path / "bin"
+    _stub_dbt(stubs)
+    return repo, stubs
+
+
+def test_the_mutation_check_end_to_end_with_a_stub_dbt(tmp_path, monkeypatch, capsys):
+    """One dbt invocation, the temporary models gone after it; a survivor blocks, a listed one
+    informs.
+    """
+    mm = _template("mutate_model.py")
+    listed = (
+        "- model: fct_orders\n  operator: literal\n  original: \"'cancelled'\"\n"
+        "  occurrence: 1\n  reason: the fixture has no other status\n"
+    )
+    repo, stubs = _changed_quickstart(tmp_path, equivalents=listed)
+    monkeypatch.setenv("PATH", "%s:%s" % (stubs, os.environ["PATH"]))
+    monkeypatch.setenv("STUB_SURVIVORS", "fct_orders__literal_1,fct_orders__cmp_1")
+    code = mm.main(["--base", "base", "--project-dir", str(repo), "--out", "mutation"])
+    out = capsys.readouterr().out
+    assert code == 1, out
+    assert (
+        "BLOCK\tmodels/marts/fct_orders.sql\tfct_orders\tmutant cmp/1: != -> = at line 7 survived"
+        in out
+    )
+    assert (
+        "INFO\tmodels/marts/fct_orders.sql\tfct_orders\tmutant literal/1: 'cancelled' -> "
+        "'cancelled_' at line 7 survived and is listed as equivalent: "
+        "the fixture has no other status" in out
+    )
+    assert out.splitlines()[-1] == "mutate: 1 block - BLOCKED"
+    assert not (repo / "models" / "marts" / "__mutants__").exists()
+    written = json.loads((repo / "mutation" / "fct_orders.json").read_text(encoding="utf-8"))
+    jsonschema.Draft202012Validator(
+        json.loads((slp.SCHEMA_DIR / "mutation.schema.json").read_text(encoding="utf-8"))
+    ).validate(written)
+    assert (written["killed"], written["survived"], written["equivalent"]) == (1, 1, 1)
+    monkeypatch.setenv("STUB_SURVIVORS", "fct_orders__literal_1")
+    code = mm.main(["--base", "base", "--project-dir", str(repo), "--out", "mutation"])
+    assert (
+        code == 0
+        and capsys.readouterr().out.splitlines()[-1]
+        == "mutate: OK (2 killed, 1 equivalent, in 1 model)"
+    )
+
+
+def test_a_changed_model_with_no_unit_test_blocks_before_dbt_runs(tmp_path, monkeypatch, capsys):
+    mm = _template("mutate_model.py")
+    repo, stubs = _changed_quickstart(tmp_path, unit_tests=False)
+    monkeypatch.setenv("PATH", "%s:%s" % (stubs, os.environ["PATH"]))
+    code = mm.main(["--base", "base", "--project-dir", str(repo)])
+    out = capsys.readouterr().out
+    assert code == 1 and "the sql changed and the model has no unit test" in out
+    assert not (repo / "target").exists()  # dbt never ran
+
+
+def test_a_dry_run_lists_the_mutants_and_writes_nothing(tmp_path, capsys):
+    mm = _template("mutate_model.py")
+    repo, _ = _changed_quickstart(tmp_path)
+    assert mm.main(["--base", "base", "--project-dir", str(repo), "--dry-run"]) == 0
+    out = capsys.readouterr().out
+    assert (
+        "fct_orders\tcmp/1" in out
+        and out.splitlines()[-1] == "mutate: 1 changed model listed, nothing run"
+    )
+    assert not (repo / "mutation").exists() and not (repo / "target").exists()
