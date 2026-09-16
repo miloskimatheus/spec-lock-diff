@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 942 236" width="942" height="236" role="img" aria-label="Automated diff output comparing production to the pull request, each number checked against its pre-registered interval, ending in PR blocked" font-family='"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace'>
 <title>Automated diff output comparing production to the pull request, each number checked against its pre-registered interval, ending in PR blocked</title>
+<rect width="942" height="236" fill="#0d1117"/>
 
 <g fill="none" stroke="#e6edf3" stroke-width="1.4" opacity=".6">
 <rect x="1" y="1" width="940" height="234"/><path d="M1 63h940M1 179h940"/></g>

@@ -5,6 +5,12 @@ GitHub serves an <img src="*.svg"> as its own document, so it cannot inherit the
 page's colours and cannot load a webfont. Every colour is therefore a literal and
 every typeface a system stack, and each drawing ships as a light/dark pair that
 <picture> switches on prefers-color-scheme.
+
+Each drawing also paints its own ground, the page colour of its theme. <picture>
+follows the browser's colour scheme, not the page's theme setting, and a renderer
+that ignores <picture> shows the light file everywhere; on a dark page a
+transparent light drawing is dark ink on dark. A painted ground turns that
+mismatch into a light card on a dark page, which still reads.
 """
 
 import io
@@ -16,11 +22,11 @@ OUT = os.path.dirname(os.path.abspath(__file__))
 MONO = '"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace'
 
 THEMES = {
-    "light": dict(ink="#1f2328", muted="#59636e", faint="#8b949e",
+    "light": dict(bg="#ffffff", ink="#1f2328", muted="#59636e", faint="#8b949e",
                   pas="#0F6B4F", blk="#A3231A", amb="#8A5A0B",
                   hum="#0B62B8", mac="#A03BB0",
                   c1="#1F4E79", c2="#146B5E", c3="#8A5A0B", c4="#6B4E9E", c5="#8C3357"),
-    "dark":  dict(ink="#e6edf3", muted="#8b949e", faint="#6e7681",
+    "dark":  dict(bg="#0d1117", ink="#e6edf3", muted="#8b949e", faint="#6e7681",
                   pas="#4FBE8F", blk="#E58174", amb="#D9A441",
                   hum="#6FB6F5", mac="#DE93EC",
                   c1="#7EA9D6", c2="#4FBBA6", c3="#D9A441", c4="#B9A2E8", c5="#E08BA8"),
@@ -83,6 +89,9 @@ L = {
         "proc_alt": "Stage A is human, stages B C and D run locked inside the platform, stage E returns to a human who only reads the automated diff",
 
         "cmds_head": "WHICH COMMAND RUNS WHEN",
+        "cmds_key": "bar = the stages it runs in  ·  dotted = the same command, run again",
+        "bar_check_a": "on the spec", "bar_check_cd": "on every commit, then in CI",
+        "bar_gate": "in CI, against the base branch", "bar_compare": "on the diff.json",
         "q_check": "is there a spec, and can its test fail?",
         "q_gate": "did this branch weaken anything that judges the code?",
         "q_compare": "do the numbers match what was promised?",
@@ -158,6 +167,9 @@ L = {
         "proc_alt": "A etapa A é humana, as etapas B C e D rodam trancadas dentro da plataforma, a etapa E volta para um humano que apenas lê o diff automático",
 
         "cmds_head": "QUAL COMANDO RODA QUANDO",
+        "cmds_key": "barra = etapas em que roda  ·  pontilhado = o mesmo comando, de novo",
+        "bar_check_a": "na spec", "bar_check_cd": "a cada commit, depois no CI",
+        "bar_gate": "no CI, contra o branch base", "bar_compare": "sobre o diff.json",
         "q_check": "existe spec, e o teste dela pode falhar?",
         "q_gate": "este branch enfraqueceu algo que julga o código?",
         "q_compare": "os números batem com o que foi prometido?",
@@ -183,18 +195,19 @@ L = {
 }
 
 
-def svg(w, h, alt, body):
+def svg(t, w, h, alt, body):
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" '
         f'width="{w}" height="{h}" role="img" aria-label="{alt}" '
-        f'font-family=\'{MONO}\'>\n<title>{alt}</title>\n{body}\n</svg>\n'
+        f'font-family=\'{MONO}\'>\n<title>{alt}</title>\n'
+        f'<rect width="{w}" height="{h}" fill="{t["bg"]}"/>\n{body}\n</svg>\n'
     )
 
 
 # ── wordmark ────────────────────────────────────────────────────────────────
 def wordmark(t, _):
     i = t["ink"]
-    return svg(660, 120, "Spec · Lock · Diff", f'''
+    return svg(t, 660, 120, "Spec · Lock · Diff", f'''
 <g stroke="{i}" fill="none" stroke-width="1.4" opacity=".85"><path d="M0 22h660M0 98h660"/></g>
 <g stroke="{i}" fill="none" stroke-width="1" stroke-dasharray="2 3" opacity=".42"><path d="M179 22v76M330 22v76M482 22v76"/></g>
 <g stroke="{i}" fill="none" stroke-width="1.4" opacity=".85">
@@ -221,13 +234,13 @@ def risks(t, s):
         out.append(f'<g transform="translate({ix} 25)" stroke="{b}" stroke-width="2.2" fill="none"><path d="{icons[n]}"/></g>')
         out.append(f'<text x="{tx}" y="106" font-size="21" font-weight="600" fill="{i}">{a}</text>')
         out.append(f'<text x="{tx}" y="136" font-size="21" font-weight="600" fill="{i}">{bb}</text>')
-    return svg(942, 162, s["risks_alt"], "\n".join(out))
+    return svg(t, 942, 162, s["risks_alt"], "\n".join(out))
 
 
 # ── roles: human -> platform[agent] -> human ────────────────────────────────
 def roles(t, s):
     i, h, m = t["ink"], t["hum"], t["mac"]
-    return svg(942, 208, s["roles_alt"], f'''
+    return svg(t, 942, 208, s["roles_alt"], f'''
 <rect x="317" y="14" width="308" height="180" fill="none" stroke="{i}" stroke-width="2" opacity=".8"/>
 <text x="471" y="40" text-anchor="middle" font-size="10" letter-spacing="2" fill="{i}" opacity=".55">{s["platform"]}</text>
 <text x="471" y="60" text-anchor="middle" font-size="10.5" fill="{i}" opacity=".72">{s["plat1"]}</text>
@@ -252,7 +265,7 @@ def roles(t, s):
 # ── manifesto network ───────────────────────────────────────────────────────
 def manifesto(t, s):
     i = t["ink"]
-    return svg(942, 430, s["mani_alt"], f'''
+    return svg(t, 942, 430, s["mani_alt"], f'''
 <defs><marker id="a" viewBox="0 0 9 9" refX="8" refY="4.5" markerWidth="8" markerHeight="8" orient="auto">
 <path d="M0 0 L9 4.5 L0 9 z" fill="{i}"/></marker></defs>
 
@@ -314,13 +327,13 @@ def controls(t, s):
         out.append(f'<text x="{tx}" y="153" font-size="10" letter-spacing="1.6" font-weight="600" fill="{col}">{s["stops"]}</text>')
         for k, line in enumerate(s[f"cw{n+1}"]):
             out.append(f'<text x="{tx}" y="{176 + k*16}" font-size="10" fill="{i}" opacity=".78">{line}</text>')
-    return svg(942, 218, s["ctrl_alt"], "\n".join(out))
+    return svg(t, 942, 218, s["ctrl_alt"], "\n".join(out))
 
 
 # ── agent permission by data layer ──────────────────────────────────────────
 def permissions(t, s):
     i, p, b, a = t["ink"], t["pas"], t["blk"], t["amb"]
-    return svg(942, 178, s["perm_alt"], f'''
+    return svg(t, 942, 178, s["perm_alt"], f'''
 <text x="471" y="13" text-anchor="middle" font-size="9.5" letter-spacing="2.2" fill="{i}" opacity=".5">{s["perm_title"]}</text>
 <rect x="371" y="25" width="200" height="36" fill="none" stroke="{i}" stroke-width="1.4" opacity=".75"/>
 <text x="471" y="48" text-anchor="middle" font-size="12.5" font-weight="600" fill="{i}">agent_ci</text>
@@ -346,7 +359,7 @@ def permissions(t, s):
 # ── the development process, A -> E ─────────────────────────────────────────
 def process(t, s):
     i, h, m, b = t["ink"], t["hum"], t["mac"], t["blk"]
-    return svg(942, 250, s["proc_alt"], f'''
+    return svg(t, 942, 250, s["proc_alt"], f'''
 <defs><marker id="p" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
 <path d="M0 0 L8 4 L0 8 z" fill="{i}" fill-opacity=".5"/></marker></defs>
 
@@ -404,9 +417,10 @@ def commands(t, s):
     # A bar per command, over the stages it runs in. check runs at A and again at
     # C and D, so its bar is two segments and a dotted line saying they are one
     # command, not two.
-    rows = ((110, t["c1"], "check", s["q_check"], ((1, 146), (377, 314)), (149, 375)),
-            (164, t["c5"], "gate", s["q_gate"], ((377, 314),), None),
-            (218, t["c4"], "compare", s["q_compare"], ((751, 190),), None))
+    rows = ((110, t["c1"], "check", s["q_check"],
+             ((1, 146, s["bar_check_a"]), (377, 314, s["bar_check_cd"])), (149, 375)),
+            (164, t["c5"], "gate", s["q_gate"], ((377, 314, s["bar_gate"]),), None),
+            (218, t["c4"], "compare", s["q_compare"], ((751, 190, s["bar_compare"]),), None))
     body = ""
     for y, col, name, question, bars, link in rows:
         body += (f'<text x="1" y="{y}" font-size="13" font-weight="600" fill="{col}">'
@@ -414,21 +428,24 @@ def commands(t, s):
                  f'<text x="104" y="{y}" font-size="10.5" fill="{m}">{question}</text>')
         body += "".join(f'<rect x="{x}" y="{y + 8}" width="{w}" height="18" fill="{col}"'
                         f' fill-opacity=".15" stroke="{col}" stroke-width="1.6"/>'
-                        for x, w in bars)
+                        f'<text x="{x + 7}" y="{y + 21}" font-size="9.5" fill="{col}">'
+                        f'{label}</text>'
+                        for x, w, label in bars)
         if link:
             body += (f'<path d="M{link[0]} {y + 17}h{link[1] - link[0]}" fill="none"'
                      f' stroke="{col}" stroke-width="1.4" stroke-dasharray="3 4"'
                      f' opacity=".55"/>')
         body += "\n"
-    return svg(942, 252, s["cmds_alt"], f'''
+    return svg(t, 942, 252, s["cmds_alt"], f'''
 <text x="1" y="12" font-size="10" letter-spacing="2" fill="{i}" opacity=".55">{s["cmds_head"]}</text>
+<text x="941" y="12" text-anchor="end" font-size="9.5" fill="{m}">{s["cmds_key"]}</text>
 {head}{body}''')
 
 
 # ── pre-registration interval ───────────────────────────────────────────────
 def prereg(t, s):
     i, p, b = t["ink"], t["pas"], t["blk"]
-    return svg(942, 196, s["prereg_alt"], f'''
+    return svg(t, 942, 196, s["prereg_alt"], f'''
 <text x="1" y="14" font-size="10" letter-spacing="1.6" fill="{i}" opacity=".55">{s["prereg_head"]}</text>
 <text x="1" y="34" font-size="12" font-weight="600" fill="{i}">row_delta: {{min: 0, max: 12000}}</text>
 <rect x="201" y="72" width="380" height="30" fill="{p}" opacity=".13"/>
@@ -449,7 +466,7 @@ def prereg(t, s):
 # ── stage E automated diff output ───────────────────────────────────────────
 def diff(t, s):
     i, p, b = t["ink"], t["pas"], t["blk"]
-    return svg(942, 236, s["diff_alt"], f'''
+    return svg(t, 942, 236, s["diff_alt"], f'''
 <g fill="none" stroke="{i}" stroke-width="1.4" opacity=".6">
 <rect x="1" y="1" width="940" height="234"/><path d="M1 63h940M1 179h940"/></g>
 <text x="19" y="27" font-size="11.5" font-weight="600" fill="{i}">{s["diff_head"]}</text>

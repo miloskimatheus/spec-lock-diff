@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 942 178" width="942" height="178" role="img" aria-label="Agent permission by data layer: no access to raw, masked read on staging and marts, no write to production, read and write in its own PR schema" font-family='"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace'>
 <title>Agent permission by data layer: no access to raw, masked read on staging and marts, no write to production, read and write in its own PR schema</title>
+<rect width="942" height="178" fill="#ffffff"/>
 
 <text x="471" y="13" text-anchor="middle" font-size="9.5" letter-spacing="2.2" fill="#1f2328" opacity=".5">AGENT PERMISSION, BY DATA LAYER</text>
 <rect x="371" y="25" width="200" height="36" fill="none" stroke="#1f2328" stroke-width="1.4" opacity=".75"/>

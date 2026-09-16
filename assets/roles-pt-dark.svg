@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 942 208" width="942" height="208" role="img" aria-label="Um humano escreve a spec, o agente roda dentro de um cercado construído pela Plataforma, um humano lê o diff" font-family='"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace'>
 <title>Um humano escreve a spec, o agente roda dentro de um cercado construído pela Plataforma, um humano lê o diff</title>
+<rect width="942" height="208" fill="#0d1117"/>
 
 <rect x="317" y="14" width="308" height="180" fill="none" stroke="#e6edf3" stroke-width="2" opacity=".8"/>
 <text x="471" y="40" text-anchor="middle" font-size="10" letter-spacing="2" fill="#e6edf3" opacity=".55">PLATAFORMA</text>
