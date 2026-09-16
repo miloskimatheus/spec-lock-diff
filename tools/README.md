@@ -455,6 +455,13 @@ tests cloned on, so one `dbt test` invocation covers all of them. Copy it to
 of it, the way the tools run, so a pull request that edits it is not judged
 by its own edit.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../assets/mutants-en-dark.svg">
+    <img src="../assets/mutants-en-light.svg" alt="The changed model is mutated one operator at a time; its unit tests run once against every mutant; a mutant a unit test fails on is killed, a survivor blocks the pull request, and one a human listed as equivalent informs" width="900">
+  </picture>
+</p>
+
 **Runs at** Stage D, on every push, after the sample build. On your machine,
 `--dry-run` lists what it would try and runs nothing:
 

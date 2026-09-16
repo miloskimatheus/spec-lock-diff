@@ -106,6 +106,15 @@ L = {
                   ("the controls that are not code", "the platform: identity, access, caps, profiles"),
                   ("Stage E, the diff", "a warehouse and the diff query, yours to write")],
         "lad_foot": "each rung is green on its own · stop where the value stops",
+        "mut_head": "STAGE D · THE MUTATION CHECK",
+        "mut_model_sub": "the sql this pull request changed",
+        "mut_ops": "MUTATED, ONE OPERATOR AT A TIME",
+        "mut_tests": "the unit tests", "mut_tests_sub": "run once on given rows, reading no table",
+        "mut_killed": "a unit test failed on it: killed", "mut_survived": "every unit test passed: survived",
+        "mut_listed": "listed as equivalent: informs",
+        "mut_why": "one survivor blocks; a changed model with no unit test blocks too",
+        "mut_foot": "nothing is scanned: every input is mocked, so the compiled query reads no table",
+        "mut_alt": "The changed model is mutated one operator at a time; its unit tests run once against every mutant; a mutant a unit test fails on is killed, a survivor blocks the pull request, and one a human listed as equivalent informs",
         "lad_alt": "Five rungs, each green on its own: check on your machine; check and gate in CI; the paths nobody may quietly edit; the controls that are not code; Stage E, the diff",
         "q_check": "is there a spec, and can its test fail?",
         "q_gate": "did this branch weaken anything that judges the code?",
@@ -198,6 +207,15 @@ L = {
                   ("os controles que não são código", "a plataforma: identidade, acesso, teto, perfis"),
                   ("Etapa E, o diff", "um warehouse e a query do diff, que é sua")],
         "lad_foot": "cada degrau fica verde sozinho · pare onde o valor parar",
+        "mut_head": "ETAPA D · O MUTATION CHECK",
+        "mut_model_sub": "o sql que este pull request alterou",
+        "mut_ops": "MUTADO, UM OPERADOR POR VEZ",
+        "mut_tests": "os unit tests", "mut_tests_sub": "rodam uma vez sobre o given, sem ler tabela",
+        "mut_killed": "um unit test falhou nele: morto", "mut_survived": "todo unit test passou: sobreviveu",
+        "mut_listed": "listado como equivalente: informa",
+        "mut_why": "um sobrevivente bloqueia; um modelo alterado sem unit test também bloqueia",
+        "mut_foot": "nada é escaneado: toda entrada é simulada, então a query compilada não lê tabela",
+        "mut_alt": "O modelo alterado é mutado um operador por vez; seus unit tests rodam uma vez contra todo mutante; um mutante em que um unit test falha morre, um sobrevivente bloqueia o pull request, e um que um humano listou como equivalente informa",
         "lad_alt": "Cinco degraus, cada um verde sozinho: check na sua máquina; check e gate no CI; os caminhos que ninguém edita caladinho; os controles que não são código; Etapa E, o diff",
         "q_check": "existe spec, e o teste dela pode falhar?",
         "q_gate": "este branch enfraqueceu algo que julga o código?",
@@ -519,6 +537,52 @@ def ladder(t, s):
 {body}<text x="1" y="275" font-size="9.5" fill="{m}">{s["lad_foot"]}</text>''')
 
 
+# ── the mutation check of section 6 ─────────────────────────────────────────
+def _arrow(x, y, m):
+    return (f'<path d="M{x} {y}h26M{x + 20} {y - 6}l6 6-6 6" fill="none" stroke="{m}" stroke-width="1.4"'
+            f' stroke-linecap="round" stroke-linejoin="round"/>')
+
+
+def mutants(t, s):
+    """The changed model, its mutants, the unit tests run once, and the three verdicts."""
+    i, m, a, p, b = t["ink"], t["muted"], t["amb"], t["pas"], t["blk"]
+    ops = ("cmp", "where", "agg", "join", "coalesce", "distinct", "literal", "not")
+    grid = "".join(
+        f'<rect x="{193 + (k % 4) * 68}" y="{56 + (k // 4) * 32}" width="62" height="24" fill="none"'
+        f' stroke="{a}" stroke-width="1.4" stroke-dasharray="4 3"/>'
+        f'<text x="{224 + (k % 4) * 68}" y="{72 + (k // 4) * 32}" text-anchor="middle" font-size="10"'
+        f' fill="{a}">{op}</text>' for k, op in enumerate(ops))
+
+    def box(x, title, sub):
+        lines = "".join(f'<text x="{x + 12}" y="{92 + k * 13}" font-size="9.5" fill="{m}">{line}</text>'
+                        for k, line in enumerate(textwrap.wrap(sub, 22)))
+        return (f'<rect x="{x}" y="48" width="150" height="72" fill="none" stroke="{i}" stroke-width="1.6"'
+                f' opacity=".8"/><text x="{x + 12}" y="72" font-size="12.5" font-weight="600" fill="{i}">'
+                f'{title}</text>{lines}')
+
+    verdicts = (
+        f'<path d="M693 61l4 4 8-9" fill="none" stroke="{p}" stroke-width="2" stroke-linecap="round"'
+        f' stroke-linejoin="round"/><text x="713" y="66" font-size="10.5" fill="{p}">{s["mut_killed"]}</text>'
+        f'<path d="M694 79l10 10M704 79l-10 10" fill="none" stroke="{b}" stroke-width="2" stroke-linecap="round"/>'
+        f'<text x="713" y="88" font-size="10.5" fill="{b}">{s["mut_survived"]}</text>'
+        f'<path d="M693 106h11" fill="none" stroke="{m}" stroke-width="2" stroke-linecap="round"/>'
+        f'<text x="713" y="110" font-size="10.5" fill="{m}">{s["mut_listed"]}</text>')
+    return svg(t, 942, 198, s["mut_alt"], f'''
+<text x="1" y="12" font-size="10" letter-spacing="2" fill="{i}" opacity=".55">{s["mut_head"]}</text>
+{box(1, "fct_orders", s["mut_model_sub"])}
+{_arrow(159, 84, m)}
+<text x="193" y="44" font-size="9.5" letter-spacing="1.4" fill="{a}">{s["mut_ops"]}</text>
+{grid}
+{_arrow(467, 84, m)}
+{box(501, s["mut_tests"], s["mut_tests_sub"])}
+{_arrow(659, 84, m)}
+{verdicts}
+<rect x="1" y="140" width="124" height="26" fill="none" stroke="{b}" stroke-width="1.6"/>
+<text x="63" y="158" text-anchor="middle" font-size="11.5" font-weight="600" letter-spacing="1.2" fill="{b}">{s["blocked"]}</text>
+<text x="143" y="158" font-size="10.5" fill="{i}" opacity=".75">{s["mut_why"]}</text>
+<text x="1" y="190" font-size="9.5" fill="{m}">{s["mut_foot"]}</text>''')
+
+
 # ── pre-registration interval ───────────────────────────────────────────────
 def prereg(t, s):
     i, p, b = t["ink"], t["pas"], t["blk"]
@@ -584,6 +648,7 @@ DRAWINGS = {
     "risks": risks, "roles": roles, "manifesto": manifesto, "controls": controls,
     "permissions": permissions, "process": process,
     "pre-registration": prereg, "diff": diff, "commands": commands, "ladder": ladder,
+    "mutants": mutants,
 }
 
 os.makedirs(OUT, exist_ok=True)

@@ -463,6 +463,13 @@ do `ci-warehouse.yml` roda depois do build amostrado — a cópia dele no
 branch base, como as ferramentas rodam, para que um pull request que o edite
 não seja julgado pela própria edição.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../assets/mutants-pt-dark.svg">
+    <img src="../assets/mutants-pt-light.svg" alt="O modelo alterado é mutado um operador por vez; seus unit tests rodam uma vez contra todo mutante; um mutante em que um unit test falha morre, um sobrevivente bloqueia o pull request, e um que um humano listou como equivalente informa" width="900">
+  </picture>
+</p>
+
 **Roda na** Etapa D, a cada push, depois do build amostrado. Na sua máquina,
 `--dry-run` lista o que ele tentaria e não roda nada:
 
