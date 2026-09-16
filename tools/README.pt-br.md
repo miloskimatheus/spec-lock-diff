@@ -77,6 +77,13 @@ Depois suba. Cada degrau abaixo fica verde sozinho e vale alguma coisa sozinho,
 e nenhuma regra de um degrau que você alcançou fica mais fraca por causa dos
 degraus que você ainda não alcançou. Pare onde o valor parar.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../assets/ladder-pt-dark.svg">
+    <img src="../assets/ladder-pt-light.svg" alt="Cinco degraus, cada um verde sozinho: check na sua máquina; check e gate no CI; os caminhos que ninguém edita caladinho; os controles que não são código; Etapa E, o diff" width="900">
+  </picture>
+</p>
+
 ### Degrau 1 — `check`, na sua máquina
 
 ```bash

@@ -76,6 +76,13 @@ Then climb. Each rung below is green on its own and worth something on its own,
 and no rule on a rung you have reached is weaker for the rungs you have not.
 Stop where the value stops.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../assets/ladder-en-dark.svg">
+    <img src="../assets/ladder-en-light.svg" alt="Five rungs, each green on its own: check on your machine; check and gate in CI; the paths nobody may quietly edit; the controls that are not code; Stage E, the diff" width="900">
+  </picture>
+</p>
+
 ### Rung 1 — `check`, on your machine
 
 ```bash

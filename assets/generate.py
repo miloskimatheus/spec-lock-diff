@@ -98,6 +98,15 @@ L = {
         "who": "WHO ACTS", "who_human": "A HUMAN", "who_agent": "THE AGENT", "who_platform": "THE PLATFORM",
         "prints_a": "each prints one line per finding · ", "prints_b": " exit 1 · ", "prints_c": " exit 0",
         "filled": "a filled cell is where the command runs, and what it reads there",
+
+        "lad_head": "ADOPTION IS A LADDER, NOT A CLIFF", "rung": "RUNG",
+        "rungs": [("check, on your machine", "Python and two libraries"),
+                  ("check and gate in CI", "one file, one variable"),
+                  ("the paths nobody may quietly edit", "CODEOWNERS, AGENTS.md, tcr.sh and branch protection"),
+                  ("the controls that are not code", "the platform: identity, access, caps, profiles"),
+                  ("Stage E, the diff", "a warehouse and the diff query, yours to write")],
+        "lad_foot": "each rung is green on its own · stop where the value stops",
+        "lad_alt": "Five rungs, each green on its own: check on your machine; check and gate in CI; the paths nobody may quietly edit; the controls that are not code; Stage E, the diff",
         "q_check": "is there a spec, and can its test fail?",
         "q_gate": "did this branch weaken anything that judges the code?",
         "q_compare": "do the numbers match what was promised?",
@@ -181,6 +190,15 @@ L = {
         "who": "QUEM AGE", "who_human": "UM HUMANO", "who_agent": "O AGENTE", "who_platform": "A PLATAFORMA",
         "prints_a": "cada um imprime uma linha por achado · ", "prints_b": " exit 1 · ", "prints_c": " exit 0",
         "filled": "uma célula preenchida é onde o comando roda, e o que ele lê ali",
+
+        "lad_head": "ADOTAR É UMA ESCADA, NÃO UM PENHASCO", "rung": "DEGRAU",
+        "rungs": [("check, na sua máquina", "Python e duas bibliotecas"),
+                  ("check e gate no CI", "um arquivo, uma variável"),
+                  ("os caminhos que ninguém edita caladinho", "CODEOWNERS, AGENTS.md, tcr.sh e branch protection"),
+                  ("os controles que não são código", "a plataforma: identidade, acesso, teto, perfis"),
+                  ("Etapa E, o diff", "um warehouse e a query do diff, que é sua")],
+        "lad_foot": "cada degrau fica verde sozinho · pare onde o valor parar",
+        "lad_alt": "Cinco degraus, cada um verde sozinho: check na sua máquina; check e gate no CI; os caminhos que ninguém edita caladinho; os controles que não são código; Etapa E, o diff",
         "q_check": "existe spec, e o teste dela pode falhar?",
         "q_gate": "este branch enfraqueceu algo que julga o código?",
         "q_compare": "os números batem com o que foi prometido?",
@@ -480,6 +498,27 @@ def commands(t, s):
 {body}''')
 
 
+# ── the ladder of section 1 ─────────────────────────────────────────────────
+def ladder(t, s):
+    """Five rungs from bottom left to top right: each one's name, and the one thing it needs."""
+    i, m, p = t["ink"], t["muted"], t["pas"]
+    w, h, dx, dy = 176, 100, 188, 38
+    body, floor = "", ""
+    for k, (name, needs) in enumerate(s["rungs"]):
+        x, y = 1 + k * dx, 1 + (4 - k) * dy
+        body += (f'<rect x="{x}" y="{y}" width="{w}" height="{h}" fill="none" stroke="{p}" stroke-width="1.6"/>'
+                 f'<text x="{x + 10}" y="{y + 16}" font-size="10" letter-spacing="1.6" fill="{p}">'
+                 f'{s["rung"]} {k + 1}</text>'
+                 + _lines(x + 10, y + 41, textwrap.wrap(name, 24), 11.5, i, 14.5, weight="600")
+                 + _lines(x + 10, y + 79, textwrap.wrap(needs, 28), 9.5, m, 13.5) + "\n")
+        floor += f'{"M" if k == 0 else "H"}{x} {y + h}' if k == 0 else f'H{x}V{y + h}'
+        floor += f'H{x + w}'
+    return svg(t, 942, 282, s["lad_alt"], f'''
+<text x="1" y="12" font-size="10" letter-spacing="2" fill="{i}" opacity=".55">{s["lad_head"]}</text>
+<path d="{floor}" fill="none" stroke="{m}" stroke-width="1" opacity=".35"/>
+{body}<text x="1" y="275" font-size="9.5" fill="{m}">{s["lad_foot"]}</text>''')
+
+
 # ── pre-registration interval ───────────────────────────────────────────────
 def prereg(t, s):
     i, p, b = t["ink"], t["pas"], t["blk"]
@@ -544,7 +583,7 @@ def heading_icon(n):
 DRAWINGS = {
     "risks": risks, "roles": roles, "manifesto": manifesto, "controls": controls,
     "permissions": permissions, "process": process,
-    "pre-registration": prereg, "diff": diff, "commands": commands,
+    "pre-registration": prereg, "diff": diff, "commands": commands, "ladder": ladder,
 }
 
 os.makedirs(OUT, exist_ok=True)
