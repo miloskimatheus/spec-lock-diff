@@ -46,3 +46,18 @@ unit_tests:
     expect:
       format: csv
       fixture: orders_without_the_cancelled_one
+  - name: cancelled_orders_are_excluded_to_nothing
+    model: fct_orders
+    config:
+      meta:
+        edge: "status='cancelled' -> row excluded"
+    given:
+      - input: ref('stg_orders')
+        format: csv
+        rows: |
+          order_id,status
+          3,cancelled
+    expect:
+      format: csv
+      rows: |
+        order_id

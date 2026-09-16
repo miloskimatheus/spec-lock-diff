@@ -1,0 +1,36 @@
+version: 2
+
+models:
+  - name: fct_orders
+    meta:
+      spec:
+        grain: "one row per order"
+        primary_key: [order_id]
+        tier: standard
+        metrics: {}
+        known_edges: []
+        sensitive_columns: []
+    columns:
+      - name: order_id
+        tests:
+          - unique
+
+unit_tests:
+  - name: another_schema
+    model: fct_orders
+    given:
+      - input: source('other', 'orders')
+        rows:
+          - {order_id: 1}
+    expect:
+      rows:
+        - {order_id: 1}
+  - name: another_table
+    model: fct_orders
+    given:
+      - input: source('raw', 'other')
+        rows:
+          - {order_id: 1}
+    expect:
+      rows:
+        - {order_id: 1}

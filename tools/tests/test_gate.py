@@ -232,3 +232,16 @@ def test_a_yml_that_does_not_parse_names_the_commit(tmp_path):
     said = "cannot parse models/marts/broken.yml at %s:" % head[:8]
     with pytest.raises(slp.SlpError, match=said):
         slp.inventory(repo, head)
+
+
+def test_a_red_commit_is_named_and_the_green_ones_are_not(tmp_path):
+    """I6 says which commit was red; the merge-base is main's doing and the last one is green."""
+    repo = build(FIXTURES / "gate" / "I6_red_commit_in_the_walk", tmp_path)
+    red = git(repo, "rev-parse", "--short", "HEAD~1").strip()
+    head = git(repo, "rev-parse", "--short", "HEAD").strip()
+    _, out, _ = run_slp(["gate", "--base", "base"], repo)
+    lines = [line for line in out.splitlines() if "[I6]" in line]
+    assert (
+        len(lines) == 1 and "commit %s by Fixture carries a meta.pre_registration" % red in lines[0]
+    )
+    assert head not in out and "commit main" not in out
