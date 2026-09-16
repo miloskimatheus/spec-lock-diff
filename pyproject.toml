@@ -42,7 +42,9 @@ classifiers = [
 dependencies = ["pyyaml", "jsonschema>=4"]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+# coverage is pinned to a major version because tools/tests/crap.py turns its
+# numbers into a verdict, and a verdict that moves on pip install is not one.
+dev = ["pytest", "coverage>=7,<8"]
 
 [project.urls]
 Homepage = "https://github.com/miloskimatheus/spec-lock-diff"

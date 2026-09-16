@@ -38,7 +38,7 @@ land through pull requests from a fork. Only the maintainer can merge.
 
 ```bash
 pip install -e ".[dev]"   # or: pip install pyyaml "jsonschema>=4" pytest
-pytest tools/tests -q     # around three hundred and seventy, ten seconds, no network
+pytest tools/tests -q     # around four hundred, ten seconds, no network
 ```
 
 The suite is most of the review. Before you open a pull request that touches the
@@ -52,6 +52,8 @@ tools, this is what it will ask of you:
 | change a template | the assertions in `tests/test_templates.py`, which parse the file rather than reading it |
 | change the tools README | the same change in `README.pt-br.md` — **R10** checks section numbering, rule order, and every line the tool itself prints |
 | write more code | room under **M8**, which caps the shared machinery, any one rule, and the file. Raising a number is allowed; the pull request has to say what was bought with it |
+| write a branch | the tool at 100% of statements and branches and every function at CRAP ≤ 30: `coverage run --branch --include='tools/slp.py' -m pytest tools/tests -q && python tools/tests/crap.py`. Neither number moves, and **M9** bans the comment that would exempt a line from them; a function over the cap is two functions |
+| push a pull request | every commit of it green on its own: the `commits` job replays the suite at each one. `tools/tests/tcr.sh "message"` is the loop that guarantees it, commit by commit |
 | release | `__version__`, the `## <version>` heading in `CHANGELOG.md`, and the version in `pyproject.toml`, held together by one test |
 
 A fixture folder is the unit of a test. Its name is the assertion —

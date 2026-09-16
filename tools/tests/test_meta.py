@@ -155,6 +155,29 @@ def test_m6_the_fixtures_are_invented():
                 % (path.name, digits)
 
 
+# The words that lower a threshold without touching it: a comment that exempts
+# a line from coverage, a mark that exempts a test from running, a comment that
+# exempts a line from a linter or a type checker. Assembled from pieces, so that
+# this file, which has to name them, does not fail its own test.
+HATCHES = ("pragma" + ":", "no" + " cover", "no" + "cover", "mark." + "skip", "skip" + "if(",
+           "xf" + "ail", "no" + "qa", "type" + ": ignore", "importor" + "skip")
+# The two skips that are justified: a vendored tools/ has no examples/ beside it,
+# and a TOML parser arrived in 3.11. Each is a line that must contain the words.
+JUSTIFIED = (("test_examples.py", "skip" + "if(not EXAMPLES.is_dir()"),
+             ("test_packaging.py", "importor" + 'skip("tomllib"'))
+
+
+def test_m9_no_escape_hatch_lowers_a_threshold():
+    """The 100 percent and the 30 of crap.py are immutable only while nothing can exempt a line."""
+    for path in [TOOLS / "slp.py"] + sorted(TOOLS.glob("tests/*.py")):
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            hatch = next((h for h in HATCHES if h in line), None)
+            if hatch is None:
+                continue
+            assert any(path.name == name and words in line for name, words in JUSTIFIED), \
+                "%s:%d carries an escape hatch: %s" % (path.name, number, line.strip())
+
+
 def test_m7_the_same_files_give_the_same_lines():
     """R4 and Principle 3: a judge that answers differently twice is not a judge."""
     case = FIXTURES / "check" / "sensitive_mismatch"

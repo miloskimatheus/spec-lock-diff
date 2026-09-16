@@ -27,3 +27,37 @@ jobs:
       # Draft202012Validator arrived in 4.0.
       - run: pip install pyyaml "jsonschema>=4" pytest
       - run: pytest tools/tests -q
+      # The two numbers of tools/tests/crap.py - 100 percent of the tool's
+      # branches covered, CRAP at most 30 per function - on one leg only:
+      # coverage.py attributes lines differently across Python versions, and a
+      # threshold that moves with the interpreter is not a threshold. The plain
+      # suite above still runs on both legs.
+      - if: matrix.python-version == '3.12'
+        run: |
+          pip install "coverage>=7,<8"
+          coverage run --branch --include='tools/slp.py' -m pytest tools/tests -q
+          python tools/tests/crap.py
+
+  # Every commit of a pull request is green on its own: test && commit ||
+  # revert, applied to this repository. A red commit in the middle of a branch
+  # is a state nobody can bisect to, and the suite costs twelve seconds.
+  commits:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml "jsonschema>=4" pytest
+      - run: |
+          base=${{ github.event.pull_request.base.sha }}
+          head=${{ github.event.pull_request.head.sha }}
+          for commit in $(git rev-list --first-parent --reverse "$base..$head"); do
+            git checkout -q "$commit"
+            echo "== $commit $(git log -1 --format=%s)"
+            pytest tools/tests -q -p no:cacheprovider || { echo "red at $commit" >&2; exit 1; }
+          done
