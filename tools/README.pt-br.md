@@ -9,7 +9,7 @@
   <img alt="docs em EN e pt-BR" src="https://img.shields.io/badge/docs-EN%20%C2%B7%20pt--BR-8A5A0B">
 </p>
 
-Três comandos, trinta e quatro regras, um pacote.
+Três comandos, trinta e cinco regras, um pacote.
 
 <p align="center">
   <picture>
@@ -108,7 +108,7 @@ python tools/slp.py check --project-dir examples/quickstart
 | --- | --- | --- |
 | `tools/templates/ci.yml` | `.github/workflows/ci.yml` | Nada, para começar. Defina a variável de repositório `AGENT_LOGIN` com o usuário-bot do agente, para o gate ser obrigatório nos PRs que ele abre e consultivo nos seus. |
 
-Vinte e cinco das trinta e quatro regras e o Controle 5B inteiro, por um arquivo
+Vinte e seis das trinta e cinco regras e o Controle 5B inteiro, por um arquivo
 e uma variável. Ele instala Python e duas bibliotecas — sem adapter, sem credencial e
 sem um `exit 1` sequer — então a primeira execução já fica verde. Liste `ci`
 como check obrigatório.
@@ -600,9 +600,10 @@ código-fonte, para que nenhuma delas ganhe um `BLOCK` em silêncio.
 | Um pré-registro com intervalo aberto ou campo faltando — §3 B, §3 C R6 | `P1` | `check/prereg_open_interval` | `check/prereg_ok` |
 | Um `min` acima do `max`, ou métricas que não são as da spec — §3 B | `P2` | `check/prereg_min_gt_max` | `check/prereg_ok` |
 | Nenhum teste de unicidade na `primary_key` da spec, ou um que não pode falhar — §3 C R2 | `T1` | `check/pk_single_missing` | `check/pk_single_unique` |
-| Uma borda que nenhum unit test nomeia em `config.meta.edge`, ou um unit test que nomeia uma borda que a spec não tem — §3 C R2 | `T2` | `check/T2_edge_without_unit_test` | `check/T2_ok_every_edge_tested` |
-| Um unit test sem linhas em `given` para um `ref` ou `source` que o modelo lê — §3 C R2 | `T3` | `check/T3_input_not_mocked` | `check/T3_ok_all_inputs_given` |
+| Uma borda que nenhum unit test nomeia em `config.meta.edge`, ou um unit test que nomeia uma borda que a spec não tem, num modelo que carrega um pré-registro — §3 C R2 | `T2` | `check/T2_edge_without_unit_test` | `check/T2_ok_every_edge_tested` |
+| Um unit test sem linhas em `given` para um `ref` ou `source` que o modelo lê, num modelo que carrega um pré-registro — §3 C R2 | `T3` | `check/T3_input_not_mocked` | `check/T3_ok_all_inputs_given` |
 | Informa: por borda, o unit test que a nomeia e quantas linhas ele recebe e espera — §3 E5 | `I5` | `check/T2_ok_every_edge_tested` | `check/T2_edge_without_unit_test` |
+| Informa: num modelo sem pré-registro, o que `T2` e `T3` bloqueariam, para um humano ler — §3 C R2 | `I7` | `check/I7_untested_edge_without_prereg` | `check/T2_edge_without_unit_test` |
 
 ### `gate`
 

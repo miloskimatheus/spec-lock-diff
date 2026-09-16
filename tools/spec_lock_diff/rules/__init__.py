@@ -17,6 +17,7 @@ from .check import (
     check_spec_consistency,
     check_spec_present,
     check_spec_schema,
+    check_untested_readout,
 )
 from .compare import (
     compare_columns,
@@ -60,6 +61,7 @@ RULE_IDS = (
     "T2",
     "T3",
     "I5",
+    "I7",
     "G1",
     "G2",
     "G3",
@@ -91,7 +93,7 @@ RULE_IDS = (
 # because a refactoring's intervals are pinned to zero by the schema, so C1 to
 # C4 already refuse every number it could catch; if that stops being true, this
 # tuple is where C5 goes back to blocking.
-INFO_RULES = ("I1", "I2", "I3", "I4", "I5", "I6", "C5")
+INFO_RULES = ("I1", "I2", "I3", "I4", "I5", "I6", "I7", "C5")
 
 CHECK_RULES = [
     check_spec_present,
@@ -105,6 +107,7 @@ CHECK_RULES = [
     check_edges_tested,
     check_inputs_mocked,
     check_edge_readout,
+    check_untested_readout,
 ]
 
 GATE_RULES = [

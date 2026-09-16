@@ -9,7 +9,7 @@
   <img alt="docs in EN and pt-BR" src="https://img.shields.io/badge/docs-EN%20%C2%B7%20pt--BR-8A5A0B">
 </p>
 
-Three commands, thirty-four rules, one package.
+Three commands, thirty-five rules, one package.
 
 <p align="center">
   <picture>
@@ -107,7 +107,7 @@ python tools/slp.py check --project-dir examples/quickstart
 | --- | --- | --- |
 | `tools/templates/ci.yml` | `.github/workflows/ci.yml` | Nothing, to begin with. Set the repository variable `AGENT_LOGIN` to the agent's bot user, so the gate is required on the pull requests it opens and advisory on yours. |
 
-Twenty-five of the thirty-four rules and the whole of Control 5B, for one file and
+Twenty-six of the thirty-five rules and the whole of Control 5B, for one file and
 one variable. It installs Python and two libraries — no adapter, no credential, and
 not one `exit 1` — so the first run is green. List `ci` as a required check.
 
@@ -589,9 +589,10 @@ the source so none can quietly grow a `BLOCK`.
 | A pre-registration with an open interval or a missing field — §3 B, §3 C R6 | `P1` | `check/prereg_open_interval` | `check/prereg_ok` |
 | A `min` above its `max`, or metrics that are not the spec's — §3 B | `P2` | `check/prereg_min_gt_max` | `check/prereg_ok` |
 | No uniqueness test on the spec's `primary_key`, or one that cannot fail — §3 C R2 | `T1` | `check/pk_single_missing` | `check/pk_single_unique` |
-| An edge no unit test names in `config.meta.edge`, or a unit test naming an edge the spec does not have — §3 C R2 | `T2` | `check/T2_edge_without_unit_test` | `check/T2_ok_every_edge_tested` |
-| A unit test with no `given` rows for a `ref` or `source` its model reads — §3 C R2 | `T3` | `check/T3_input_not_mocked` | `check/T3_ok_all_inputs_given` |
+| An edge no unit test names in `config.meta.edge`, or a unit test naming an edge the spec does not have, on a model that carries a pre-registration — §3 C R2 | `T2` | `check/T2_edge_without_unit_test` | `check/T2_ok_every_edge_tested` |
+| A unit test with no `given` rows for a `ref` or `source` its model reads, on a model that carries a pre-registration — §3 C R2 | `T3` | `check/T3_input_not_mocked` | `check/T3_ok_all_inputs_given` |
 | Informs: per edge, the unit test that names it and how many rows it is given and expects — §3 E5 | `I5` | `check/T2_ok_every_edge_tested` | `check/T2_edge_without_unit_test` |
+| Informs: on a model with no pre-registration, what `T2` and `T3` would block, for a human to read — §3 C R2 | `I7` | `check/I7_untested_edge_without_prereg` | `check/T2_edge_without_unit_test` |
 
 ### `gate`
 

@@ -339,69 +339,103 @@ def _edges_of(model: Model) -> list[str] | None:
     return _strings(spec.get("known_edges")) if model.is_marts else None
 
 
+# What Rule 2 asks of a unit test, as a gap: the file and model to name, what is
+# missing, and the README reference T2 and T3 print after it. T2 and T3 block on
+# a model that carries a pre-registration - the one the agent is changing - and
+# I7 prints the same gaps on any other model as a reading.
+Gap = tuple[str, str, str, str]
+RULE_2 = " (README §3 Stage C Rule 2)"
+READING = (
+    "; the model carries no pre-registration, so this is a reading: the rule blocks once the "
+    "agent pre-registers a change" + RULE_2
+)
+
+
+def _edge_gaps(project: Project, model: Model) -> list[Gap]:
+    """Edges no unit test names in config.meta.edge, and unit tests naming an edge the spec does
+    not have."""
+    edges = _edges_of(model)
+    if edges is None:
+        return []
+    wanted = {" ".join(edge.split()): edge for edge in edges}
+    units = _units_of(project, model)
+    named = {_edge(unit) for unit in units}
+    gaps: list[Gap] = [
+        (
+            model.file,
+            model.name,
+            "no unit test names the edge '%s' in config.meta.edge; each edge becomes a unit "
+            "test, and the name is what lets a machine tell which" % edge,
+            RULE_2,
+        )
+        for key, edge in wanted.items()
+        if key not in named
+    ]
+    for unit in units:
+        claim = _edge(unit)
+        if claim is not None and claim not in wanted:
+            what = "unit test '%s' names an edge the spec does not have: '%s'" % (unit.name, claim)
+            gaps.append((unit.file, model.name, what, ""))
+    return gaps
+
+
+def _input_gaps(project: Project, model: Model) -> list[Gap]:
+    """Unit tests that give no rows for a ref or source the model's sql reads."""
+    sql = project.files.get(model.name)
+    if not model.is_marts or sql is None:
+        return []
+    reads = _inputs((project.dir / sql).read_text(encoding="utf-8", errors="replace"))
+    gaps: list[Gap] = []
+    for unit in _units_of(project, model):
+        given = unit.body.get("given")
+        mocked: set[str] = set()
+        for item in given if isinstance(given, list) else []:
+            mocked |= _inputs(str(item.get("input", ""))) if isinstance(item, dict) else set()
+        gaps += [
+            (
+                unit.file,
+                model.name,
+                "unit test '%s' has no given rows for %s, which the model reads; dbt has "
+                "nothing to mock it with, and a unit test that reads a relation is not a "
+                "unit test" % (unit.name, missing),
+                RULE_2,
+            )
+            for missing in sorted(reads - mocked)
+        ]
+    return gaps
+
+
 def check_edges_tested(project: Project) -> list[Finding]:
     """README §3 Stage C Rule 2 — each spec edge becomes a unit test "that names its edge
-    verbatim in config.meta.edge"."""
-    out: list[Finding] = []
-    for model in _sorted_models(project):
-        edges = _edges_of(model)
-        if edges is None:
-            continue
-        wanted = {" ".join(edge.split()): edge for edge in edges}
-        named = {_edge(unit) for unit in _units_of(project, model)}
-        out += [
-            block(
-                model.file,
-                model.name,
-                "no unit test names the edge '%s' in config.meta.edge; each edge becomes a unit "
-                "test, and the name is what lets a machine tell which (README §3 Stage C Rule 2)"
-                % edge,
-                "T2",
-            )
-            for key, edge in wanted.items()
-            if key not in named
-        ]
-        for unit in _units_of(project, model):
-            claim = _edge(unit)
-            if claim is not None and claim not in wanted:
-                out.append(
-                    block(
-                        unit.file,
-                        model.name,
-                        "unit test '%s' names an edge the spec does not have: '%s'"
-                        % (unit.name, claim),
-                        "T2",
-                    )
-                )
-    return out
+    verbatim in config.meta.edge", blocked "on a model that carries a pre-registration"."""
+    return [
+        block(file, name, what + ref, "T2")
+        for model in _sorted_models(project)
+        if model.prereg is not None
+        for file, name, what, ref in _edge_gaps(project, model)
+    ]
 
 
 def check_inputs_mocked(project: Project) -> list[Finding]:
     """README §3 Stage C Rule 2 — a unit test "mocks in given every ref and source the model
-    reads"."""
-    out: list[Finding] = []
-    for model in _sorted_models(project):
-        sql = project.files.get(model.name)
-        if not model.is_marts or sql is None:
-            continue
-        reads = _inputs((project.dir / sql).read_text(encoding="utf-8", errors="replace"))
-        for unit in _units_of(project, model):
-            given = unit.body.get("given")
-            mocked: set[str] = set()
-            for item in given if isinstance(given, list) else []:
-                mocked |= _inputs(str(item.get("input", ""))) if isinstance(item, dict) else set()
-            out += [
-                block(
-                    unit.file,
-                    model.name,
-                    "unit test '%s' has no given rows for %s, which the model reads; dbt has "
-                    "nothing to mock it with, and a unit test that reads a relation is not a "
-                    "unit test (README §3 Stage C Rule 2)" % (unit.name, missing),
-                    "T3",
-                )
-                for missing in sorted(reads - mocked)
-            ]
-    return out
+    reads", blocked "on a model that carries a pre-registration"."""
+    return [
+        block(file, name, what + ref, "T3")
+        for model in _sorted_models(project)
+        if model.prereg is not None
+        for file, name, what, ref in _input_gaps(project, model)
+    ]
+
+
+def check_untested_readout(project: Project) -> list[Finding]:
+    """README §3 Stage C Rule 2 — "on a model without one it prints them as a reading for the
+    human": what T2 and T3 would block, on a model with no pre-registration."""
+    return [
+        info(file, name, what + READING, "I7")
+        for model in _sorted_models(project)
+        if model.prereg is None
+        for file, name, what, _ in _edge_gaps(project, model) + _input_gaps(project, model)
+    ]
 
 
 def _rows(value: Any) -> str:

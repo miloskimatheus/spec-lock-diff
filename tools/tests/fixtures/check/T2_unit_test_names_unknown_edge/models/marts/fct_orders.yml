@@ -12,6 +12,14 @@ models:
         known_edges:
           - "status='cancelled' -> row excluded"
         sensitive_columns: [customer_email]
+      pre_registration:
+        type: data_change
+        reason: "the change this pull request makes, in one sentence"
+        row_delta: {min: 0, max: 1000}
+        removed_pks: {max: 0}
+        altered_columns: []
+        metrics:
+          gross_revenue: {delta_pct: {min: 0.0, max: 0.8}}
     columns:
       - name: order_id
         tests:

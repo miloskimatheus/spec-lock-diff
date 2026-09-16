@@ -16,7 +16,7 @@ This file is a protected path. You may not edit it.
 | # | Rule | Mechanism that enforces |
 | --- | --- | --- |
 | 1 | **No spec, stop and ask.** If the model has no spec, the agent does not start. It asks the Author to write it. | CI validates spec presence (JSON Schema). |
-| 2 | **Every model has PK test and minimum count.** The agent creates a uniqueness test on the spec's primary_key and a minimum row count test. Each spec edge becomes a unit test with synthetic fixture (invented data representing the described case) that names its edge verbatim in `config.meta.edge`, mocks in `given` every `ref` and `source` the model reads, and pins time functions with `overrides`. | CI validates test presence (JSON Schema + anti-fraud gate); `check` blocks an edge with no unit test naming it, and a unit test that leaves an input of its model unmocked. |
+| 2 | **Every model has PK test and minimum count.** The agent creates a uniqueness test on the spec's primary_key and a minimum row count test. Each spec edge becomes a unit test with synthetic fixture (invented data representing the described case) that names its edge verbatim in `config.meta.edge`, mocks in `given` every `ref` and `source` the model reads, and pins time functions with `overrides`. | CI validates test presence (JSON Schema + anti-fraud gate); `check` blocks an edge with no unit test naming it, and a unit test that leaves an input of its model unmocked, on a model that carries a pre-registration — the one the agent is changing; on a model without one it prints them as a reading for the human, so a project already in production adopts the rule one model at a time. |
 | 3 | **Test failed = code wrong.** If a test fails, the agent fixes the code. Never the opposite. The agent never weakens a test, changes an `expect`, modifies a test macro, or removes a reconciliation to make CI pass, and never writes a fixture that could not tell the code from a wrong one. | Anti-fraud gate (Control 5B) detects and blocks; the mutation check (Stage D) blocks a unit test that no mutant of the code can fail. |
 | 4 | **Metrics live in `models/semantic/`.** Metrics are defined once, in the semantic directory. If the metric the agent needs doesn't exist, it stops and asks the Author to create it. | CODEOWNERS protects `models/semantic/`. |
 | 5 | **One step at a time.** After every change the agent runs `python tools/slp.py check`, `python tools/slp.py gate --base <branch>` and `dbt test --select test_type:unit`. All green: it commits. Anything red: it reverts the working tree to the last commit (test, then commit, otherwise revert). Five reverts in a row: the agent stops and calls a human. `dbt build` runs once, in CI, never inside the loop. | `tcr.sh` is the only commit path the agent is given, and its strike counter is the 5; the gate shows the Author every commit on the branch at which `check` would have blocked. |
@@ -90,9 +90,11 @@ what you think it is.
   under `tests/` is read the same way, from its own `{{ config() }}` (`G10`).
 - A unit test that does not name its edge verbatim in `config.meta.edge`, or
   leaves a `ref` or `source` of its model without `given` rows: `check` blocks
-  both (`T2`, `T3`), and a unit test that reads a real table is the one scan
-  the loop must never make. `I5` prints, per edge, the unit test and how many
-  rows it is given and expects; a human reads that list.
+  both (`T2`, `T3`) on the model you pre-registered, and prints them (`I7`) on
+  a model nobody pre-registered, for a human to read. A unit test that reads a
+  real table is the one scan the loop must never make. `I5` prints, per edge,
+  the unit test and how many rows it is given and expects; a human reads that
+  list.
 - `tests/mutation_equivalents.yml`. When a mutant of your model survives every
   unit test, you write the unit test that kills it. If you believe the mutant
   is the same code, say so in the pull request; a human lists it, on a branch

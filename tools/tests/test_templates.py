@@ -190,7 +190,7 @@ def test_every_job_checks_out_every_commit():
 def test_the_first_workflow_needs_nothing_but_python():
     """The bottom rung of the ladder: check and gate, and not one credential.
 
-    Twenty-five of the thirty-four rules and the whole of Control 5B run on yml, git
+    Twenty-six of the thirty-five rules and the whole of Control 5B run on yml, git
     and one line of sql. If this file ever grows a warehouse step, an adopter's
     first pull request is red again and the ladder loses the rung that makes
     starting cheap.
@@ -308,6 +308,7 @@ def test_the_rule_count_in_the_readmes_is_the_number_of_rules():
         32: "thirty-two",
         33: "thirty-three",
         34: "thirty-four",
+        35: "thirty-five",
     }
     words = {
         "twenty-four": "vinte e quatro",
@@ -321,6 +322,7 @@ def test_the_rule_count_in_the_readmes_is_the_number_of_rules():
         "thirty-two": "trinta e duas",
         "thirty-three": "trinta e três",
         "thirty-four": "trinta e quatro",
+        "thirty-five": "trinta e cinco",
     }
     english = said.get(len(slp.RULE_IDS))
     assert english, "no word for %d rules; add it here" % len(slp.RULE_IDS)
