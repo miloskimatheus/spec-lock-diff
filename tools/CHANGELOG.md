@@ -56,6 +56,10 @@ has a place to hold.
   count of models held to the framework used to vanish the moment a rule
   informed, which `I5` now does on every spec with an edge. A `BLOCKED` line
   carries no note, as before.
+- **The README's sections moved by one.** Section 6 is the mutation check,
+  and what was sections 6 to 9 is now 7 to 10. A link into one of the old
+  numbered anchors, `#7-the-rules` for instance, needs its number raised by
+  one; the two such links in this repository already point where they did.
 
 ### The tool, by numbers that do not move
 
